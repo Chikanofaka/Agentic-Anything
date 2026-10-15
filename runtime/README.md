@@ -1,25 +1,30 @@
-# HAL-P2D-001 — DOING Sprint 0 (v0.0.1, offline)
+# HAL-P2D-001 — DOING Sprint 1 (offline)
 
 **Approved Human Gate:** DOING, 2026-10-14. Scope remains restricted: no public GitHub, no real API keys, no billable inference and no external data access.
 
 This is a **real deterministic prototype of the HAL Core**, not an AI agent or production desktop installer. It is grounded in the `HAL_PRD_v2_0`, `Domain Swap Lab`, and PRD-Compiler recursive feedback. It proves a small common execution contract for two separately packaged specialist demo domains.
 
+Sprint 1 adds strict `hal-domain/v1` validation, explicit legacy normalization, safe common GitHub ZIP wrapper handling, typed installed tool/value contracts and effect denials. See [package contract](docs/DOMAIN_PACKAGE_V1.md), [baseline audit](../engineering/BASELINE_AUDIT.md), and [Sprint 1 receipt](../engineering/SPRINT1_RECEIPT.md). Historical Sprint 0 receipts remain unchanged.
+
 ## What works (REAL)
 
-- Inspect either a local directory or a ZIP package with `harness.json` at the root.
+- Inspect a local directory, root ZIP, or one unambiguous GitHub top-folder ZIP. No extraction or imported code execution.
 - Validate explicit file paths, manifest schema, required Skills, permission declarations, size limits, secrets filename patterns, and reject symlinks/unsafe ZIP paths.
-- Resolve typed feature ports against a **trusted adapter registry**. Reject provider names that are managed-agent task APIs in a direct model slot.
+- Normalize demo manifests to `hal-domain/v1` without rewriting them. Match tool IDs, ports, value contracts and permission requests against a **trusted adapter registry**. Required unavailable permissions or model capabilities block activation.
 - Dispatch two curated deterministic domain methods via *one* HAL Core (no modifications to core between the domains): Research Diagnostics (revenue/cost/profit/margin) and Returns Operations (fictional returns triage).
 - Return machine-readable run receipts with selected feature, package SHA-256 content digest, internal state events, result and explicit `live_model_used:false` / `external_writes:false`.
-- Refuse unknown/untrusted package code execution, model features without a real verified adapter, secret-shaped input fields and invalid specialist inputs.
+- Refuse unknown/untrusted package code execution, model features without a real verified adapter, secret-shaped input fields and invalid specialist inputs or nonfinite outputs.
 
-## Quickstart — no installation beyond Python 3.10+
+## Quickstart — standard-library Python only
+
+Python 3.10+ is the recommended baseline; the actual available interpreter tested in this workspace is 3.9.6. This is observed compatibility, not a verified OS/interpreter support matrix. Safe filesystem import currently needs POSIX no-follow descriptor support; unsupported platforms fail closed. No dependencies were installed.
 
 Extract ZIP, open terminal **from this folder**:
 
 ```bash
 python3 -m hal_core.cli inspect --package fixtures/research
 python3 -m hal_core.cli inspect --package fixtures/returns
+python3 -m hal_core.cli inspect --package fixtures/research --normalized
 python3 -m hal_core.cli run --package fixtures/research --feature calculate-margin --payload '{"revenue":1500,"cost":900}'
 python3 -m hal_core.cli run --package fixtures/returns --feature triage-return --payload '{"condition":"sealed","proof":"yes","days":5}'
 python3 -m hal_core.cli preflight --package fixtures/research --feature ai-interpretation --provider manus
@@ -46,6 +51,7 @@ python3 -m hal_core.cli inspect --package path/to/research-harness.zip
 ## Source and next handoff
 
 - `docs/SPRINT0_SCOPE_AND_ACCEPTANCE.md` — requirement mapping, completion status, UAT gates
+- `docs/DOMAIN_PACKAGE_V1.md` — current strict package contract, migration, capability and permission rules
 - `docs/SECURITY_AND_LIMITATIONS.md` — threat model and real safety boundaries
 - `docs/CODEX_NEXT_ENGINEERING.md` — scoped Codex instructions and blockers
 - `docs/DECISION_AND_SOURCE_LEDGER.md` — baselines and architectural decisions

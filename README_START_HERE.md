@@ -14,9 +14,11 @@ python3 --version
 bash scripts/verify_local.sh
 ```
 
-Python **3.10+** is required to run the existing offline tests. If Python is unavailable, ask Codex to diagnose locally; never install dependencies silently. The script performs zero network/model calls.
+Python **3.10+** is the recommended baseline. The verifier reports the actual interpreter and can record observed compatibility on 3.9. If Python is unavailable, diagnose locally; never install dependencies silently. The script performs zero network/model calls.
 
-Expected: 31 offline unit tests passing, Research revenue 1500/cost 900 -> profit 600/margin 40.0%, Returns sealed/proof yes/5days -> STANDARD_RETURN, and denied Manus direct-model port.
+The preserved Sprint 0 baseline had 31 passing tests. Sprint 1 adds schema, archive, typed capability and CLI regression/security tests; see `engineering/SPRINT1_RECEIPT.md` for the current count. The verifier asserts Research revenue 1500/cost 900 -> profit 600/margin 40.0%, Returns sealed/proof yes/5days -> STANDARD_RETURN, and the actual Manus CLI denial with exit code 2.
+
+Environment evidence: this workspace currently provides Python 3.9.6, which passes the recorded checks. Python 3.10+ remains recommended; the broader version/OS support matrix is unverified. No dependency installation is needed or attempted.
 
 ## 3. Start Codex
 Open the **Codex** chat pane in VS Code. Paste the full content of `CODEX_FIRST_PROMPT.md`. It gives the agent an ordered reading plan, execution mandate, explicit prohibitions, and evidence/acceptance rules.

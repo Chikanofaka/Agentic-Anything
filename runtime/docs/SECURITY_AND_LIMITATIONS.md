@@ -1,4 +1,10 @@
-# Security and Execution Boundary — Sprint 0
+# Security and Execution Boundary — Sprint 0 baseline and Sprint 1 update
+
+## Sprint 1 update — 2026-10-16
+
+The current implementation adds strict `hal-domain/v1` with explicit legacy normalization, canonical paths and one-wrapper ZIP normalization, bounded no-follow file reads, archive metadata/CRC error handling, recursive secret-shaped field checks, typed host tool contracts and finite input/output validation. Required effects remain unavailable and block execution. See `DOMAIN_PACKAGE_V1.md` for exact limits and `../../engineering/SPRINT1_RECEIPT.md` for executed evidence. These controls strengthen the following baseline; they do not authenticate publishers, verify licenses, scan arbitrary secret contents, isolate processes or implement a native credential broker. POSIX no-follow support is required and the observed interpreter is Python 3.9.6; other platforms are not certified. Concurrent changes are checked where possible, but the inspector is not an atomic filesystem snapshot.
+
+The package ID selects a reviewed pure host adapter; matching it does not prove source trust. Registered value schemas live with trusted adapters. No source module path or shell target comes from a manifest. CLI errors and tool exceptions use static diagnostics, and payload JSON rejects duplicate keys/nonfinite values. New tests cover import attacks, schema/compatibility, capability/permission escalation, malformed CLI inputs and specialist numeric/output failure paths.
 
 ## Assets and adversaries
 Assets: user files, API keys, private business data, filesystem and machine resources, external accounts. Threats: ZIP path traversal, malicious untrusted package code, symlink escape, coercive feature permissions, hidden secret files, endpoint mismatch, prompt injection in README/Skill, false readiness signals.
@@ -21,4 +27,4 @@ Assets: user files, API keys, private business data, filesystem and machine reso
 - No credential was collected or used; no provider was called; no third-party database was accessed; no GitHub repository was modified.
 
 ## Negative tests
-`tests/test_hal.py` tests rejection of symlinks, ZIP traversal, .env, manifest secrets, missing referenced files, unsafe requested permissions, unsupported model port, invalid domain input, secret field, unknown/untrusted domain and model execution before adapter installation.
+`tests/test_hal.py` preserves baseline cases. `test_package_security.py`, `test_schema.py`, `test_capabilities.py` and `test_cli.py` add Sprint 1 negative and regression coverage; use `bash ../scripts/verify_local.sh` from runtime for the full suite and actual CLI output/denial assertions.
