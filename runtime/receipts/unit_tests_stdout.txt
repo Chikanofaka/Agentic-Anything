@@ -1,0 +1,36 @@
+test_digests_different (test_hal.HalContractTests.test_digests_different) ... ok
+test_do_not_run_ai (test_hal.HalContractTests.test_do_not_run_ai) ... ok
+test_duplicate_feature (test_hal.HalContractTests.test_duplicate_feature) ... ok
+test_extra_fields_blocked (test_hal.HalContractTests.test_extra_fields_blocked) ... ok
+test_inspect_research (test_hal.HalContractTests.test_inspect_research) ... ok
+test_inspect_returns (test_hal.HalContractTests.test_inspect_returns) ... ok
+test_invalid_revenue (test_hal.HalContractTests.test_invalid_revenue) ... ok
+test_invalid_zip_secret (test_hal.HalContractTests.test_invalid_zip_secret) ... ok
+test_invalid_zip_traversal (test_hal.HalContractTests.test_invalid_zip_traversal) ... ok
+test_missing_manifest (test_hal.HalContractTests.test_missing_manifest) ... ok
+test_missing_readme (test_hal.HalContractTests.test_missing_readme) ... ok
+test_missing_skill (test_hal.HalContractTests.test_missing_skill) ... ok
+test_nan_revenue (test_hal.HalContractTests.test_nan_revenue) ... ok
+test_negative_days (test_hal.HalContractTests.test_negative_days) ... ok
+test_no_spoofed_local_port (test_hal.HalContractTests.test_no_spoofed_local_port) ... ok
+test_no_unknown_domain_exec (test_hal.HalContractTests.test_no_unknown_domain_exec) ... ok
+test_permission_declined (test_hal.HalContractTests.test_permission_declined) ... ok
+test_port_local (test_hal.HalContractTests.test_port_local) ... ok
+test_port_managed_agent (test_hal.HalContractTests.test_port_managed_agent) ... ok
+test_port_no_model (test_hal.HalContractTests.test_port_no_model) ... ok
+test_port_unknown_domain (test_hal.HalContractTests.test_port_unknown_domain) ... ok
+test_port_unverified_not_active (test_hal.HalContractTests.test_port_unverified_not_active) ... ok
+test_reject_symlink (test_hal.HalContractTests.test_reject_symlink) ... ok
+test_research_real (test_hal.HalContractTests.test_research_real) ... ok
+test_returns_negative (test_hal.HalContractTests.test_returns_negative) ... ok
+test_returns_real (test_hal.HalContractTests.test_returns_real) ... ok
+test_secret_field (test_hal.HalContractTests.test_secret_field) ... ok
+test_secret_payload_blocked (test_hal.HalContractTests.test_secret_payload_blocked) ... ok
+test_tool_budget (test_hal.HalContractTests.test_tool_budget) ... ok
+test_untrusted_source_not_executed (test_hal.HalContractTests.test_untrusted_source_not_executed) ... ok
+test_zip (test_hal.HalContractTests.test_zip) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 0.022s
+
+OK

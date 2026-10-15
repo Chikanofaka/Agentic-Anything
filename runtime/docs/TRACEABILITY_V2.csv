@@ -1,0 +1,17 @@
+﻿Need_ID,JTBD,FR_ID,Priority,PRD_sections,UI_or_contract,Data_and_permissions,UAT_ID,positive_and_negative_evidence,owner,ready_status
+N02,Developer/Consumer/Maintainer decision,F01,Must,"07,10",Shell navigation,Declared per PRD §§11–13; no raw model keys in UI,T01,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N03,Developer/Consumer/Maintainer decision,F02,Must,"12,14",Curated fixture parsing,Declared per PRD §§11–13; no raw model keys in UI,T02,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N01,Developer/Consumer/Maintainer decision,F03,Must,10,README,Declared per PRD §§11–13; no raw model keys in UI,T03,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N01,Developer/Consumer/Maintainer decision,F04,Must,12,Source zip,Declared per PRD §§11–13; no raw model keys in UI,T04,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N02,Developer/Consumer/Maintainer decision,F05,Must,10,Key Academy,Declared per PRD §§11–13; no raw model keys in UI,T05,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+"N02,N04",Developer/Consumer/Maintainer decision,F06,Must,17,Provider port,Declared per PRD §§11–13; no raw model keys in UI,T06,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N03,Developer/Consumer/Maintainer decision,F07,Must,"15,20",Domain swap,Declared per PRD §§11–13; no raw model keys in UI,T07,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+"N02,N03",Developer/Consumer/Maintainer decision,F08,Must,15,Deterministic domain core,Declared per PRD §§11–13; no raw model keys in UI,T08,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+"N02,N04",Developer/Consumer/Maintainer decision,F09,Must,16,Model seat,Declared per PRD §§11–13; no raw model keys in UI,T09,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N04,Developer/Consumer/Maintainer decision,F10,Must,"14,17",Readiness matrix,Declared per PRD §§11–13; no raw model keys in UI,T10,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+"N01,N05",Developer/Consumer/Maintainer decision,F11,Must,12,Exports,Declared per PRD §§11–13; no raw model keys in UI,T11,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+"N05,N06",Developer/Consumer/Maintainer decision,F12,Must,"25,28",Human gate,Declared per PRD §§11–13; no raw model keys in UI,T12,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+"N04,N05",Developer/Consumer/Maintainer decision,F13,Must,19,Recovery,Declared per PRD §§11–13; no raw model keys in UI,T13,See UAT_MATRIX.md,Product; Codex/QA for Doing,REAL/SIMULATED
+N04,Developer/Consumer/Maintainer decision,F14,Must,"11,13",Native key broker,Declared per PRD §§11–13; no raw model keys in UI,T14,See UAT_MATRIX.md,Product; Codex/QA for Doing,DOING_OUT_OF_SCOPE
+"N02,N04",Developer/Consumer/Maintainer decision,F15,Must,"16,19",Agent runtime,Declared per PRD §§11–13; no raw model keys in UI,T15,See UAT_MATRIX.md,Product; Codex/QA for Doing,DOING_OUT_OF_SCOPE
+N03,Developer/Consumer/Maintainer decision,F16,Should,"03,24",Cross-repo validation,Declared per PRD §§11–13; no raw model keys in UI,T16,See UAT_MATRIX.md,Product; Codex/QA for Doing,DOING_OUT_OF_SCOPE

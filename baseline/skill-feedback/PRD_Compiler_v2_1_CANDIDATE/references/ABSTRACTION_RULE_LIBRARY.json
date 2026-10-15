@@ -1,0 +1,242 @@
+{
+  "PR00": {
+    "id": "PR00",
+    "name": "Document positioning and editorial contract",
+    "triggers": "定位|文档用途|输出对象|管理层|供应商|对外口径|使用说明|AGENDA|目录",
+    "conversion_rule": "先定义文档的决策用户、用途、决策权、约束与版本；区分内部执行视图、外部采购视图及尚未确认的信息。",
+    "question_fields": "目标决策人、需作出的决定、文档口径、依据材料、假设状态",
+    "required_output": "文档控制卡：版本、依据、受众、决策、边界、术语"
+  },
+  "PR01": {
+    "id": "PR01",
+    "name": "Demand evidence and primary pain",
+    "triggers": "为什么|痛点|问题描述|瓶颈|挑战|现状|为什么现在|问题|需求",
+    "conversion_rule": "把情境描述转成可验证的因果需求：谁在什么流程下遭遇何种阻碍、目前如何替代、发生频率、后果和佐证；不以技术方案取代问题定义。",
+    "question_fields": "用户、触发场景、现在的做法、频率、损失、来源/反例",
+    "required_output": "Need Statement + Evidence Ledger + 可证伪假设"
+  },
+  "PR02": {
+    "id": "PR02",
+    "name": "Strategic positioning and goals",
+    "triggers": "战略|定位|方向|愿景|目的|赋能|价值主张|模式|生态",
+    "conversion_rule": "从上位战略明确竞争目标及非目标；将愿景拆为业务可达成状态，明确这是工具、能力系统还是基础设施，以及应保留的组织控制权。",
+    "question_fields": "战略目标、角色、优势、边界、业务因果",
+    "required_output": "定位声明 + 战略一致性表"
+  },
+  "PR03": {
+    "id": "PR03",
+    "name": "Scope and staged delivery",
+    "triggers": "一期|二期|阶段|边界|范围|先做|后做|MVP|最小闭环|迭代|分期|优先试点",
+    "conversion_rule": "将完整终局分解为最小可验证价值链；按用户价值、依赖、风险、周期安排本期/下期/排除项，明确为何这样切割及扩展条件。",
+    "question_fields": "终局能力、价值关键路径、约束、待验证假设",
+    "required_output": "范围矩阵+阶段目标+明确非目标"
+  },
+  "PR04": {
+    "id": "PR04",
+    "name": "Stakeholder and role system",
+    "triggers": "角色|部门|人员|用户|账号|权限箱|供应商角色|负责|负责人|基金经理",
+    "conversion_rule": "从具体组织名称抽象出角色/责任/权限/对象；定义谁使用、谁批准、谁拥有数据、谁支持、谁担责，并建立角色到功能与数据的映射。",
+    "question_fields": "角色、人数/规模、核心任务、操作、责任人",
+    "required_output": "Persona JTBD + RACI + 角色功能矩阵"
+  },
+  "PR05": {
+    "id": "PR05",
+    "name": "Security classification and least privilege",
+    "triggers": "安全|机密|保密|隔离|敏感|权限|审计|授权|加密|客户信息|外泄|风控|水印",
+    "conversion_rule": "先列数据敏感度和资产权属，再用身份×资源×动作×场景确定默认拒绝权限；补充审批、日志、保留期、撤销、跨边界传输的规则与负面测试。",
+    "question_fields": "敏感级别、主体、资源、动作、政策、审计",
+    "required_output": "分级分权矩阵+威胁模型+授权测试"
+  },
+  "PR06": {
+    "id": "PR06",
+    "name": "Data inventory, provenance, refresh",
+    "triggers": "底层|知识库|数据治理|资料|数据库|文件夹|文件|来源|字段|清洗|上传|更新|入库|存量|RAG",
+    "conversion_rule": "将原始材料按来源、业务用途、粒度、质量、敏感度、授权、更新频率、追溯能力归类；先形成数据目录，再定义ETL/RAG/检索路径和纠错机制。",
+    "question_fields": "数据源、格式、结构、权属、频率、可用性、缺失项",
+    "required_output": "数据资产目录 + 流转图 + 数据契约"
+  },
+  "PR07": {
+    "id": "PR07",
+    "name": "Functional inventory and scenarios",
+    "triggers": "功能|模块|筛选|分析|看板|报告|模板|问答|研究|推荐|查询|推送|支持",
+    "conversion_rule": "每项功能按照触发、输入、执行规则、界面状态、输出、异常、验收七元组定义；以用户场景为分组，不用抽象技术名替代功能。",
+    "question_fields": "用户故事、优先级、输入/动作/输出、边界",
+    "required_output": "功能矩阵 + 用户故事 + Given/When/Then"
+  },
+  "PR08": {
+    "id": "PR08",
+    "name": "Interaction and onboarding design",
+    "triggers": "交互|界面|Web|APP|UI|前端|聊天|语音|Canvas|画布|引用|截图|Mockup|页面|原型",
+    "conversion_rule": "把需求翻译为屏幕状态与行动路径：首次进入、任务选择、加载、成功、错误、恢复、撤销、历史、可访问性；至少展示一条真实闭环并标明模拟部分。",
+    "question_fields": "设备、入口、控件、场景、任务状态、错误、输出动作",
+    "required_output": "信息架构+关键用户旅程+页面状态清单"
+  },
+  "PR09": {
+    "id": "PR09",
+    "name": "Three-layer architecture and boundaries",
+    "triggers": "三层|架构图|技术架构|底层|中间层|应用层|前后端|Client|Agent|API|部署|本地化|逻辑层",
+    "conversion_rule": "定义数据/逻辑/应用逻辑分层并明确每层责任、输入输出契约和安全信任边界；区分方案假设与已验证实现；对关键依赖给出替代路径。",
+    "question_fields": "数据接口、计算单元、UI渠道、边界、部署约束",
+    "required_output": "分层架构+模块边界+连接契约+部署方案"
+  },
+  "PR10": {
+    "id": "PR10",
+    "name": "Workflow orchestration, gates and agents",
+    "triggers": "Agent|多智能体|多Agent|红蓝|研究总监|CIO|调度|workflow|CoT|PK|循环|门控|步骤",
+    "conversion_rule": "从领域工作拆出有明确输入输出的节点：路由、工具、复核、反证、人工决策；规定状态转移、失败重试及中间工件，不把复杂角色数量当目标。",
+    "question_fields": "角色节点、状态、接口、证据、退出条件",
+    "required_output": "工作流状态机 + 工件流 + 质量门"
+  },
+  "PR11": {
+    "id": "PR11",
+    "name": "Model, vendor and tool integration",
+    "triggers": "第三方|平台|Wind|Alpha|DeepSeek|GPT|模型|Token|MCP|采购|接口|云|供应商|服务商|认证|比选",
+    "conversion_rule": "区分模型推理、托管Agent任务、数据源、执行工具和嵌入SDK；逐一核对API/授权/费率/频控/限额/兼容性和不可用时的回退。",
+    "question_fields": "供应类型、商业状态、技术协议、数据权限、限额",
+    "required_output": "供应商对比矩阵 + 依赖台账 + Preflight"
+  },
+  "PR12": {
+    "id": "PR12",
+    "name": "Memory, versioning and feedback",
+    "triggers": "记忆|反馈|偏好|历史|刷新|追问|版本|学习|迭代|修正|跟踪",
+    "conversion_rule": "说明什么需要记、如何更新/纠错、保存多久、哪些不能持久化；用户反馈如何影响后续工件与决策，并保留版本差异与撤销机制。",
+    "question_fields": "会话事实、长期偏好、业务知识、更新触发、删除权",
+    "required_output": "记忆模型 + 版本追踪 + Feedback Loop"
+  },
+  "PR13": {
+    "id": "PR13",
+    "name": "Cost, resource and commercial model",
+    "triggers": "费用|成本|薪酬|报价|估价|预算|定价|人民币|美元|人天|采购费|算力|capex|opex|利率",
+    "conversion_rule": "将预算拆为人天、模型使用、数据/工具采购、基础设施、合规安全、测试运维和预备金；所有数字标币种/周期/来源/报价状态，情景测算不能伪装真实成本。",
+    "question_fields": "工作包、人天/单价、tokens、供应费用、时间、区间",
+    "required_output": "左成本右价值双栏+低基高情景+报价表"
+  },
+  "PR14": {
+    "id": "PR14",
+    "name": "Business value, metrics and ROI",
+    "triggers": "效益|价值|成果|节省|提升|效率|转化率|增长|收益|替代|等效|指标|35亿|50%|定量",
+    "conversion_rule": "将业务愿景拆成可测价值假设：现状基线→预期改善→测量频率→归因→反证，区分减少成本、提升吞吐、质量/风险改善与战略期权。",
+    "question_fields": "基线、目标、分母、时间、方法、归因",
+    "required_output": "价值树+KPI契约+ROI模型（含不确定性）"
+  },
+  "PR15": {
+    "id": "PR15",
+    "name": "Acceptance and quality tests",
+    "triggers": "验收|通过|测试|内测|试跑|评估|准确率|异常|回退|checklist|核对|验证|门槛",
+    "conversion_rule": "每个需求定义客观验收：前置条件、输入数据、执行动作、可观察结果、失败负例、责任人、证据链接；不得以“页面能点”代替业务闭环。",
+    "question_fields": "验收对象、测试数据、阈值、否定路径、签字人",
+    "required_output": "验收矩阵+测试用例+失败恢复"
+  },
+  "PR16": {
+    "id": "PR16",
+    "name": "Roadmap, workstreams and dependency matrix",
+    "triggers": "周|W1|W2|W3|W4|W5|W6|里程碑|日程|甘特|计划|时间|阶段明细|优先级|P1|P2|收口",
+    "conversion_rule": "将需求拆成可归责交付包，再标注前置依赖、负责角色、预计工时、风险缓冲、阶段出口和验收点；以关键路径驱动优先级，避免多个赛道互相挤占。",
+    "question_fields": "工作流、起止周、owner、依赖、风险、交付物",
+    "required_output": "六线/多线矩阵+关键路径+版本闸门"
+  },
+  "PR17": {
+    "id": "PR17",
+    "name": "Governance, decisions and signoff",
+    "triggers": "决策|审批|拍板|签字|立项|启动|owner|共识|机制|管理层|人力|职责",
+    "conversion_rule": "明确谁有权批准范围、预算、敏感数据接入、验收和发布；记录待决策事项、替代方案、决策期限、变更规则与签字格式。",
+    "question_fields": "决策层级、治理结构、会议节奏、门槛",
+    "required_output": "决策台账+RACI+启动签署页"
+  },
+  "PR18": {
+    "id": "PR18",
+    "name": "Supplier tender and evaluation",
+    "triggers": "招标|回标|询价|供应商|选型|报价|外包|资源供应商|竞争方案",
+    "conversion_rule": "统一招标输入和验收口径；供应商必须逐条回应范围、接口、人员、人天、排除项、知识产权、安全、SLA和交付证据；按事先定义的权重评估。",
+    "question_fields": "商业模型、技术标准、报价拆分、评分权重",
+    "required_output": "供应商回标模板+对比评分+排除项清单"
+  },
+  "PR19": {
+    "id": "PR19",
+    "name": "MVM / Prototype as learning instrument",
+    "triggers": "原型|demo|演示|mockup|MVM|prototype|游戏|稿|页面|视觉",
+    "conversion_rule": "MVM 直接模拟或实现未来产品的核心行为而非隐喻；场景脚本包含问题、操作、预期、错误恢复与用户反馈，且清楚区分真实和模拟。",
+    "question_fields": "价值机制、关键时刻、场景、操作者、反馈",
+    "required_output": "可体验样稿脚本+现实标签+Human UAT"
+  },
+  "PR20": {
+    "id": "PR20",
+    "name": "Risk, counterfactual and alternatives",
+    "triggers": "风险|依赖|无法|不能|不确定|回退|障碍|漏洞|问题清单|替代方案|挑战",
+    "conversion_rule": "识别使项目失败的关键假设：技术、安全、商业、采用、数据、流程；给每个假设设反证、最便宜验证、停损点、责任人及回退方案。",
+    "question_fields": "风险概率、影响、触发、反证、恢复",
+    "required_output": "风险台账+失败模式分析+No-build对照"
+  },
+  "PR21": {
+    "id": "PR21",
+    "name": "Research discipline, evidence and red/blue review",
+    "triggers": "假设|证据|来源|可信|置信度|红军|蓝军|竞争|交叉验证|对抗|辩论",
+    "conversion_rule": "在关键结论前锁定可证伪假设；要求正反证据、版本化来源、独立复核和人类裁定，避免领域智能体以流畅文本冒充可靠判断。",
+    "question_fields": "命题、前提、证据等级、反证、裁定",
+    "required_output": "证据链+假设门+对抗验证和裁决"
+  },
+  "PR22": {
+    "id": "PR22",
+    "name": "UI visual rhetoric and decision-ready presentation",
+    "triggers": "PPT|slide|AGENDA|封面|脑图|图示|视觉|截图|颜色|Layout|屏幕|图表",
+    "conversion_rule": "将演示视觉抽象为“决策信息顺序”：封面→为何→谁/痛点→方案→业务流→系统图→成本价值→里程碑→风险→行动。保留图形所表达的结构关系，换掉具体品牌/数值。",
+    "question_fields": "受众、决策阶段、信息密度、图元关系",
+    "required_output": "PRD视觉页版式规则+图表字段合同"
+  },
+  "PR23": {
+    "id": "PR23",
+    "name": "Source evidence integrity and conflict resolution",
+    "triggers": "会议|纪要|访谈|引用|来源|原文|资料|记录|总结|SOP|意见书|日志",
+    "conversion_rule": "把原始陈述与推导、提议和外部验证分开；冲突版本并列列示并说明为何采用某版本，不静默调和不同时间的报价和范围。",
+    "question_fields": "来源版本、作者、日期、事实状态、冲突",
+    "required_output": "来源追踪表+冲突台账+未知项问卷"
+  },
+  "PR24": {
+    "id": "PR24",
+    "name": "Execution and operational handoff",
+    "triggers": "部署|上线|运维|监控|回滚|日志|备份|归档|支持|用户培训|交接",
+    "conversion_rule": "把开发完成之外的上线准备独立为工作流：环境/权限、部署、观测、版本、运行手册、回滚、用户培训与支持责任，确保工程能真实落地。",
+    "question_fields": "运行环境、交付清单、SLA、事故处理、回退条件",
+    "required_output": "运维验收+handoff清单+Runbook"
+  },
+  "PR25": {
+    "id": "PR25",
+    "name": "Operational plan and prioritization matrix",
+    "triggers": "计划矩阵|闭环关键|低紧急|高紧急|第三方平台|思想结构化|个人与AI|管理与验收|W1｜|W2｜|W3｜",
+    "conversion_rule": "把多条并行事务映射到周×工作流矩阵；每格必须可见优先级、截止、行动、输出、负责人与阻塞项；区分战略主线和协作支线。",
+    "question_fields": "周、工作流、优先级、里程碑、owner、阻塞",
+    "required_output": "运营矩阵+风险/依赖仪表盘"
+  },
+  "PR26": {
+    "id": "PR26",
+    "name": "Specialist method vs adaptive generation",
+    "triggers": "方法论|框架|模板|技能|Skill|prompt|投研逻辑|结构化|死框架|活生成",
+    "conversion_rule": "区分必须固定的领域纪律与可以由模型扩展的自由度；将硬约束、开放参数、资料依赖、复核方式和中间输出写成可复用领域契约。",
+    "question_fields": "领域准则、可变项、模型边界、反例",
+    "required_output": "Domain Contract + 固定/生成分界表"
+  },
+  "PR27": {
+    "id": "PR27",
+    "name": "Commercial and partnership terms",
+    "triggers": "分成|激励|提成|回报|签约|股权|奖金|合作模式|合同|产权",
+    "conversion_rule": "将项目商务结构与技术交付分离：付款节点、收益归属、知识产权、绩效计算口径、终止条件、审批责任；不得将讨论中条款当作生效合同。",
+    "question_fields": "合作主体、收益口径、结算时点、权属、例外",
+    "required_output": "商务条款草案+法律复核待办"
+  },
+  "PR28": {
+    "id": "PR28",
+    "name": "Generic process node, operator and state",
+    "triggers": "触发|输入|输出|节点|操作|流程|连接|调用|任务|处理|成功|失败",
+    "conversion_rule": "无论来源是否描述技术，提取“行动主体→触发→输入→处理→输出→下一步”，并明确执行条件与失败状态；将领域名词替换为占位变量。",
+    "question_fields": "角色、触发、对象、变换、产物、状态",
+    "required_output": "流程节点模板+状态机"
+  },
+  "PR29": {
+    "id": "PR29",
+    "name": "Abstract headings and navigation labels",
+    "triggers": "章|表|图|概览|纲要|小结|结论|日程|功能体系|产品体系|阶段明细",
+    "conversion_rule": "标题/目录/栏目应转成组织逻辑，而不是照抄标题字面；识别章节顺序、层级、首次定义、跨章节引用和缺失栏目。",
+    "question_fields": "受众、章节类型、依赖、阅读路径",
+    "required_output": "完整目录骨架和导航锚点"
+  }
+}

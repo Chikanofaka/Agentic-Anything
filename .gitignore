@@ -1,0 +1,20 @@
+# Never include secrets, environment files or local artifacts
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*secret*
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+.DS_Store
+out/
+build/
+dist/
+.local/
+private/
+*.log

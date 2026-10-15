@@ -1,0 +1,28 @@
+{
+  "domain_id": "research-diagnostics",
+  "elapsed_ms": 0.79,
+  "events": [
+    {
+      "code": "PACKAGE_INSPECTED"
+    },
+    {
+      "code": "FEATURE_RESOLVED"
+    },
+    {
+      "code": "TRUSTED_TOOL_EXECUTED"
+    }
+  ],
+  "external_writes": false,
+  "feature": "calculate-margin",
+  "kind": "DETERMINISTIC_OFFLINE",
+  "live_model_used": false,
+  "package_digest": "f1e7edf1efa0b3bf87c1acd69edd453aa95b6a21648c415d64eadd02a8078e6f",
+  "result": {
+    "margin_pct": 40.0,
+    "profit": 600.0,
+    "rule": "margin-v1",
+    "unit": "user_supplied_units"
+  },
+  "run_id": "4226013e-be1f-44e3-87c0-73c0669b823d",
+  "status": "SUCCESS"
+}

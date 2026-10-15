@@ -1,0 +1,8 @@
+{
+ "schema_version":"hal-demo/v0.2","id":"returns-operations","name":"Returns Operations","version":"0.2.0","domain":"returns",
+ "description":"Classify a fictional returned parcel using deterministic rules. No customer data is required.",
+ "entrypoint":"main.py","readme":"README.md","skills":["skills/returns/SKILL.md"],
+ "features":[{"id":"triage-return","required_ports":["LOCAL_TRIAGE"]},{"id":"ai-interpretation","required_ports":["LLM_DIRECT","LOCAL_TRIAGE"]}],
+ "permissions":{"filesystem":"selected_paths_only","external_write":"approval_required"},
+ "model_requirements":{"tool_calling":true}
+}
