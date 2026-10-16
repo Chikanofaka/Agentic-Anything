@@ -7,6 +7,7 @@ from typing import Callable
 
 from trusted_adapters.research import run as research_run
 from trusted_adapters.returns import run as returns_run
+from trusted_adapters import witness
 
 
 class Port(str, Enum):
@@ -39,6 +40,30 @@ TRUSTED = {
         'triage-return', Port.LOCAL_TRIAGE,
         'returns-triage-input/v1', 'returns-triage-output/v1',
         (), frozenset({'triage'}), returns_run),
+    ('witness-loop', 'witness-step'): ToolBinding(
+        'witness-step', Port.TOOL_API,
+        'witness-turn-input/v1', 'witness-turn-output/v1',
+        (), frozenset({'narrative_state'}), witness.run),
+}
+
+
+@dataclass(frozen=True)
+class InteractiveBinding:
+    """Reviewed domain lifecycle; the shared host owns transactions and storage."""
+    package_directory: str
+    start: Callable
+    validate_state: Callable
+    classify_context: Callable
+    prepare_turn: Callable
+    finalize_turn: Callable
+    act: Callable
+    user_markdown: Callable
+
+
+INTERACTIVE = {
+    'witness-loop': InteractiveBinding('witness', witness.start, witness.validate_state,
+        witness.classify_context, witness.prepare_turn, witness.finalize_turn,
+        witness.act, witness.user_markdown),
 }
 
 

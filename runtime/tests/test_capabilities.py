@@ -147,12 +147,36 @@ class CapabilityContractTests(unittest.TestCase):
         self.assert_blocked(run(package, 'calculate-margin', {'revenue': 10, 'cost': 1}))
 
     def test_unimplemented_port_families_block(self):
-        for port in ('MANAGED_AGENT', 'EMBEDDED_CHANNEL', 'DATA_FEED', 'TOOL_API'):
+        for port in ('MANAGED_AGENT', 'EMBEDDED_CHANNEL', 'DATA_FEED'):
             with self.subTest(port=port):
                 package = self.package(edit=lambda m: m['features'][0]['required_capabilities'].append({'port': port, 'capabilities': []}))
                 status = feature_status(inspect(package), 'calculate-margin')
                 self.assertIn(port + ':NO_REGISTERED_ADAPTER', status['missing_ports'])
                 self.assert_blocked(run(package, 'calculate-margin', {'revenue': 10, 'cost': 1}))
+
+    def test_tool_api_does_not_grant_an_unmatched_domain_tool(self):
+        package = self.package(edit=lambda m: m['features'][0]['required_capabilities'].append(
+            {'port': 'TOOL_API', 'capabilities': ['narrative_state']}))
+        status = feature_status(inspect(package), 'calculate-margin')
+        self.assertIn('TOOL_API:NO_CURATED_BINDING', status['missing_ports'])
+        self.assert_blocked(run(package, 'calculate-margin', {'revenue': 10, 'cost': 1}))
+
+    def test_witness_uses_shared_engine_and_typed_domain_contract(self):
+        from trusted_adapters.witness import initial_state
+        result = run(ROOT / 'fixtures/witness', 'witness-step',
+                     {'state': initial_state(), 'text': '我保证会保护你。'})
+        self.assertEqual(result['status'], 'SUCCESS')
+        self.assertEqual(result['input_contract'], 'witness-turn-input/v1')
+        self.assertEqual(result['output_contract'], 'witness-turn-output/v1')
+        self.assertTrue(result['result']['state']['promise'])
+        self.assertEqual(result['result']['state']['case_turns'], 1)
+        self.assertFalse(result['live_model_used'])
+        self.assertFalse(result['external_writes'])
+
+    def test_witness_model_feature_still_requires_native_activation(self):
+        status = feature_status(inspect(ROOT / 'fixtures/witness'), 'intelligent-witness', 'openai')
+        self.assertEqual(status['missing_ports'], ['LLM_DIRECT:UNVERIFIED_LIVE_CREDENTIALS_AND_CAPABILITIES'])
+        self.assertFalse(status['live_model_verified'])
 
     def test_v1_managed_agent_cannot_activate_direct_model(self):
         status = feature_status(inspect(self.package()), 'ai-interpretation', 'manus')

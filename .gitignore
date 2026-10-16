@@ -18,3 +18,5 @@ dist/
 .local/
 private/
 *.log
+integrations/witness_loop/data/
+integrations/witness_loop/.build-cache/

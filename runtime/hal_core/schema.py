@@ -11,7 +11,7 @@ VERSION = re.compile(r'^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')
 CONTRACT_ID = re.compile(r'^[a-z][a-z0-9-]{2,63}/v[1-9][0-9]*$')
 PORTS = {'LOCAL_CALCULATE', 'LOCAL_TRIAGE', 'LLM_DIRECT', 'MANAGED_AGENT',
          'EMBEDDED_CHANNEL', 'DATA_FEED', 'TOOL_API'}
-CAPABILITIES = {'calculate', 'triage', 'tool_calling', 'structured_output', 'streaming'}
+CAPABILITIES = {'calculate', 'triage', 'tool_calling', 'structured_output', 'streaming', 'narrative_state'}
 PERMISSIONS = {'selected_files_read', 'network', 'external_write'}
 POLICY = {'filesystem': 'selected_paths_only', 'external_write': 'approval_required'}
 LOCAL = {

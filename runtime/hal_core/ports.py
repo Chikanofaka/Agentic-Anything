@@ -40,7 +40,7 @@ def feature_status(pkg: Inspection, feature_id: str, provider: str | None = None
     for requirement in requirements:
         port = requirement['port']
         capabilities = requirement['capabilities']
-        if port in LOCAL_PORTS:
+        if port in LOCAL_PORTS or (port == Port.TOOL_API.value and binding is not None):
             if not matched or binding.port.value != port:
                 reason = port + ':NO_CURATED_BINDING'
                 if reason not in missing:

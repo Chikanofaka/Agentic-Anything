@@ -6,6 +6,7 @@ Validators do not include rejected values in their error messages.
 from __future__ import annotations
 
 import math
+from . import witness
 
 
 class ValueContractError(ValueError):
@@ -65,6 +66,8 @@ VALUE_CONTRACTS = {
     'research-margin-output/v1': _research_output,
     'returns-triage-input/v1': _returns_input,
     'returns-triage-output/v1': _returns_output,
+    'witness-turn-input/v1': witness.validate_input,
+    'witness-turn-output/v1': witness.validate_output,
 }
 
 

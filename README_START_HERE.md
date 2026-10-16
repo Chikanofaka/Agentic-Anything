@@ -1,7 +1,9 @@
 # HAL-P2D-001 — VS Code + Codex First-Run Workspace
 
 **Status:** Human Gate = DOING (authorized 2026-10-14), not a public release.
-**Scope:** Real local offline HAL Core; no real AI inference or credential storage exists yet.
+**Scope:** Real local HAL Core plus a Witness Loop Mac application. The native OpenAI adapter is implemented and mock-tested; live AI inference has not been exercised, and credentials are not persisted.
+
+**Latest implementation:** [Witness Loop launch and verification](integrations/witness_loop/README.md) · [Type B PRD addendum](engineering/HAL_WITNESS_TYPE_B_PRD.md) · [integration receipt](engineering/WITNESS_INTEGRATION_RECEIPT.md). Sprint 0/1 receipts below remain historical evidence.
 
 ## 1. Open the folder
 In VS Code choose **File → Open Folder…** and select this entire `HAL-P2D-001` directory (the folder containing this file, `AGENTS.md`, `baseline/`, and `runtime/`). You do **not** need to upload images, paste the PRD, or import separate ZIPs into Codex.
