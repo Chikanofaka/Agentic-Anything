@@ -33,16 +33,9 @@ cp -R "$APP" "$OUTPUT"
 mkdir -p "$OUTPUT/Contents/Helpers/WitnessCore"
 cp -R "$CACHE/py-dist/WitnessCore/." "$OUTPUT/Contents/Helpers/WitnessCore/"
 /usr/libexec/PlistBuddy -c "Set :WitnessDevelopmentBuild false" "$OUTPUT/Contents/Info.plist"
-# swiftc/ld and PyInstaller can ad-hoc sign individual Mach-O executables during build.
-# Assembling runtime files and editing Info.plist AFTER that invalidates/omits the
-# *outer app resource seal*. Sign the complete, final app bundle inside-out (the
-# PyInstaller nested Mach-O code is already signed), then verify before shipping.
-# Ad-hoc (-) does NOT make Gatekeeper treat the app as Developer ID/notarized.
-codesign --force --sign - "$OUTPUT"
-codesign --verify --deep --strict --verbose=2 "$OUTPUT" || {
-  echo "PORTABLE_SIGNATURE_INVALID: do not distribute this app"
-  exit 3
-}
+# Remove build-stage extended metadata and sign the final assembled app in one place.
+# This script only modifies the generated dist/Portable.app; no download or save files.
+bash "$ROOT/scripts/sign_witness_adhoc.sh"
 # Exercise the embedded executable with an isolated synthetic storage directory.
 SMOKE="$CACHE/portable-smoke-$(date +%s)-$$"
 mkdir -p "$SMOKE"
