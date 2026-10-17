@@ -4,7 +4,12 @@
 
 [Download the Mac game](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)
 
-![Four steps to enter the mystery](../branding/after-the-last-train-install.svg)
+### 最终安装流程 · Four steps to play
+
+1. **下载游戏** — Download and unzip the Mac game.
+2. **移入应用程序** — Move `Witness Loop.app` into **Applications** using Finder before opening it.
+3. **安全授权** — If blocked, and you trust the download, use **System Settings → Privacy & Security → Open Anyway**.
+4. **进入云江站** — Open *Witness Loop* from Applications.
 
 **Install:** Download and unzip → **use Finder to move Witness Loop.app to Applications** → if you trust the app, approve via macOS Privacy & Security → Open Anyway when prompted → launch from Applications.
 
