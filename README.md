@@ -31,6 +31,8 @@
 
 ## Your first four steps
 
+![雨夜回环 — 四步安装流程：下载、移至 Applications、按需安全授权、开始游戏。](branding/after-the-last-train-install.svg)
+
 **最终安装流程 · Installation**
 
 1. **下载游戏** — Download and unzip *Witness Loop* from GitHub.
