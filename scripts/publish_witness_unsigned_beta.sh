@@ -5,13 +5,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 REPO="Chikanofaka/HAL-P2D-001"
-BRANCH="feat/wtl029-portable-beta"
-TAG="v0.3.0-beta.1-unsigned"
+BRANCH="fix/wtl029-adhoc-bundle-signature"
+TAG="v0.3.0-beta.2-adhoc"
 APP="$ROOT/integrations/witness_loop/dist/Witness Loop Portable.app"
 OUT_DIR="$ROOT/integrations/witness_loop/dist/unsigned-release"
-ZIP="$OUT_DIR/WitnessLoop-v0.3.0-beta.1-unsigned-macOS-arm64.zip"
+ZIP="$OUT_DIR/WitnessLoop-v0.3.0-beta.2-adhoc-macOS-arm64.zip"
 SHA="$ZIP.sha256"
-NOTES="$ROOT/packaging/RELEASE_NOTES_v0.3.0-beta.1-unsigned.md"
+NOTES="$ROOT/packaging/RELEASE_NOTES_v0.3.0-beta.2-adhoc.md"
 
 [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]] || { echo "MACOS_ARM64_REQUIRED"; exit 2; }
 [[ "$(git branch --show-current)" == "$BRANCH" ]] || { echo "WRONG_GIT_BRANCH: switch to $BRANCH"; exit 2; }
@@ -20,6 +20,9 @@ NOTES="$ROOT/packaging/RELEASE_NOTES_v0.3.0-beta.1-unsigned.md"
 [[ -f "$NOTES" ]] || { echo "RELEASE_NOTES_MISSING"; exit 2; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :WitnessDevelopmentBuild' "$APP/Contents/Info.plist")" == "false" ]] || { echo "DEVELOPMENT_BUNDLE_REFUSED"; exit 2; }
 [[ -f "$APP/Contents/Resources/WitnessLoop.icns" ]] || { echo "APP_ICON_MISSING"; exit 2; }
+# The assembled app may gain com.apple.FinderInfo after its build-time signature
+# is validated (e.g. if viewed in Finder). Do not sign or strip metadata from
+# the original build output here. Re-seal a clean isolated staging copy below.
 if grep -q '"project_root"' "$APP/Contents/Resources/config.json"; then
   echo "ABSOLUTE_PROJECT_ROOT_PRESENT: refusing release"; exit 2
 fi
@@ -37,23 +40,46 @@ fi
 mkdir -p "$OUT_DIR"
 STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
-ditto "$APP" "$STAGING/Witness Loop.app"
-(
-  cd "$STAGING"
-  ditto -c -k --sequesterRsrc --keepParent "Witness Loop.app" "$ZIP"
-)
+STAGED_APP="$STAGING/Witness Loop.app"
+# ditto normally copies Finder attributes and resource forks. --norsrc avoids
+# carrying them into a fresh, non-user-controlled release-stage app copy.
+ditto --norsrc "$APP" "$STAGED_APP"
+xattr -cr "$STAGED_APP"
+# Sign the complete app AFTER copying, then verify this exact candidate.
+# Only the staging copy is modified; the build output and player saves are not.
+codesign --force --sign - "$STAGED_APP"
+codesign --verify --deep --strict --verbose=4 "$STAGED_APP" || {
+  echo "STAGED_APP_SIGNATURE_INVALID: refusing publication"; exit 3;
+}
+[[ -x "$STAGED_APP/Contents/Helpers/WitnessCore/WitnessCore" ]] || {
+  echo "STAGED_CORE_MISSING"; exit 3;
+}
+[[ ! -e "$STAGED_APP/Contents/Helpers/WitnessCore/_internal" ]] || {
+  echo "OLD_ONEDIR_LAYOUT_REFUSED"; exit 3;
+}
+# Do not use --sequesterRsrc; no Finder resource-fork AppleDouble payloads
+# should be reintroduced by the archiver.
+ditto -c -k --norsrc --keepParent "$STAGED_APP" "$ZIP"
 unzip -tq "$ZIP" >/dev/null || { echo "ZIP_INTEGRITY_FAILED"; exit 3; }
+# Check actual archive roundtrip BEFORE uploading anything to the public.
+RESTORED="$STAGING/restored"
+mkdir -p "$RESTORED"
+ditto -x -k --norsrc "$ZIP" "$RESTORED"
+codesign --verify --deep --strict --verbose=4 "$RESTORED/Witness Loop.app" || {
+  echo "EXTRACTED_APP_SIGNATURE_INVALID: refusing publication"; exit 3;
+}
 (
   cd "$OUT_DIR"
   shasum -a 256 "$(basename "$ZIP")" > "$(basename "$SHA")"
 )
-echo "PACKAGED_UNSIGNED_BETA: $ZIP"
-echo "NO_APPLE_SIGNING_OR_NOTARIZATION: the beta may be blocked by Gatekeeper."
+echo "PASS STAGED_AND_EXTRACTED_APP_SIGNATURE"
+echo "PACKAGED_BETA2_ADHOC: $ZIP"
+echo "NO_DEVELOPER_ID_OR_NOTARIZATION: Gatekeeper may still block untrusted downloads."
 # This line is the only external publication action.
 gh release create "$TAG" "$ZIP" "$SHA" \
   --repo "$REPO" \
   --target "$BRANCH" \
-  --title "Witness Loop v0.3.0 Beta 1 — UNSIGNED (Apple Silicon)" \
+  --title "Witness Loop v0.3.0 Beta 2 — AD-HOC SIGNED (Apple Silicon)" \
   --notes-file "$NOTES" \
   --prerelease
 echo "RELEASE_URL:"
