@@ -1,6 +1,6 @@
 # WTL-029 — Standalone macOS Beta Build (unsigned engineering preview)
 
-**Do not publish yet.** This build bundles the Python HAL worker into `Contents/Helpers/WitnessCore/` and disables developer-mode fallback to `/usr/bin/python3`. Player saves live in `~/Library/Application Support/Witness Loop/`; the signed/store-safe app pathway, general cross-Mac compatibility, and live AI personality UAT remain pending.
+**Release status (2026-10-17):** [Unsigned macOS Apple Silicon Beta 1 is published](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned). The build bundles Python HAL into `Contents/Helpers/WitnessCore/` and disables the developer-mode fallback to `/usr/bin/python3`. Player saves live in `~/Library/Application Support/Witness Loop/`. **Only the experimental, unsigned ZIP has shipped.** Developer ID signing, Apple notarization, clean second-Mac validation, and live AI personality UAT remain pending.
 
 ## Prerequisites
 
@@ -58,9 +58,9 @@ ditto "integrations/witness_loop/dist/Witness Loop Portable.app" \
 
 A **clean second Mac** (matching CPU architecture, supported macOS) without the project checkout or developer Python is the next acceptance gate. A successful test on the developer's Mac is necessary but not sufficient.
 
-## Known blockers before GitHub Release
+## Remaining limitations and future signed release gates
 
-- **Unsigned and not notarized:** the output is for controlled testing, not a public download. Apple Developer ID signing and notarization of nested executable code must succeed before public macOS distribution.
+- **Unsigned and not notarized:** the experimental ZIP is publicly available, but remains untrusted by Apple Gatekeeper. Developer ID signing and notarization remain prerequisites for the planned signed distribution route; the unsigned beta is not an Apple-certified build.
 - **CPU architecture:** PyInstaller builds for its current Python/host architecture. Universal binary support is not established.
 - **Privacy and rights:** confirm code/asset redistribution rights, privacy notice, API-key disclosure, and artifact license before a binary release.
 - **macOS App Store:** requires its own sandbox/signing/entitlement and review work. A GitHub Developer ID build does not automatically become an App Store package.
