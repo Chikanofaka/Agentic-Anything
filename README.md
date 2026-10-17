@@ -1,81 +1,91 @@
-# 雨夜回环 · Witness Loop
+# Harness Activation Layer (HAL)
+
+### From deterministic harnesses to intelligent, agentic applications
+
+**What if an existing application could gain intelligence without surrendering its underlying logic?**
+
+A traditional **Type A harness** follows programmed rules, fixed workflows and deterministic state transitions. It can be reliable and complete within its domain, but its behavior is constrained by what engineers explicitly authored.
+
+**Harness Activation Layer (HAL)** explores a deliberately controlled insertion point between that deterministic system and an LLM or agent runtime. Rather than rebuilding the application around a chatbot, HAL seeks to connect a model to the **existing domain's tools, permissions, state and interface**—so it can propose flexible dialogue, interpretations, personalized interactions or agentic actions while the harness retains authority over what actually happens.
+
+This research direction calls the resulting architecture a **Type B harness**: a user-facing application in which probabilistic intelligence extends deterministic capabilities without being allowed to overwrite the rules of the world.
+
+> **Research thesis, not a claim of universal plug-and-play.** The model connection, permission contracts, validation and execution remain domain-specific today. The general, reusable transformation has not yet been proved across independent real-world applications.
+
+## The architectural proposition
+
+```mermaid
+flowchart LR
+    A["Type A Harness<br/>Rules · State · Tools · UI"] --> H["HAL<br/>Model/Agent Interface<br/>Permissions · Typed Actions · Receipts"]
+    L["LLM / Agent Runtime<br/>Language · Adaptation · Exploration"] --> H
+    H --> B["Type B Harness<br/>Intelligent User-facing Experience"]
+    B -->|"validated actions"| A
+```
+
+**The 'hole' is an interface, not an uncontrolled breach.** HAL introduces a reviewable extension point: model output is treated as a proposal, and trusted application logic decides whether it is valid, authorized and able to change state.
+
+The ambition is not simply to attach a text box to software. It is to investigate how **new kinds of products and experiences** might emerge when fixed systems gain bounded intelligence, individuality and agency.
+
+### Where it could lead
+
+| Existing deterministic application | Possible intelligence-enabled experience | Status |
+|---|---|---|
+| Website or customer interface | Contextual conversation and adaptive assistance | Conceptual application class; not demonstrated here |
+| Game engine and authored story | Intelligent NPCs, responsive narrative and eventually agent-populated social worlds | **Witness Loop** is an early offline-playable proof of concept; autonomous multi-agent social worlds remain speculative |
+| Productivity or enterprise software | Natural-language orchestration and governed agent actions | Research direction; not proven as a universal SuperApp |
+| Specialist research/operations harness | LLM-guided analysis anchored in typed tools and auditable outcomes | HAL's deterministic Research/Returns fixtures demonstrate reusable contracts, not production autonomous inference |
+
+The long-term hypothesis: future applications will increasingly be built around **human-facing experiences shared with model-driven agents**. HAL-like connectors may become a useful architectural pattern for that transition. This is a hypothesis to test, not a declaration that every harness will adopt it or that the genre has no prior art.
+
+## First Type B experiment: 雨夜回环 · Witness Loop
 
 <p align="center">
-  <img src="integrations/witness_loop/ui/assets/linwu_anxious.png" width="235" alt="Lin Wu — the mysterious railway dispatcher." />
+  <img src="integrations/witness_loop/ui/assets/linwu_anxious.png" width="210" alt="Lin Wu, a railway dispatcher in Witness Loop" />
 </p>
 
-<p align="center">
-  <strong>AFTER THE LAST TRAIN</strong><br/>
-  <em>At 00:17, the clock stopped. Someone disappeared. Someone remembers.</em><br/>
-  <em>末班车驶离之后，有人失踪。有人沉默。真相还在雨中。</em>
-</p>
+**Witness Loop — After the Last Train** is an experimental detective-story game inspired by galgame/visual-novel and *honkaku* mystery conventions. A missing passenger, a clock stopped at **00:17**, four observable clues and a dispatcher with secrets provide a bounded world in which to explore how intelligence and agency might interact with authored game truth.
 
-<p align="center">
-  <a href="#begin-your-investigation">Begin your investigation</a> ·
-  <a href="#your-first-four-steps">Install on Mac</a> ·
-  <a href="#inside-the-mystery">The story</a> ·
-  <a href="#for-the-curious">Behind the scenes</a>
-</p>
+- **Deterministic foundation:** Case facts, evidence, action permissions, persistent state and three bounded endings remain under trusted game logic.
+- **Intelligence boundary:** An optional native OpenAI adapter can propose dialogue; its interface and safeguards are implemented and mock-tested, but real-model personality UAT has **not** been completed.
+- **Actual public MVP:** A downloadable offline Mac preview with a working native UI. The local release candidate and ZIP-extracted application passed **21/21 native UI checks**; one Chrome-downloaded installation launched correctly after moving the app to Applications and approving it through macOS security settings.
+- **Not yet implemented:** A fully self-driving NPC society, autonomous multiplayer game, open-ended agent-generated narrative, or a generalized Type B conversion of arbitrary games.
 
-<p align="center">
-  <img src="integrations/witness_loop/ui/assets/platform_empty.png" width="950" alt="An empty station in the rain, after the last train." />
-</p>
+### Play the experiment
 
-> **A playable detective-story preview for Apple Silicon Macs.** Your decisions and evidence matter. Start entirely offline, without an account or API key. The optional AI conversation mode is experimental, and the game is **not Apple notarized**.
+**[Download Witness Loop for Apple Silicon Mac →](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)**
 
-## Begin your investigation
+![Four-step player installation checklist](branding/after-the-last-train-install.svg)
 
-**[Download the game for Mac →](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)**
+1. Download and unzip the game.
+2. **Use Finder to move `Witness Loop.app` into Applications before launching.**
+3. If macOS blocks the unsigned-by-Developer-ID / unnotarized preview, approve via **System Settings → Privacy & Security → Open Anyway** *only if you trust the release*.
+4. Open the game and enter Yunjiang station.
 
-[Other release files & SHA-256 checksum](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc) · macOS with Apple Silicon (M-series) · Experimental preview · No paid Apple Developer verification
+**Safety / compatibility:** This is an experimental Apple Silicon preview, ad-hoc signed but **not Developer ID signed or notarized**. Never disable Gatekeeper globally or blindly strip quarantine metadata. Full downloaded-app game completion, broad Mac compatibility and production live-model behavior remain unverified.
 
-## Your first four steps
+**[Witness Loop story, gameplay and onboarding showcase →](showcases/WITNESS_LOOP.md)**
 
-![雨夜回环 — 四步安装流程：下载、移至 Applications、按需安全授权、开始游戏。](branding/after-the-last-train-install.svg)
+## Research program and evidence
 
-**最终安装流程 · Installation**
+This repository contains three interconnected levels of work:
 
-1. **下载游戏** — Download and unzip *Witness Loop* from GitHub.
-2. **移入应用程序** — Use **Finder** to move `Witness Loop.app` into **Applications** before launching.
-3. **安全授权** — If macOS blocks the unnotarized app, and you trust the download, use **System Settings → Privacy & Security → Open Anyway**.
-4. **进入云江站** — Launch the game from **Applications** and begin the investigation.
+1. **HAL architecture and original PRD/MVM.** A shared local-first shell, curated domain harness package contracts, capability preflight and distinct user entry routes. See [HAL PRD](baseline/prd/HAL_PRD_v2_0.md) and [architecture options](baseline/prd/ARCHITECTURE_OPTIONS.md).
+2. **Type A deterministic platform and fixtures.** Versioned, validated specialist domain actions and a trusted Python core, with synthetic Research and Returns examples. See [runtime](runtime/README.md) and [architecture baseline audit](engineering/BASELINE_AUDIT.md).
+3. **Type B application exploration.** The Witness Loop native experience, persistent case state, bounded model interface, actual UI integration checks and documented release journey. See [Type B implementation PRD](engineering/HAL_WITNESS_TYPE_B_PRD.md), [implementation receipt](engineering/WITNESS_INTEGRATION_RECEIPT.md) and [full engineering showcase](engineering/WITNESS_TECHNICAL_SHOWCASE.md).
 
-**1. Accept the invitation.** Download the Mac ZIP above and double-click it to extract **Witness Loop.app**.
+### Terminology: Type A / Type B vs Path A / Path B
 
-**2. Bring the game home.** In **Finder**, move the extracted app into **Applications** **before opening it**. On a real Chrome download, launching from Downloads caused macOS App Translocation and a blank game window; moving it to Applications resolved that loading issue.
+- **Type A / Type B** describes the proposed **nature of the harness**: deterministic by default versus model/agent-extended.
+- **Path A / Path B** in the earlier HAL PRD describes **two user onboarding routes**: developer source/IDE access versus consumer product activation. The paths are not the architecture types and should not be conflated.
 
-**3. Cross the gate—only if you trust the download.** Because this is an experimental, **ad-hoc-signed and unnotarized** preview, macOS can block the first launch. If you recognize the source and want to proceed, open **System Settings → Privacy & Security → Open Anyway** (if offered) and approve as prompted. You may need administrator authorization. **Do not disable Gatekeeper globally or remove quarantine attributes as a shortcut.**
+## Engineering truth and open questions
 
-**4. Step into the rain.** Open **Witness Loop** from Applications. Read the case brief, enter the station and begin inspecting the clues.
+**Demonstrated:** HAL's typed/domain-controlled deterministic workflows, executable Research/Returns fixtures, a domain-specific Witness application, offline simulated NPC interaction, local persistence and the tested Mac UI flows.
 
-One actual Chrome-downloaded installation has been confirmed to load correctly after the Finder move and macOS approval. Full end-to-end player acceptance on that downloaded installation, Intel compatibility, and wider macOS testing are **not yet verified**.
+**Not established:** A generic adapter that can safely 'activate' any GitHub harness, portability to arbitrary domains without substantial adapters, real autonomous agent agency in social worlds, consistent LLM-based NPC intelligence at production quality, measured commercialization demand, or claims of an unprecedented first-ever game genre.
 
-## Inside the mystery
+**Next research gates:** Validate live-model NPC behavior against authored constraints; demonstrate a second independent real-world Type B application without rewriting the HAL core; measure the adapter work and safety limitations; then investigate autonomy, multi-agent dynamics and human-agent co-presence.
 
-A missing traveler. A station clock frozen at **00:17**. A discarded ticket. A trace of red fabric. One nervous dispatcher—**Lin Wu**—who may know more than she admits.
+---
 
-Walk the deserted platform, look closely at four clues, question Lin Wu in English or Mandarin, and decide what truly happened. Your choices can lead to **three different conclusions**.
-
-**How to begin playing:** Read the opening → enter the station → click the four objects to examine evidence → approach Lin Wu → ask questions → examine your notebook → make a judgment.
-
-The **offline** mode uses scripted character responses and a persistent local case state; no account, model call or payment is required. An **optional** experimental OpenAI-enhanced mode uses an independently billed OpenAI Platform API key entered only in the app's native secure form. Its conversational quality has not completed real-model human acceptance.
-
-## A note from the creators
-
-This is a small, public, experimental game—not a certified App Store title. Its original artwork, investigation structure and playable Mac experience are the focus here. The story and game may evolve; saves are stored locally.
-
-If anything does not load, first confirm the app was **moved with Finder into Applications**. For a reproducible bug or gameplay issue, [tell us what happened](https://github.com/Chikanofaka/HAL-P2D-001/issues).
-
-## For the curious
-
-The playable world is built with Swift, WebKit, Python and a deterministic case engine. The model may propose dialogue, but it cannot rewrite canonical evidence or decide a verdict. The codebase began as an engineering study; technical names are preserved for maintainers, not required knowledge for players.
-
-- [Complete technical showcase and original engineering evidence](engineering/WITNESS_TECHNICAL_SHOWCASE.md)
-- [Character and art provenance](integrations/witness_loop/ASSET_PROVENANCE.md)
-- [Source provenance](integrations/witness_loop/SOURCE_PROVENANCE.md)
-- [Game guide](integrations/witness_loop/README.md)
-- [Release notes and technical limitations](packaging/RELEASE_NOTES_v0.3.0-beta.3-adhoc.md)
-
-**Development status:** Public experimental download and first launch confirmed on one Mac; automated native UI integration passed **21/21 checks** on both staged and ZIP-extracted candidates. Full downloaded-app playthrough, real-model persona testing, Apple notarization, and broad compatibility remain future work.
-
-<sub>Development repository: Chikanofaka/HAL-P2D-001. Historical technical release tag: v0.3.0-beta.3-adhoc. Keeping these identifiers stable preserves existing links and verifiable build provenance.</sub>
+*HAL is the research project. Witness Loop is its first public application experiment. The repository's technical identifier is historical; the aim is to explore a broader class of intelligent applications.*
