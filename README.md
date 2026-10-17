@@ -1,163 +1,74 @@
-# Witness Loop · 雨夜回环
+# 雨夜回环 · Witness Loop
 
 <p align="center">
-  <strong>Meet Lin Wu — the AI witness who remembers, conceals, and responds.</strong><br/>
-  <em>A cinematic detective RPG built on a deterministic Harness Activation Layer (HAL).</em>
+  <img src="integrations/witness_loop/ui/assets/linwu_anxious.png" width="235" alt="Lin Wu — the mysterious railway dispatcher." />
 </p>
 
 <p align="center">
-  <img src="integrations/witness_loop/ui/assets/linwu_anxious.png" width="280" alt="Lin Wu — the anxious railway dispatcher, silver-haired and dressed in a navy uniform."/>
+  <strong>AFTER THE LAST TRAIN</strong><br/>
+  <em>At 00:17, the clock stopped. Someone disappeared. Someone remembers.</em><br/>
+  <em>末班车驶离之后，有人失踪。有人沉默。真相还在雨中。</em>
 </p>
 
 <p align="center">
-  <a href="#play-the-prototype">Play the prototype</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#engineering-evidence">Engineering evidence</a> ·
-  <a href="#status--roadmap">Release roadmap</a>
+  <a href="#begin-your-investigation">Begin your investigation</a> ·
+  <a href="#your-first-four-steps">Install on Mac</a> ·
+  <a href="#inside-the-mystery">The story</a> ·
+  <a href="#for-the-curious">Behind the scenes</a>
 </p>
-
-> **Current status — Public experimental macOS Beta 3.** [Download v0.3.0-beta.3-adhoc](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc) for **Apple Silicon (arm64)**. Beta 3 integrates fixes and diagnostics for the Beta 2 white-screen issue. The staged app and actual ZIP-extracted app each passed **21 native WebKit UI checks**, and strict signature verification passed. The build is **ad-hoc signed, not Developer ID signed or notarized**; Chrome-downloaded startup was confirmed after moving the app using Finder from Downloads to /Applications and completing macOS Privacy & Security → Open Anyway. Full downloaded-player gameplay UAT and cross-Mac support remain pending. Offline dialogue is simulated; optional live OpenAI mode remains mock-tested only. Not an Apple-certified or App Store release.
-
-## Step into the mystery
-
-At the rain-soaked Yunjiang station, Zhou Xu has gone missing. A stopped clock reads **00:17**. A red garment hangs near the lockers; an unused-looking ticket lies on a bench; the final train disappears into the rain. A nervous station dispatcher ends a mysterious phone call as you arrive.
-
-You are the detective. First **observe**, then **question Lin Wu**, connect what you can substantiate, and decide what the evidence supports. Her dialogue can be expressive and evasive, but the model does **not** control the canonical case facts or verdict.
 
 <p align="center">
-  <img src="integrations/witness_loop/ui/assets/platform_empty.png" width="900" alt="Bundled game background: a cinematic empty rainy railway platform with a clock, red fabric, ticket and departing train."/>
-  <br/>
-  <sub>Bundled scene artwork (not a screenshot of an externally distributed release). The native UI adds clickable evidence hotspots, character layering and captions.</sub>
+  <img src="integrations/witness_loop/ui/assets/platform_empty.png" width="950" alt="An empty station in the rain, after the last train." />
 </p>
 
-### What makes this different
+> **A playable detective-story preview for Apple Silicon Macs.** Your decisions and evidence matter. Start entirely offline, without an account or API key. The optional AI conversation mode is experimental, and the game is **not Apple notarized**.
 
-| Player experience | Under the hood |
-|---|---|
-| A distinct NPC with a history, emotional tension, and natural conversation | Reviewed character context compiled from `identity.md`, `memory.md`, `user.md` and narrative source material |
-| Ask questions freely in English or Mandarin | Optional LLM-powered responses, plus an offline simulated mode |
-| Inspect the station clock, red fabric, Zhou Xu's ticket, and departing train | Evidence states distinguish **visible → inspected → authenticated / interpreted → linked** |
-| Build trust, challenge testimony, and keep a case notebook | Attributed session memory, explicit action confirmations and bounded disclosure rules |
-| Reach truth, partial resolution, or false accusation | **HAL**, not the model, authoritatively commits actions, evidence and outcomes |
+## Begin your investigation
 
-> **Design principle:** Probabilistic character performance; deterministic game authority. Lin Wu can withhold her brother's involvement, but the system must not let a model rewrite the fact that her brother exists. Guardrails detect specified contradictions; they do **not** guarantee perfect semantic consistency.
+**[Download the game for Mac →](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)**
 
-## Play the prototype
+[Other release files & SHA-256 checksum](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc) · macOS with Apple Silicon (M-series) · Experimental preview · No paid Apple Developer verification
 
-**Download (Beta 3):** [Witness Loop v0.3.0-beta.3-adhoc (Apple Silicon ZIP)](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip). Extract `Witness Loop.app` and **move it to /Applications using Finder before first launch**. On one user's Mac, launching directly from Downloads caused App Translocation and a 12-second white-screen timeout; moving to Applications resolved it. It has an integrity-checked **ad-hoc** signature, but no Apple Developer ID signing or notarization; macOS Gatekeeper may block it. If you trust this specific download and macOS offers an override, review **System Settings → Privacy & Security → Open Anyway**. **Do not disable Gatekeeper globally.** [Beta 2](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.2-adhoc) remains historical (reported white screen); [Beta 1](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned) has a known invalid app signature. Neither is recommended for new installations.
+## Your first four steps
 
-**Build from source:** Requires a Mac with a Swift compiler / compatible macOS SDK and the system Python used by the developer build. The script targets macOS 12+; broader compatibility has not been verified.
+![Illustrated four-step macOS game onboarding: download, move to Applications, Open Anyway, enter the mystery.](branding/after-the-last-train-install.svg)
 
-```bash
-git clone https://github.com/Chikanofaka/HAL-P2D-001.git
-cd HAL-P2D-001
+**1. Accept the invitation.** Download the Mac ZIP above and double-click it to extract **Witness Loop.app**.
 
-# Offline Core regression checks + rebuild + native mocked-provider tests:
-bash scripts/verify_witness_local.sh
+**2. Bring the game home.** In **Finder**, move the extracted app into **Applications** **before opening it**. On a real Chrome download, launching from Downloads caused macOS App Translocation and a blank game window; moving it to Applications resolved that loading issue.
 
-# Launch the locally built, unsigned development app:
-open "integrations/witness_loop/dist/Witness Loop.app"
-```
+**3. Cross the gate—only if you trust the download.** Because this is an experimental, **ad-hoc-signed and unnotarized** preview, macOS can block the first launch. If you recognize the source and want to proceed, open **System Settings → Privacy & Security → Open Anyway** (if offered) and approve as prompted. You may need administrator authorization. **Do not disable Gatekeeper globally or remove quarantine attributes as a shortcut.**
 
-To exercise the actual native UI/bridge with **synthetic** saves and **no** provider calls:
+**4. Step into the rain.** Open **Witness Loop** from Applications. Read the case brief, enter the station and begin inspecting the clues.
 
-```bash
-"integrations/witness_loop/dist/Witness Loop.app/Contents/MacOS/WitnessLoop" --ui-self-test
-```
+One actual Chrome-downloaded installation has been confirmed to load correctly after the Finder move and macOS approval. Full end-to-end player acceptance on that downloaded installation, Intel compatibility, and wider macOS testing are **not yet verified**.
 
-See the [step-by-step game guide](integrations/witness_loop/README.md) and [reproducible UAT walkthrough](engineering/WTL03_UAT.md).
+## Inside the mystery
 
-**Development vs distribution:** The `scripts/build_witness_mac.sh` command builds a developer prototype with a system-Python fallback. For an independent Apple Silicon build, use `scripts/build_witness_portable_beta.sh` to embed the Python HAL worker in the `.app` and verify its ad-hoc signature. Beta 3 is a downloadable portable bundle whose ZIP-extracted app passed native UI smoke, but cross-Mac compatibility remains unverified; one user confirmed initial launch after moving to Applications and manually approving Gatekeeper; it is not an Apple-certified universal installer.
+A missing traveler. A station clock frozen at **00:17**. A discarded ticket. A trace of red fabric. One nervous dispatcher—**Lin Wu**—who may know more than she admits.
 
-### Playing the case
+Walk the deserted platform, look closely at four clues, question Lin Wu in English or Mandarin, and decide what truly happened. Your choices can lead to **three different conclusions**.
 
-1. Read the case brief and opening narration; the interrupted arrival-time call is **not** the earlier incoming 00:17 call.
-2. Explore the **empty platform**. Seeing an object does not automatically collect it: click the four evidence hotspots to inspect them.
-3. Approach Lin Wu. Advance her subtitle, then question her through sequential player/NPC turns. Review previous dialogue and evidence in the drawers.
-4. Confirm case-related questions before spending one of the **six case actions**. Free conversation and environmental inspection do not spend case actions.
-5. Link supported evidence, advance the three-act investigation and submit a verdict. Different evidentiary choices can reach three bounded outcomes.
+**How to begin playing:** Read the opening → enter the station → click the four objects to examine evidence → approach Lin Wu → ask questions → examine your notebook → make a judgment.
 
-## Two dialogue modes
+The **offline** mode uses scripted character responses and a persistent local case state; no account, model call or payment is required. An **optional** experimental OpenAI-enhanced mode uses an independently billed OpenAI Platform API key entered only in the app's native secure form. Its conversational quality has not completed real-model human acceptance.
 
-| Mode | Behavior | Costs and credentials |
-|---|---|---|
-| **Offline / simulated** | Local scripted dialogue with real deterministic game state, memory, evidence and verdict rules | No API key; no model calls |
-| **OpenAI-enhanced (opt-in)** | The native host can request bounded topic classification and character dialogue from the OpenAI Responses API | Requires a separately billed OpenAI Platform API key entered **only** in the native secure sheet |
+## A note from the creators
 
-The native host keeps the key in process memory until Disconnect or Quit; it is not intentionally sent to the webpage, Python Core, or saved files. This is not a claim of a perfect security boundary. The app uses a fixed API endpoint, explicit consent, request limits, and `store:false` requests. **Up to two model requests per dialogue turn; at most 20 requests per activation**. The count is **not** a dollar spending cap. An API request may already be used to classify a case question before its action is confirmed. Fees, provider handling and eligibility depend on the user's OpenAI Platform account.
+This is a small, public, experimental game—not a certified App Store title. Its original artwork, investigation structure and playable Mac experience are the focus here. The story and game may evolve; saves are stored locally.
 
-**Do not paste credentials into a GitHub issue, README, terminal command or screenshot.** The v0.3 release still needs a real-provider human acceptance pass; offline/mock checks must not be interpreted as proof of live conversational quality.
+If anything does not load, first confirm the app was **moved with Finder into Applications**. For a reproducible bug or gameplay issue, [tell us what happened](https://github.com/Chikanofaka/HAL-P2D-001/issues).
 
-## How it works
+## For the curious
 
-```mermaid
-flowchart TD
-    A[Player — inspect, speak, connect evidence] --> B[Local macOS App: Swift AppKit + WebKit]
-    B --> C[Native bridge and private Python worker]
-    C --> D[HAL Core: canonical state, actions, evidence and verdict]
-    D --> E[Reviewed character context + authorized disclosures]
-    E --> C
-    C -->|Only after explicit opt-in| F[OpenAI Responses API]
-    F -->|Bounded proposed dialogue| C
-    C --> G[Validate proposed reply; reject or replace known violations]
-    G --> D
-    D --> H[Persist authorized game state]
-    H --> B
-```
+The playable world is built with Swift, WebKit, Python and a deterministic case engine. The model may propose dialogue, but it cannot rewrite canonical evidence or decide a verdict. The codebase began as an engineering study; technical names are preserved for maintainers, not required knowledge for players.
 
-**Authority split:** The language model proposes conversation and intent. The trusted HAL domain validates and commits state. It does not let a model invent collected objects, rewrite family identity, create a verdict, or execute arbitrary skill-package code.
+- [Complete technical showcase and original engineering evidence](engineering/WITNESS_TECHNICAL_SHOWCASE.md)
+- [Character and art provenance](integrations/witness_loop/ASSET_PROVENANCE.md)
+- [Source provenance](integrations/witness_loop/SOURCE_PROVENANCE.md)
+- [Game guide](integrations/witness_loop/README.md)
+- [Release notes and technical limitations](packaging/RELEASE_NOTES_v0.3.0-beta.3-adhoc.md)
 
-The authoring chain is:
+**Development status:** Public experimental download and first launch confirmed on one Mac; automated native UI integration passed **21/21 checks** on both staged and ZIP-extracted candidates. Full downloaded-app playthrough, real-model persona testing, Apple notarization, and broad compatibility remain future work.
 
-`integrations/witness_loop/source/*.md` → reviewed compiler → `runtime/trusted_adapters/witness_character.json` → bounded model context and provenance digests.
-
-Full director-only story material is excluded from the player-facing model projection and packaged app resources. Because the **source repository is public**, source files can still reveal spoilers to people browsing the code.
-
-## Engineering evidence
-
-The v0.3 engineering record reports **287 Python regression tests** and **52 native mocked-provider self-tests**. A subsequent local native UI run reported **21 / 21 PASS**, including scene introduction, all four hotspot inspections, English simulated dialogue, history/notebook, compact layout and all three verdicts. These tests used synthetic saves, not a billable live API request.
-
-- [Engineering implementation receipt](engineering/WTL03_RECEIPT.md) — files changed, Core invariants and limitations; its earlier `PENDING_FINAL_GUI` entry predates the subsequently observed 21/21 UI run.
-- [Native GUI acceptance guide](engineering/WTL03_UAT.md) — exact test commands and case walkthroughs. Some listed final screenshots are written to local ignored `.build-cache/` paths and are **not all published in this repository**.
-- [Artwork provenance](integrations/witness_loop/ASSET_PROVENANCE.md) — original generated/illustrated assets vs. supplied references.
-- [Source provenance](integrations/witness_loop/SOURCE_PROVENANCE.md) — canonical character files vs. historical snapshots.
-- [Native security boundaries](integrations/witness_loop/native/README.md) — credential transport, strict parsing, consent, budgets and limits.
-
-Tests and fixed-pattern reply checks are **not** a substitute for real-player UAT, third-party security review or App Store certification.
-
-## Repository guide
-
-| Location | What's inside |
-|---|---|
-| `integrations/witness_loop/ui/` | Cinematic scene, evidence hotspots, sequential conversation interface and local artwork |
-| `integrations/witness_loop/native/` | Swift AppKit host, secure credential entry, WebKit bridge and native tests |
-| `integrations/witness_loop/source/` | Canonical Lin Wu character and narrative authoring files |
-| `runtime/trusted_adapters/` | Witness domain, character compiler/projection and trusted adapters |
-| `runtime/hal_core/` | Common deterministic execution contract and transactional runtime |
-| `runtime/fixtures/` | Witness plus Research/Returns demonstration domains |
-| `branding/WitnessLoop.icns` | Lin Wu character-IP macOS application icon |
-| `scripts/` | Build, verification, source packaging and character compilation |
-| `engineering/` | Architecture decisions, tests, handoff and UAT records |
-| `baseline/` | Original HAL PRD/MVM and earlier engineering references |
-
-The broader **HAL-P2D-001** repo contains the general Harness Activation Layer research and contract work, with Witness Loop as its featured interactive application. Research Diagnostics and Returns Operations remain separate fixtures.
-
-## Status & roadmap
-
-| Stage | Status |
-|---|---|
-| Character-IP branding and bundled native app icon | Implemented |
-| Cinematic rainy platform, inspection and sequential UI | Implemented in local v0.3 |
-| Deterministic three-outcome case and v1 save migration | Implemented and regression-tested |
-| Live OpenAI v0.3 personality, memory and bilingual human UAT | **Pending** |
-| Experimental ad-hoc-signed Apple Silicon GitHub ZIP prerelease | **Beta 3 published** ([download](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc)); 21/21 UI tests passed on staged and extracted app; real downloaded-app startup accepted after Finder move to Applications; complete gameplay UAT pending. Beta 1 signature invalid; Beta 2 reported white screen |
-| Developer ID signing, notarization and wider cross-Mac compatibility | **Not yet available** |
-| Mac App Store sandbox, privacy/compliance, TestFlight and review | **Planned** |
-
-**Human Gate: Beta 3 downloaded-app startup accepted; full gameplay UAT pending.** The portable Apple Silicon ZIP is downloadable, but no Developer ID signing, notarization, or App Store release is claimed. Distribution and reuse terms for code, generated artwork and supplied references require explicit rights review; there is no license grant merely because the repository is public.
-
----
-
-**Witness Loop is both a small playable mystery and an engineering exploration:** how do you give a character conversational latitude without giving a probabilistic model authority over game truth?
-
-*Built with Swift, Python, WebKit, HAL and an optional OpenAI Responses API connection.*
+<sub>Development repository: Chikanofaka/HAL-P2D-001. Historical technical release tag: v0.3.0-beta.3-adhoc. Keeping these identifiers stable preserves existing links and verifiable build provenance.</sub>
