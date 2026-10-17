@@ -31,7 +31,12 @@
 
 ## Your first four steps
 
-![Illustrated four-step macOS game onboarding: download, move to Applications, Open Anyway, enter the mystery.](branding/after-the-last-train-install.svg)
+**最终安装流程 · Installation**
+
+1. **下载游戏** — Download and unzip *Witness Loop* from GitHub.
+2. **移入应用程序** — Use **Finder** to move `Witness Loop.app` into **Applications** before launching.
+3. **安全授权** — If macOS blocks the unnotarized app, and you trust the download, use **System Settings → Privacy & Security → Open Anyway**.
+4. **进入云江站** — Launch the game from **Applications** and begin the investigation.
 
 **1. Accept the invitation.** Download the Mac ZIP above and double-click it to extract **Witness Loop.app**.
 
