@@ -18,7 +18,7 @@ command -v "$PYTHON" >/dev/null || { echo "PACKAGING_PYTHON_NOT_FOUND"; exit 2; 
 bash "$ROOT/scripts/build_witness_mac.sh"
 mkdir -p "$CACHE"
 # Keep builds and spec files outside the source tree.
-"$PYTHON" -m PyInstaller --noconfirm --clean --onedir --name WitnessCore \
+"$PYTHON" -m PyInstaller --noconfirm --clean --onefile --name WitnessCore \
   --paths "$ROOT/runtime" \
   --collect-submodules hal_core --collect-submodules trusted_adapters \
   --add-data "$ROOT/runtime/fixtures:fixtures" \
@@ -26,12 +26,12 @@ mkdir -p "$CACHE"
   --distpath "$CACHE/py-dist" --workpath "$CACHE/py-build" --specpath "$CACHE" \
   "$ROOT/scripts/witness_core_entry.py"
 
-CORE="$CACHE/py-dist/WitnessCore/WitnessCore"
+CORE="$CACHE/py-dist/WitnessCore"
 [[ -x "$CORE" ]] || { echo "PACKAGED_CORE_MISSING"; exit 3; }
 [[ ! -e "$OUTPUT" ]] || { echo "OUTPUT_ALREADY_EXISTS: move or remove the old portable test app intentionally"; exit 3; }
 cp -R "$APP" "$OUTPUT"
 mkdir -p "$OUTPUT/Contents/Helpers/WitnessCore"
-cp -R "$CACHE/py-dist/WitnessCore/." "$OUTPUT/Contents/Helpers/WitnessCore/"
+cp "$CORE" "$OUTPUT/Contents/Helpers/WitnessCore/WitnessCore"
 /usr/libexec/PlistBuddy -c "Set :WitnessDevelopmentBuild false" "$OUTPUT/Contents/Info.plist"
 # Remove build-stage extended metadata and sign the final assembled app in one place.
 # This script only modifies the generated dist/Portable.app; no download or save files.
