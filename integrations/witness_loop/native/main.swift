@@ -41,6 +41,21 @@ struct BridgePolicy {
     }
 }
 
+// Application-owned player saves are independent of the developer's source checkout.
+// GUI smoke tests use a separate temporary root and cannot load real player memory.
+enum WitnessStorage {
+    static func playerDirectory() throws -> URL {
+        guard let parent = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            throw ProviderFailure.invalidConfiguration
+        }
+        return parent.appendingPathComponent("Witness Loop", isDirectory: true)
+    }
+
+    static func isolatedUITestRoot() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("witness-ui-smoke-" + UUID().uuidString, isDirectory: true)
+    }
+}
+
 final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     var window: NSWindow!
     var webView: WKWebView!
@@ -69,11 +84,19 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
             guard let resources = Bundle.main.resourceURL,
                   let configData = try? Data(contentsOf: resources.appendingPathComponent("config.json")),
                   let config = try JSONSerialization.jsonObject(with: configData) as? [String: String],
-                  let projectRoot = config["project_root"] else { throw ProviderFailure.invalidConfiguration }
+                  config["version"] == "0.3.0", config["character_digest"] != nil else {
+                throw ProviderFailure.invalidConfiguration
+            }
             indexURL = resources.appendingPathComponent("ui/index.html").standardizedFileURL
-            if uiSelfTest { uiScreenshotURL = URL(fileURLWithPath: projectRoot).appendingPathComponent("integrations/witness_loop/.build-cache/v03-ui-smoke-" + UUID().uuidString) }
-            let dataPath = uiSelfTest ? "integrations/witness_loop/.build-cache/ui-self-test-" + UUID().uuidString : "integrations/witness_loop/data"
-            worker = try CoreWorker(runtime: resources.appendingPathComponent("runtime"), dataDirectory: URL(fileURLWithPath: projectRoot).appendingPathComponent(dataPath))
+            let dataDirectory: URL
+            if uiSelfTest {
+                let testRoot = WitnessStorage.isolatedUITestRoot()
+                uiScreenshotURL = testRoot.appendingPathComponent("screenshots", isDirectory: true)
+                dataDirectory = testRoot.appendingPathComponent("data", isDirectory: true)
+            } else {
+                dataDirectory = try WitnessStorage.playerDirectory()
+            }
+            worker = try CoreWorker(runtime: resources.appendingPathComponent("runtime"), dataDirectory: dataDirectory)
             worker?.onFailure = { [weak self] in
                 guard let self = self else { return }
                 self.adapter.cancel(); self.credential = nil; self.verified = false
