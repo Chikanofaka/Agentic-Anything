@@ -9,6 +9,8 @@ APP="$ROOT/integrations/witness_loop/dist/Witness Loop Portable.app"
 [[ -d "$APP" ]] || { echo "PORTABLE_APP_NOT_FOUND: $APP"; exit 2; }
 [[ -x "$APP/Contents/MacOS/WitnessLoop" ]] || { echo "NATIVE_HOST_NOT_FOUND"; exit 2; }
 [[ -x "$APP/Contents/Helpers/WitnessCore/WitnessCore" ]] || { echo "PACKAGED_CORE_NOT_FOUND"; exit 2; }
+[[ ! -e "$APP/Contents/Helpers/WitnessCore/_internal" ]] || { echo "LEGACY_ONEDIR_LAYOUT: rebuild using --onefile; cannot repair old nested fixtures in place"; exit 2; }
+[[ "$(find "$APP/Contents/Helpers/WitnessCore" -mindepth 1 -maxdepth 1 | wc -l | tr -d " ")" == "1" ]] || { echo "UNEXPECTED_NESTED_HELPERS_CONTENTS: rebuild clean"; exit 2; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :WitnessDevelopmentBuild' "$APP/Contents/Info.plist")" == "false" ]] || {
   echo "DEVELOPER_BUILD_REFUSED"; exit 2;
 }
