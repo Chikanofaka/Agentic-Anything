@@ -17,6 +17,8 @@ ENTITLEMENTS="$ROOT/packaging/WitnessLoop.DeveloperID.entitlements"
 command -v gh >/dev/null || { echo "GitHub CLI gh required"; exit 1; }
 gh auth status >/dev/null
 git diff --quiet && git diff --cached --quiet || { echo "Dirty tracked working tree"; exit 1; }
+[[ "$(uname -m)" == "arm64" ]] || { echo "This release script targets arm64 only"; exit 1; }
+[[ "${WITNESS_RIGHTS_APPROVED:-}" == "YES" ]] || { echo "Publisher rights approval required: set WITNESS_RIGHTS_APPROVED=YES only after confirming redistribution rights for code and artwork"; exit 1; }
 [[ "$(git branch --show-current)" == "feat/wtl029-portable-beta" ]] || { echo "Wrong branch"; exit 1; }
 [[ -f "$ENTITLEMENTS" ]] || { echo "Entitlements missing"; exit 1; }
 security find-identity -v -p codesigning | grep -F "$DEVELOPER_ID_APPLICATION" >/dev/null || { echo "Developer ID Application identity unavailable"; exit 1; }
@@ -40,14 +42,24 @@ codesign --force --sign "$DEVELOPER_ID_APPLICATION" --options runtime --timestam
 codesign --verify --deep --strict --verbose=2 "$SIGNED"
 spctl --assess --type execute --verbose=4 "$SIGNED" || echo "Pre-notarization Gatekeeper assessment inconclusive; notarization remains mandatory"
 ditto -c -k --keepParent "$SIGNED" "$RELEASE/notary-submission.zip"
-xcrun notarytool submit "$RELEASE/notary-submission.zip" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait
+xcrun notarytool submit "$RELEASE/notary-submission.zip" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait --output-format json | tee "$RELEASE/notary-app.json"
+/usr/bin/python3 - "$RELEASE/notary-app.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f: data=json.load(f)
+if data.get("status") != "Accepted": raise SystemExit("App notarization NOT ACCEPTED: "+str(data.get("status")))
+PY
 xcrun stapler staple "$SIGNED"
 xcrun stapler validate "$SIGNED"
 codesign --verify --deep --strict --verbose=2 "$SIGNED"
 # Create a user-friendly read-only DMG. The signed and stapled app is inside.
 hdiutil create -volname "Witness Loop" -srcfolder "$SIGNED" -ov -format UDZO "$DMG"
 # Notarize the final DMG as well; only a successful notarization reaches GitHub.
-xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait
+xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" --wait --output-format json | tee "$RELEASE/notary-dmg.json"
+/usr/bin/python3 - "$RELEASE/notary-dmg.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f: data=json.load(f)
+if data.get("status") != "Accepted": raise SystemExit("DMG notarization NOT ACCEPTED: "+str(data.get("status")))
+PY
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature -v "$DMG" || { echo "Gatekeeper DMG assessment failed"; exit 1; }
