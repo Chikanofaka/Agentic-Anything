@@ -1,47 +1,35 @@
 # 雨夜回环 · Witness Loop
 
-*After the Last Train — A Rain-Soaked Mystery*
+### AFTER THE LAST TRAIN
 
-[Download the Mac game](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)
+*末班车驶离之后，有人失踪。有人沉默。真相还在雨中。*
 
-### 最终安装流程 · Four steps to play
+**[下载 Mac 游戏 · Download for Apple Silicon](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)**
 
-1. **下载游戏** — Download and unzip the Mac game.
-2. **移入应用程序** — Move `Witness Loop.app` into **Applications** using Finder before opening it.
-3. **安全授权** — If blocked, and you trust the download, use **System Settings → Privacy & Security → Open Anyway**.
-4. **进入云江站** — Open *Witness Loop* from Applications.
+## 最终安装流程
 
-**Install:** Download and unzip → **use Finder to move Witness Loop.app to Applications** → if you trust the app, approve via macOS Privacy & Security → Open Anyway when prompted → launch from Applications.
+![安装步骤：下载、移入应用程序、安全授权、进入云江站](https://raw.githubusercontent.com/Chikanofaka/HAL-P2D-001/main/branding/after-the-last-train-install.svg)
 
----
+1. **下载游戏** — 从 GitHub 下载 ZIP 并解压 `Witness Loop.app`。
+2. **移入应用程序** — **先用 Finder** 把游戏移到 **Applications**，再尝试启动。不要直接从 Downloads 打开。
+3. **安全授权** — 仅在你信任此下载的情况下，如果 macOS 阻止启动，请到 **System Settings → Privacy & Security → Open Anyway** 并按提示确认。
+4. **进入云江站** — 从 Applications 打开游戏，寻找停在 **00:17** 的时钟，展开调查。
 
-<details><summary>Release identification & engineering notes</summary>
+This Mac preview is **ad-hoc signed but not Apple Developer ID signed or notarized**. Apple Silicon only. The downloaded app's first launch was confirmed on one Mac after moving it into Applications with Finder and completing manual macOS security approval. Full human playthrough and broad compatibility are pending. Do not disable Gatekeeper or remove quarantine attributes.
 
-**Build identity:** v0.3.0-beta.3-adhoc. **Experimental Apple Silicon prerelease.**
+### 故事简介 · The mystery
 
+A traveler has vanished after the last train. Meet **林雾 · Lin Wu**, investigate four clues, and decide which story the evidence supports. Offline mode runs locally without a key; optional live-model dialogue is experimental and needs separate API billing.
 
+<details>
+<summary>Technical build identity, changes and limitations</summary>
 
-**Experimental macOS Apple Silicon (arm64) GitHub prerelease. Ad-hoc signed only; NOT Developer ID signed, notarized, or distributed through the App Store.**
+**Build identifier:** `v0.3.0-beta.3-adhoc` (historical asset filename retained for stable downloads).
 
-## What's fixed since Beta 2
-Beta 2 could be opened after the macOS Privacy & Security override but displayed an entirely white game window. All four core UI assets were confirmed present in the downloaded bundle. Beta 3 integrates targeted WebKit navigation/load failure reporting, JavaScript/CSS/DOM readiness checks, and a first-snapshot synchronization fix to avoid UI initialization races with the bundled Python HAL Core.
+**What changed:** Beta 1 had a broken app signature. Beta 2 corrected the signature but the user reported a blank window when the quarantined app was opened from Downloads. Beta 3 added WebKit error diagnostics, UI readiness synchronization and validated the staged and ZIP-extracted candidates with **21/21 native UI checks each**. The downloaded Beta 3 app initially hit a 12-second timeout under confirmed macOS App Translocation. Moving it to Applications using Finder resolved the loading issue on that Mac.
 
-The **local isolated release candidate** passed 21/21 native WebKit UI integration checks (case brief, station, evidence inspection, Lin Wu, free/offline dialogue, saved state, and all three verdict outcomes) without real model requests or credentials. Its ad-hoc app signature also verified before and after the GUI check.
+**Limitations:** No Developer ID, Apple notarization, App Store distribution, automatic updates, or broad macOS/Intel verification. The optional OpenAI mode is mock-tested, not live-persona human-certified. Saves are local to `~/Library/Application Support/Witness Loop/`. Distribution rights of source, artwork and bundled Python/Anaconda components remain subject to publisher review.
 
-Beta 3's publication script independently checks the final zipped and extracted app, including a native UI smoke run on the extracted candidate. **Post-release confirmation (2026-10-17):** A user downloaded Beta 3 with Chrome. Opening from Downloads translocated the app and led to the 12-second game-screen timeout. Moving the app to /Applications using Finder and using macOS Privacy & Security → Open Anyway resolved the loading issue. Initial downloaded-app startup is confirmed; an entire gameplay session is not yet confirmed. A successful packaging gate is not equivalent to that final user acceptance.
-
-## Download & opening
-Download `WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip`, optionally verify the accompanying SHA-256 checksum, then extract `Witness Loop.app` and **move it into /Applications using Finder before launch** (opening from Downloads can cause App Translocation and a white-screen timeout). Because this build has no Apple Developer ID signature or notarization, macOS may block its first launch. Only if you trust this exact download, use the system-provided **System Settings → Privacy & Security → Open Anyway** override if offered; macOS may require an administrator's approval. **Do not disable Gatekeeper globally or use indiscriminate quarantine removal.**
-
-## Limitations
-- Apple Silicon only; Intel Macs and other macOS versions not broadly validated.
-- Offline scripted dialogue and deterministic HAL case outcomes are included. Live OpenAI requests are optional and not certified by paid-model human UAT.
-- Existing local player data under `~/Library/Application Support/Witness Loop/` is not deleted by this installer.
-- No automatic update, Developer ID notarization or App Store version.
-- Beta 1 has a known invalid signature. Beta 2 has a reported blank-screen issue and remains a historical prerelease.
-- Distribution rights for packaged code/artwork and the Python/Anaconda-linked dependencies remain subject to the publisher's review.
-
-## Acceptance state
-**Candidate UI integration: PASS (21/21 × 2). Downloaded startup: PASS after Finder move to /Applications and Gatekeeper manual approval. Complete downloaded-game playthrough: PENDING.** Report blank screens and launch errors via [issue #4](https://github.com/Chikanofaka/HAL-P2D-001/issues/4).
+**Developer references:** [Technical guide](https://github.com/Chikanofaka/HAL-P2D-001/blob/main/engineering/WITNESS_TECHNICAL_SHOWCASE.md) · [Issue history](https://github.com/Chikanofaka/HAL-P2D-001/issues/4)
 
 </details>
