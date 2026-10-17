@@ -1,4 +1,20 @@
-# Witness Loop · 雨夜回环 — v0.3.0 Beta 3 (Ad-Hoc Signed)
+# 雨夜回环 · Witness Loop
+
+*After the Last Train — A Rain-Soaked Mystery*
+
+[Download the Mac game](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip)
+
+![Four steps to enter the mystery](../branding/after-the-last-train-install.svg)
+
+**Install:** Download and unzip → **use Finder to move Witness Loop.app to Applications** → if you trust the app, approve via macOS Privacy & Security → Open Anyway when prompted → launch from Applications.
+
+---
+
+<details><summary>Release identification & engineering notes</summary>
+
+**Build identity:** v0.3.0-beta.3-adhoc. **Experimental Apple Silicon prerelease.**
+
+
 
 **Experimental macOS Apple Silicon (arm64) GitHub prerelease. Ad-hoc signed only; NOT Developer ID signed, notarized, or distributed through the App Store.**
 
@@ -22,3 +38,5 @@ Download `WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip`, optionally verify th
 
 ## Acceptance state
 **Candidate UI integration: PASS (21/21 × 2). Downloaded startup: PASS after Finder move to /Applications and Gatekeeper manual approval. Complete downloaded-game playthrough: PENDING.** Report blank screens and launch errors via [issue #4](https://github.com/Chikanofaka/HAL-P2D-001/issues/4).
+
+</details>
