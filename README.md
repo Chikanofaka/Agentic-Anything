@@ -16,7 +16,7 @@
   <a href="#status--roadmap">Release roadmap</a>
 </p>
 
-> **Current status — Public experimental macOS Beta 3.** [Download v0.3.0-beta.3-adhoc](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc) for **Apple Silicon (arm64)**. Beta 3 integrates fixes and diagnostics for the Beta 2 white-screen issue. The staged app and actual ZIP-extracted app each passed **21 native WebKit UI checks**, and strict signature verification passed. The build is **ad-hoc signed, not Developer ID signed or notarized**; downloaded-app Gatekeeper launch and player-visible first-playable acceptance remain to be confirmed. Offline dialogue is simulated; optional live OpenAI mode remains mock-tested only. Not an Apple-certified or App Store release.
+> **Current status — Public experimental macOS Beta 3.** [Download v0.3.0-beta.3-adhoc](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc) for **Apple Silicon (arm64)**. Beta 3 integrates fixes and diagnostics for the Beta 2 white-screen issue. The staged app and actual ZIP-extracted app each passed **21 native WebKit UI checks**, and strict signature verification passed. The build is **ad-hoc signed, not Developer ID signed or notarized**; Chrome-downloaded startup was confirmed after moving the app using Finder from Downloads to /Applications and completing macOS Privacy & Security → Open Anyway. Full downloaded-player gameplay UAT and cross-Mac support remain pending. Offline dialogue is simulated; optional live OpenAI mode remains mock-tested only. Not an Apple-certified or App Store release.
 
 ## Step into the mystery
 
@@ -44,7 +44,7 @@ You are the detective. First **observe**, then **question Lin Wu**, connect what
 
 ## Play the prototype
 
-**Download (Beta 3):** [Witness Loop v0.3.0-beta.3-adhoc (Apple Silicon ZIP)](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip). Extract `Witness Loop.app` and move it to Applications. It has an integrity-checked **ad-hoc** signature, but no Apple Developer ID signing or notarization; macOS Gatekeeper may block it. If you trust this specific download and macOS offers an override, review **System Settings → Privacy & Security → Open Anyway**. **Do not disable Gatekeeper globally.** [Beta 2](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.2-adhoc) remains historical (reported white screen); [Beta 1](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned) has a known invalid app signature. Neither is recommended for new installations.
+**Download (Beta 3):** [Witness Loop v0.3.0-beta.3-adhoc (Apple Silicon ZIP)](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.3-adhoc/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip). Extract `Witness Loop.app` and **move it to /Applications using Finder before first launch**. On one user's Mac, launching directly from Downloads caused App Translocation and a 12-second white-screen timeout; moving to Applications resolved it. It has an integrity-checked **ad-hoc** signature, but no Apple Developer ID signing or notarization; macOS Gatekeeper may block it. If you trust this specific download and macOS offers an override, review **System Settings → Privacy & Security → Open Anyway**. **Do not disable Gatekeeper globally.** [Beta 2](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.2-adhoc) remains historical (reported white screen); [Beta 1](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned) has a known invalid app signature. Neither is recommended for new installations.
 
 **Build from source:** Requires a Mac with a Swift compiler / compatible macOS SDK and the system Python used by the developer build. The script targets macOS 12+; broader compatibility has not been verified.
 
@@ -67,7 +67,7 @@ To exercise the actual native UI/bridge with **synthetic** saves and **no** prov
 
 See the [step-by-step game guide](integrations/witness_loop/README.md) and [reproducible UAT walkthrough](engineering/WTL03_UAT.md).
 
-**Development vs distribution:** The `scripts/build_witness_mac.sh` command builds a developer prototype with a system-Python fallback. For an independent Apple Silicon build, use `scripts/build_witness_portable_beta.sh` to embed the Python HAL worker in the `.app` and verify its ad-hoc signature. Beta 3 is a downloadable portable bundle whose ZIP-extracted app passed native UI smoke, but cross-Mac compatibility and Gatekeeper approval remain unverified; it is not an Apple-certified universal installer.
+**Development vs distribution:** The `scripts/build_witness_mac.sh` command builds a developer prototype with a system-Python fallback. For an independent Apple Silicon build, use `scripts/build_witness_portable_beta.sh` to embed the Python HAL worker in the `.app` and verify its ad-hoc signature. Beta 3 is a downloadable portable bundle whose ZIP-extracted app passed native UI smoke, but cross-Mac compatibility remains unverified; one user confirmed initial launch after moving to Applications and manually approving Gatekeeper; it is not an Apple-certified universal installer.
 
 ### Playing the case
 
@@ -150,11 +150,11 @@ The broader **HAL-P2D-001** repo contains the general Harness Activation Layer r
 | Cinematic rainy platform, inspection and sequential UI | Implemented in local v0.3 |
 | Deterministic three-outcome case and v1 save migration | Implemented and regression-tested |
 | Live OpenAI v0.3 personality, memory and bilingual human UAT | **Pending** |
-| Experimental ad-hoc-signed Apple Silicon GitHub ZIP prerelease | **Beta 3 published** ([download](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc)); 21/21 UI tests passed on staged and extracted app; real downloaded-app Gatekeeper/gameplay acceptance pending. Beta 1 signature invalid; Beta 2 reported white screen |
+| Experimental ad-hoc-signed Apple Silicon GitHub ZIP prerelease | **Beta 3 published** ([download](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.3-adhoc)); 21/21 UI tests passed on staged and extracted app; real downloaded-app startup accepted after Finder move to Applications; complete gameplay UAT pending. Beta 1 signature invalid; Beta 2 reported white screen |
 | Developer ID signing, notarization and wider cross-Mac compatibility | **Not yet available** |
 | Mac App Store sandbox, privacy/compliance, TestFlight and review | **Planned** |
 
-**Human Gate: Beta 3 published / downloaded-app acceptance pending.** The portable Apple Silicon ZIP is downloadable, but no Developer ID signing, notarization, or App Store release is claimed. Distribution and reuse terms for code, generated artwork and supplied references require explicit rights review; there is no license grant merely because the repository is public.
+**Human Gate: Beta 3 downloaded-app startup accepted; full gameplay UAT pending.** The portable Apple Silicon ZIP is downloadable, but no Developer ID signing, notarization, or App Store release is claimed. Distribution and reuse terms for code, generated artwork and supplied references require explicit rights review; there is no license grant merely because the repository is public.
 
 ---
 
