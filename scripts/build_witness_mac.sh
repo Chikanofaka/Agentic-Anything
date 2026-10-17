@@ -50,8 +50,12 @@ manifest = {'version': '0.3.0', 'character_context': {'version': compiled['versi
 (staged / 'build-manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
 shutil.rmtree(resources)
 staged.rename(resources)
+icon_path = root / 'branding' / 'WitnessLoop.icns'
+if not icon_path.is_file() or icon_path.is_symlink():
+    sys.exit('BRAND_ICON_MISSING')
+shutil.copy2(icon_path, resources / 'WitnessLoop.icns')
 info = {'CFBundleName': 'Witness Loop', 'CFBundleDisplayName': 'Witness Loop · HAL',
-        'CFBundleIdentifier': 'local.hal.witness-loop', 'CFBundleExecutable': 'WitnessLoop',
+        'CFBundleIdentifier': 'local.hal.witness-loop', 'CFBundleExecutable': 'WitnessLoop', 'CFBundleIconFile': 'WitnessLoop',
         'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': '0.3.0',
         'CFBundleVersion': '3', 'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '12.0', 'NSPrincipalClass': 'NSApplication',
