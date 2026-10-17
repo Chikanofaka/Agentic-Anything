@@ -15,8 +15,21 @@ final class CoreWorker {
     var onFailure: (() -> Void)?
 
     init(runtime: URL, dataDirectory: URL) throws {
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        process.arguments = ["-B", "-u", "-m", "hal_core.interactive", "--data-dir", dataDirectory.path]
+        // A release bundle ships its own Core executable, including Python and reviewed
+        // fixture data. Only the explicit developer build may use system Python.
+        let bundledCore = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Helpers/WitnessCore/WitnessCore")
+        if FileManager.default.isExecutableFile(atPath: bundledCore.path) {
+            process.executableURL = bundledCore
+            process.arguments = ["--data-dir", dataDirectory.path]
+        } else if Bundle.main.object(forInfoDictionaryKey: "WitnessDevelopmentBuild") as? Bool == true {
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+            process.arguments = ["-B", "-u", "-m", "hal_core.interactive", "--data-dir", dataDirectory.path]
+        } else {
+            throw NSError(domain: "WitnessCore", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Bundled Core executable is missing"
+            ])
+        }
         process.currentDirectoryURL = runtime
         process.environment = ["PATH": "/usr/bin:/bin", "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1"]
         process.standardInput = input
