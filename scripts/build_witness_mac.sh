@@ -57,7 +57,7 @@ shutil.copy2(icon_path, resources / 'WitnessLoop.icns')
 info = {'CFBundleName': 'Witness Loop', 'CFBundleDisplayName': 'Witness Loop · HAL',
         'CFBundleIdentifier': 'local.hal.witness-loop', 'CFBundleExecutable': 'WitnessLoop', 'CFBundleIconFile': 'WitnessLoop',
         'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': '0.3.0',
-        'CFBundleVersion': '3', 'NSHighResolutionCapable': True,
+        'CFBundleVersion': '3', 'WitnessDevelopmentBuild': True, 'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '12.0', 'NSPrincipalClass': 'NSApplication',
         'NSAppTransportSecurity': {'NSAllowsArbitraryLoads': False}}
 with (app / 'Contents' / 'Info.plist').open('wb') as handle:
