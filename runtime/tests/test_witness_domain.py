@@ -3,7 +3,7 @@ from copy import deepcopy
 import json
 import unittest
 
-from trusted_adapters import witness as w
+from trusted_adapters import witness_v1 as w
 
 
 class WitnessDomainTests(unittest.TestCase):

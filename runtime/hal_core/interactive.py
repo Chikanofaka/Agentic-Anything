@@ -9,6 +9,7 @@ import argparse
 import copy
 import json
 import os
+import re
 from pathlib import Path
 import stat
 import sys
@@ -19,6 +20,10 @@ from .registry import INTERACTIVE
 
 MAX_SAVE_BYTES = 2_000_000
 MAX_MESSAGE_BYTES = 32_768
+CURRENT_SAVE = 'session-v2.json'
+LEGACY_PACKAGE_DIGEST = 'bd1f1f6f3c916e319d6553f382e756d400f7634a2a8709d542afdc5515c67c67'
+MODES = ('SIMULATED', 'LIVE_MODEL', 'LIVE_MODEL_REJECTED_FALLBACK')
+LOCAL_ACTIONS = ('continue', 'inspect', 'approach', 'language', 'advance', 'link', 'verdict', 'reset')
 
 
 class SessionStore:
@@ -42,9 +47,11 @@ class SessionStore:
     def __del__(self):
         self.close()
 
-    def load(self):
+    def load(self, name=CURRENT_SAVE):
+        if name not in (CURRENT_SAVE, 'session.json'):
+            raise ContractError('INVALID_SESSION_FILENAME')
         try:
-            fd = os.open('session.json', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=self.fd)
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=self.fd)
         except FileNotFoundError:
             return None
         except OSError:
@@ -72,7 +79,7 @@ class SessionStore:
         try:
             # Reject a planted symlink rather than quietly replacing it.
             try:
-                current = os.stat('session.json', dir_fd=self.fd, follow_symlinks=False)
+                current = os.stat(CURRENT_SAVE, dir_fd=self.fd, follow_symlinks=False)
                 if not stat.S_ISREG(current.st_mode):
                     raise ContractError('UNSAFE_SESSION_FILE')
             except FileNotFoundError:
@@ -83,7 +90,7 @@ class SessionStore:
                 stream.write(data)
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(name, 'session.json', src_dir_fd=self.fd, dst_dir_fd=self.fd)
+            os.replace(name, CURRENT_SAVE, src_dir_fd=self.fd, dst_dir_fd=self.fd)
         except OSError:
             raise ContractError('SESSION_WRITE_FAILED') from None
         finally:
@@ -109,39 +116,86 @@ class Session:
         self.pending = None
         saved = self.store.load()
         if saved is None:
-            self.state = self.binding.start({})
-            self.receipt = self._receipt('INITIALIZED', 'SIMULATED')
+            legacy = self.store.load('session.json')
+            if legacy is None:
+                self.state = self.binding.start({})
+                self.receipt = self._receipt('INITIALIZED', 'SIMULATED')
+            else:
+                self._restore_legacy(legacy)
         else:
-            if not isinstance(saved, dict) or set(saved) != {'schema', 'domain_id', 'state', 'receipt'} or saved['schema'] != 'hal-session/v1' or saved['domain_id'] != domain_id:
+            if not isinstance(saved, dict) or set(saved) != {'schema', 'domain_id', 'state', 'receipt'} or saved['schema'] != 'hal-session/v2' or saved['domain_id'] != domain_id:
                 raise ContractError('INVALID_SAVED_SESSION')
             try:
+                if not isinstance(saved['state'], dict) or saved['state'].get('schema') != 'witness-state/v2':
+                    raise ValueError('INVALID_SAVED_STATE_VERSION')
                 self.binding.validate_state(saved['state'])
                 self._validate_receipt(saved['receipt'])
                 if saved['receipt']['revision'] != saved['state']['revision']:
                     raise ValueError('STALE_SAVED_RECEIPT')
+                if saved['receipt']['action'] == 'TURN_COMMITTED' and saved['receipt']['output_rejection_reason'] != saved['state']['last_validation']['rejection_reason']:
+                    raise ValueError('INCONSISTENT_SAVED_VALIDATION')
             except (ValueError, TypeError, KeyError):
                 raise ContractError('INVALID_SAVED_SESSION') from None
             self.state, self.receipt = saved['state'], saved['receipt']
 
-    def _receipt(self, action, mode, **extra):
-        return {'kind': 'HAL_INTERACTIVE_RECEIPT_V1', 'domain_id': self.domain_id,
+    def _restore_legacy(self, saved):
+        """Copy one validated v1 save forward; never edit the original backup."""
+        try:
+            if not isinstance(saved, dict) or set(saved) != {'schema', 'domain_id', 'state', 'receipt'} or saved['schema'] != 'hal-session/v1' or saved['domain_id'] != self.domain_id:
+                raise ValueError('INVALID_LEGACY_SAVE')
+            receipt = saved['receipt']
+            if not isinstance(receipt, dict) or set(receipt) != {'kind', 'domain_id', 'package_digest', 'action', 'mode', 'live_model_used', 'external_writes', 'revision'}:
+                raise ValueError('INVALID_LEGACY_RECEIPT')
+            if receipt['kind'] != 'HAL_INTERACTIVE_RECEIPT_V1' or receipt['domain_id'] != self.domain_id or receipt['package_digest'] != LEGACY_PACKAGE_DIGEST:
+                raise ValueError('INVALID_LEGACY_RECEIPT')
+            if receipt['action'] not in ('INITIALIZED', 'STARTED', 'TURN_COMMITTED', 'advance', 'link', 'verdict', 'reset', 'FORGOTTEN') or receipt['mode'] not in ('SIMULATED', 'LIVE_MODEL') or type(receipt['live_model_used']) is not bool or receipt['live_model_used'] != (receipt['action'] == 'TURN_COMMITTED' and receipt['mode'] == 'LIVE_MODEL') or receipt['external_writes'] is not False:
+                raise ValueError('INVALID_LEGACY_RECEIPT')
+            if saved['state']['schema'] != 'witness-state/v1' or type(receipt['revision']) is not int or receipt['revision'] != saved['state']['revision']:
+                raise ValueError('INVALID_LEGACY_STATE')
+            self.state = self.binding.migrate_v1(copy.deepcopy(saved['state']))
+            self.binding.validate_state(self.state)
+            # Old transcript provenance remains in the untouched original file.
+            self.receipt = self._receipt('MIGRATED_V1', receipt['mode'])
+            self._persist(self.state, self.receipt)
+        except (ValueError, TypeError, KeyError):
+            raise ContractError('LEGACY_SAVE_MIGRATION_REJECTED') from None
+
+    def _receipt(self, action, mode, rejection_reason=None):
+        return {'kind': 'HAL_INTERACTIVE_RECEIPT_V2', 'domain_id': self.domain_id,
                 'package_digest': self.package.digest, 'action': action, 'mode': mode,
-                'live_model_used': action == 'TURN_COMMITTED' and mode == 'LIVE_MODEL', 'external_writes': False,
-                'revision': self.state['revision'], **extra}
+                'live_model_used': action == 'TURN_COMMITTED' and mode in ('LIVE_MODEL', 'LIVE_MODEL_REJECTED_FALLBACK'), 'external_writes': False,
+                'revision': self.state['revision'], 'character_context': self.binding.context_metadata(),
+                'output_rejection_reason': rejection_reason}
 
     def _validate_receipt(self, value):
-        if not isinstance(value, dict) or set(value) != {'kind', 'domain_id', 'package_digest', 'action', 'mode', 'live_model_used', 'external_writes', 'revision'}:
+        if not isinstance(value, dict) or set(value) != {'kind', 'domain_id', 'package_digest', 'action', 'mode', 'live_model_used', 'external_writes', 'revision', 'character_context', 'output_rejection_reason'}:
             raise ValueError('INVALID_RECEIPT')
-        if value['kind'] != 'HAL_INTERACTIVE_RECEIPT_V1' or value['domain_id'] != self.domain_id or value['package_digest'] != self.package.digest:
+        if value['kind'] != 'HAL_INTERACTIVE_RECEIPT_V2' or value['domain_id'] != self.domain_id or value['package_digest'] != self.package.digest:
             raise ValueError('INVALID_RECEIPT')
-        if value['mode'] not in ('SIMULATED', 'LIVE_MODEL') or type(value['live_model_used']) is not bool or value['live_model_used'] != (value['mode'] == 'LIVE_MODEL' and value['action'] == 'TURN_COMMITTED') or value['external_writes'] is not False:
+        if value['mode'] not in MODES or type(value['live_model_used']) is not bool or value['live_model_used'] != (value['mode'] in MODES[1:] and value['action'] == 'TURN_COMMITTED') or value['external_writes'] is not False:
             raise ValueError('INVALID_RECEIPT')
-        if value['action'] not in ('INITIALIZED', 'STARTED', 'TURN_COMMITTED', 'advance', 'link', 'verdict', 'reset', 'FORGOTTEN') or type(value['revision']) is not int or value['revision'] < 0:
+        if value['action'] not in ('INITIALIZED', 'STARTED', 'TURN_COMMITTED', 'MIGRATED_V1', 'FORGOTTEN') + LOCAL_ACTIONS or type(value['revision']) is not int or value['revision'] < 0:
             raise ValueError('INVALID_RECEIPT')
+        metadata = value['character_context']
+        if not isinstance(metadata, dict) or set(metadata) != {'version', 'digest', 'source_digests'} or not isinstance(metadata['version'], str) or not 1 <= len(metadata['version']) <= 80:
+            raise ValueError('INVALID_CONTEXT_RECEIPT')
+        if not isinstance(metadata['digest'], str) or not re.fullmatch('[a-f0-9]{64}', metadata['digest']):
+            raise ValueError('INVALID_CONTEXT_RECEIPT')
+        hashes = metadata['source_digests']
+        if not isinstance(hashes, dict) or not 1 <= len(hashes) <= 16 or any(not isinstance(k, str) or not re.fullmatch('[a-z_]+\\.md', k) or not isinstance(v, str) or not re.fullmatch('[a-f0-9]{64}', v) for k, v in hashes.items()):
+            raise ValueError('INVALID_CONTEXT_RECEIPT')
+        reason = value['output_rejection_reason']
+        if reason is not None and (not isinstance(reason, str) or not re.fullmatch('[A-Z_]{1,80}', reason)):
+            raise ValueError('INVALID_REJECTION_REASON')
+        if value['action'] != 'TURN_COMMITTED' and reason is not None:
+            raise ValueError('INVALID_REJECTION_REASON')
+        if value['action'] == 'TURN_COMMITTED' and ((value['mode'] == 'LIVE_MODEL_REJECTED_FALLBACK') != (reason is not None and value['live_model_used'])):
+            raise ValueError('INVALID_REJECTION_REASON')
 
     def snapshot(self):
         return {'state': copy.deepcopy(self.state), 'receipt': copy.deepcopy(self.receipt),
-                'reality': 'REAL_STATE_LIVE_LANGUAGE' if self.receipt['mode'] == 'LIVE_MODEL' else 'REAL_STATE_SIMULATED_LANGUAGE',
+                'view': self.binding.public_view(copy.deepcopy(self.state)),
+                'reality': {'LIVE_MODEL': 'REAL_STATE_LIVE_LANGUAGE', 'LIVE_MODEL_REJECTED_FALLBACK': 'REAL_STATE_VALIDATED_FALLBACK'}.get(self.receipt['mode'], 'REAL_STATE_SIMULATED_LANGUAGE'),
                 'package': {'id': self.domain_id, 'title': self.package.contract['name'],
                             'digest': self.package.digest, 'schema': self.package.contract['schema_version']}}
 
@@ -149,7 +203,7 @@ class Session:
         self.binding.validate_state(state)
         receipt['revision'] = state['revision']
         self._validate_receipt(receipt)
-        self.store.save({'schema': 'hal-session/v1', 'domain_id': self.domain_id, 'state': state, 'receipt': receipt})
+        self.store.save({'schema': 'hal-session/v2', 'domain_id': self.domain_id, 'state': state, 'receipt': receipt})
         self.state, self.receipt = state, receipt
 
     @staticmethod
@@ -177,18 +231,25 @@ class Session:
             self._fields(params, ())
             return self.snapshot()
         if action == 'start':
-            self._fields(params, ('player', 'style'))
+            self._fields(params, ('player', 'style'), ('language',))
             state = self.binding.start(params)
             state['revision'] = self.state['revision'] + 1
             self._persist(state, self._receipt('STARTED', 'SIMULATED'))
             return self.snapshot()
-        if action == 'classify_context':
+        if action == 'preview_turn':
             self._fields(params, ('text',))
+            return self.binding.preview_turn(copy.deepcopy(self.state), params['text'])
+        if action == 'classify_context':
+            self._fields(params, ('text',), ('confirm_case',))
+            self._preflight(params)
             return self.binding.classify_context(copy.deepcopy(self.state), params['text'])
         if action == 'prepare_turn':
-            self._fields(params, ('text',), ('topic',))
+            self._fields(params, ('text',), ('topic', 'confirm_case'))
+            self._preflight(params)
             draft = self.binding.prepare_turn(copy.deepcopy(self.state), params['text'], params.get('topic'))
             self.binding.validate_state(draft['state'])
+            if draft['state']['case_turns'] > self.state['case_turns'] and params.get('confirm_case') is not True:
+                raise ContractError('CASE_ACTION_CONFIRMATION_REQUIRED')
             transaction_id = uuid.uuid4().hex
             self.pending = {'id': transaction_id, 'revision': self.state['revision'], 'draft': draft}
             return {'transaction_id': transaction_id, 'context': draft['context'],
@@ -200,15 +261,18 @@ class Session:
             if params['mode'] not in ('SIMULATED', 'LIVE_MODEL'):
                 raise ContractError('INVALID_LANGUAGE_MODE')
             state = self.binding.finalize_turn(copy.deepcopy(self.pending['draft']['state']), params['reply'])
-            self._persist(state, self._receipt('TURN_COMMITTED', params['mode']))
+            reason = state.get('last_validation', {}).get('rejection_reason')
+            mode = 'LIVE_MODEL_REJECTED_FALLBACK' if reason and params['mode'] == 'LIVE_MODEL' else params['mode']
+            self._persist(state, self._receipt('TURN_COMMITTED', mode, reason))
             self.pending = None
             return self.snapshot()
         if action == 'cancel_turn':
             self._fields(params, ())
             self.pending = None
             return self.snapshot()
-        if action in ('advance', 'link', 'verdict', 'reset'):
-            self._fields(params, ('clues',) if action == 'link' else ())
+        if action in LOCAL_ACTIONS:
+            required = {'link': ('clues',), 'inspect': ('id',), 'language': ('language',)}.get(action, ())
+            self._fields(params, required)
             state = self.binding.act(copy.deepcopy(self.state), action, params)
             self._persist(state, self._receipt(action, 'SIMULATED' if action == 'reset' else self.receipt['mode']))
             self.pending = None
@@ -238,6 +302,15 @@ class Session:
                                   'skills': [read_asset(path) for path in contract['skills']],
                                   'entrypoint': read_asset(contract['entrypoint']), 'manifest': contract}}
         raise ContractError('UNKNOWN_INTERACTIVE_ACTION')
+
+    def _preflight(self, params):
+        if 'confirm_case' in params and type(params['confirm_case']) is not bool:
+            raise ContractError('INVALID_CASE_CONFIRMATION')
+        preview = self.binding.preview_turn(copy.deepcopy(self.state), params['text'])
+        if preview['case_action'] and params.get('confirm_case') is not True:
+            raise ContractError('CASE_ACTION_CONFIRMATION_REQUIRED')
+        if preview['case_action'] and preview['remaining'] <= 0:
+            raise ContractError('CASE_ACTIONS_EXHAUSTED')
 
 
 def main():

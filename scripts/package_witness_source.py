@@ -4,24 +4,28 @@ import hashlib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / 'integrations/witness_loop/dist/HAL_Witness_Loop_Source.zip'
+OUTPUT = ROOT / 'integrations/witness_loop/dist/HAL_Witness_Loop_v03_Source.zip'
 TREES = (
     'runtime/hal_core', 'runtime/trusted_adapters', 'runtime/fixtures',
     'runtime/tests', 'runtime/docs', 'baseline/prd',
     'integrations/witness_loop/source', 'integrations/witness_loop/native',
-    'integrations/witness_loop/ui',
+    'integrations/witness_loop/ui', 'integrations/witness_loop/reference_v01',
 )
 FILES = (
     'AGENTS.md', 'README_START_HERE.md', '.gitignore', 'runtime/README.md',
     'status/HUMAN_GATE.md', 'engineering/BASELINE_AUDIT.md',
     'engineering/SPRINT1_RECEIPT.md', 'engineering/HAL_WITNESS_TYPE_B_PRD.md',
     'engineering/WITNESS_INTEGRATION_RECEIPT.md',
+    'engineering/WTL03_DECISIONS.md', 'engineering/WTL03_RECEIPT.md',
+    'engineering/WTL03_UAT.md',
     'integrations/witness_loop/README.md',
     'integrations/witness_loop/SOURCE_PROVENANCE.md',
+    'integrations/witness_loop/ASSET_PROVENANCE.md',
     'scripts/verify_local.sh', 'scripts/verify_witness_local.sh',
     'scripts/build_witness_mac.sh', 'scripts/package_witness_source.py',
+    'scripts/compile_witness_character.py',
 )
-SUFFIXES = {'.py', '.md', '.json', '.html', '.css', '.js', '.swift', '.csv'}
+SUFFIXES = {'.py', '.md', '.json', '.html', '.css', '.js', '.swift', '.csv', '.svg', '.png'}
 
 
 def main():

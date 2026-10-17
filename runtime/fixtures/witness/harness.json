@@ -2,7 +2,7 @@
   "schema_version": "hal-domain/v1",
   "id": "witness-loop",
   "name": "Witness Loop · 证词回环",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "domain": "narrative-game",
   "description": "Reviewed case rules, evidence, player-attributed memory and open conversation for one witness.",
   "entrypoint": "main.py",

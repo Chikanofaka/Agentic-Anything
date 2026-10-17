@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 550" role="img" aria-label="Wet red raincoat fabric beside station lockers, owner not established">
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#273c43"/><stop offset="1" stop-color="#07131b"/></linearGradient><linearGradient id="cloth" x2="1" y2=".6"><stop stop-color="#481d2b"/><stop offset=".26" stop-color="#913746"/><stop offset=".5" stop-color="#4c1725"/><stop offset=".72" stop-color="#b24955"/><stop offset="1" stop-color="#381c2a"/></linearGradient><pattern id="weave" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 0h6M0 3h6M0 0v6M3 0v6" stroke="#eb8a8b" opacity=".10" stroke-width=".6"/></pattern></defs>
+<rect width="900" height="550" fill="url(#bg)"/><path d="M75 0v550M260 0v550M0 460h900" stroke="#4f6164" stroke-width="4"/><path d="M95 45h140M95 60h140M95 75h140M285 45h180M285 60h180M285 75h180" stroke="#081820" stroke-width="7"/><path d="M273 162l170-31 95 73-12 111 150 124-335 32-179-75 61-108z" fill="#03080d" opacity=".65"/>
+<path id="fabric" d="M250 135l180-29 92 72-15 118 171 126-337 25-179-75 75-101z" fill="url(#cloth)" stroke="#ad6466" stroke-width="2"/>
+<use href="#fabric" fill="url(#weave)"/><path d="M251 140q48 85 37 199M428 114q-86 162-62 323M498 184q-108 137 36 247M226 283q147 41 283 11" fill="none" stroke="#e08b8b" stroke-width="3" opacity=".38"/>
+<path d="M170 370l-24 14m39-8l-17 24m32-16l-8 23m145 36l-10 20m22-19l-3 22m318-41l23 10" stroke="#bb6271" stroke-width="2"/>
+<g fill="#b6d4dd" opacity=".55"><ellipse cx="289" cy="192" rx="4" ry="7"/><ellipse cx="415" cy="248" rx="3" ry="6"/><ellipse cx="375" cy="370" rx="4" ry="6"/><ellipse cx="477" cy="326" rx="2" ry="5"/><ellipse cx="547" cy="396" rx="4" ry="5"/></g>
+<text x="450" y="505" fill="#c9d9dc" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="18">潮湿的红色衣料 · 主人尚未确定 / Ownership is unconfirmed.</text>
+</svg>

@@ -1,5 +1,7 @@
 # Witness Loop source provenance and adaptation record
 
+**v0.3 location correction, 2026-10-17:** this is the historical first-integration receipt. The original ten files and hashes below now refer to [`reference_v01/`](reference_v01/), recovered byte-for-byte from local commit `b234d98`. [`source/`](source/) contains the user's later authoring updates and is the canonical compiler input; it is no longer the unchanged v0.1 bundle. See [v0.3 decisions](../../engineering/WTL03_DECISIONS.md) and [current receipt](../../engineering/WTL03_RECEIPT.md). Historical behavior/function names below describe the first integration, not the final v0.3 renderer.
+
 Recorded 2026-10-16 (Asia/Shanghai) for the user-directed, bounded local HAL integration. The supplied Witness Loop v0.1 is an interactive simulation reference. Its presence, narrative quality, and local hash verification do not establish live AI functionality, external adoption, publisher identity, or a distribution license.
 
 ## Supplied references

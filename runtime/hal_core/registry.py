@@ -58,12 +58,17 @@ class InteractiveBinding:
     finalize_turn: Callable
     act: Callable
     user_markdown: Callable
+    migrate_v1: Callable
+    context_metadata: Callable
+    preview_turn: Callable
+    public_view: Callable
 
 
 INTERACTIVE = {
     'witness-loop': InteractiveBinding('witness', witness.start, witness.validate_state,
         witness.classify_context, witness.prepare_turn, witness.finalize_turn,
-        witness.act, witness.user_markdown),
+        witness.act, witness.user_markdown, witness.migrate_v1,
+        witness.context_metadata, witness.preview_turn, witness.public_view),
 }
 
 

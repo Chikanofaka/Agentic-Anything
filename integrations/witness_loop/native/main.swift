@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 let replySchema: [String: Any] = ["type": "object", "properties": ["reply": ["type": "string"]], "required": ["reply"], "additionalProperties": false]
 
 struct BridgePolicy {
-    static let actions: Set<String> = ["snapshot", "start", "turn", "advance", "link", "verdict", "forget", "reset", "export", "activate", "disconnect", "cancel", "developer"]
+    static let actions: Set<String> = ["snapshot", "start", "preview_turn", "turn", "continue", "inspect", "approach", "language", "advance", "link", "verdict", "forget", "reset", "export", "activate", "disconnect", "cancel", "developer"]
     static func validate(_ body: Any) -> (String, String, [String: Any])? {
         guard let object = body as? [String: Any], Set(object.keys) == ["id", "action", "params"],
               let id = object["id"] as? String, id.count <= 64, !id.isEmpty,
@@ -16,14 +16,26 @@ struct BridgePolicy {
               let data = try? JSONSerialization.data(withJSONObject: object), data.count <= 16384 else { return nil }
         let expected: Set<String>
         switch action {
-        case "start": expected = ["player", "style"]
-        case "turn": expected = ["text"]
+        case "start": expected = params["language"] == nil ? ["player", "style"] : ["player", "style", "language"]
+        case "preview_turn": expected = ["text"]
+        case "turn": expected = ["text", "confirm_case"]
         case "link": expected = ["clues"]
+        case "inspect": expected = ["id"]
+        case "language": expected = ["language"]
         default: expected = []
         }
         guard Set(params.keys) == expected else { return nil }
-        if action == "turn" {
+        if action == "turn" || action == "preview_turn" {
             guard let text = params["text"] as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= 1000 else { return nil }
+        }
+        if action == "turn" {
+            guard let number = params["confirm_case"] as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+        }
+        if action == "inspect" {
+            guard let id = params["id"] as? String, id.range(of: "\\A[a-z][a-z0-9_]{0,31}\\z", options: .regularExpression) != nil else { return nil }
+        }
+        if action == "language" || params["language"] != nil {
+            guard let language = params["language"] as? String, ["zh", "en"].contains(language) else { return nil }
         }
         return (id, action, params)
     }
@@ -49,6 +61,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
     private var pendingTransaction: String?
     private var activationSheet = false
     private var seenIDs = Set<String>()
+    private var pendingCaseProposal: (text: String, topic: String)?
     private let adapter = OpenAIAdapter()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -58,7 +71,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                   let config = try JSONSerialization.jsonObject(with: configData) as? [String: String],
                   let projectRoot = config["project_root"] else { throw ProviderFailure.invalidConfiguration }
             indexURL = resources.appendingPathComponent("ui/index.html").standardizedFileURL
-            if uiSelfTest { uiScreenshotURL = URL(fileURLWithPath: projectRoot).appendingPathComponent("integrations/witness_loop/.build-cache/witness-ui-smoke.png") }
+            if uiSelfTest { uiScreenshotURL = URL(fileURLWithPath: projectRoot).appendingPathComponent("integrations/witness_loop/.build-cache/v03-ui-smoke-" + UUID().uuidString) }
             let dataPath = uiSelfTest ? "integrations/witness_loop/.build-cache/ui-self-test-" + UUID().uuidString : "integrations/witness_loop/data"
             worker = try CoreWorker(runtime: resources.appendingPathComponent("runtime"), dataDirectory: URL(fileURLWithPath: projectRoot).appendingPathComponent(dataPath))
             worker?.onFailure = { [weak self] in
@@ -76,7 +89,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
             webView.uiDelegate = self
             webView.allowsBackForwardNavigationGestures = false
             window = NSWindow(contentRect: webView.frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "Witness Loop · HAL local prototype"
+            window.title = "Witness Loop · HAL · v0.3"
             window.minSize = NSSize(width: 800, height: 620)
             window.contentView = webView
             window.center(); window.makeKeyAndOrderFront(nil)
@@ -140,6 +153,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
               let (id, action, params) = BridgePolicy.validate(message.body) else { return }
         guard !seenIDs.contains(id), seenIDs.count < 10000 else { emit(id: id, ok: false, error: "Duplicate request or session limit. Restart the app."); return }
         seenIDs.insert(id)
+        if !["turn", "preview_turn", "snapshot"].contains(action) { pendingCaseProposal = nil }
         if action == "cancel" || action == "disconnect" {
             let error = cancelCurrent(disconnect: action == "disconnect")
             emit(id: id, ok: error == nil, error: error); return
@@ -149,7 +163,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
             guard !uiSelfTest else { emit(id: id, ok: false, error: "Activation is disabled in offline UI self-test mode."); return }
             showActivation(id: id); return
         }
-        if action == "turn" { runTurn(id: id, text: params["text"] as! String); return }
+        if action == "turn" { runTurn(id: id, text: params["text"] as! String, confirmCase: params["confirm_case"] as! Bool); return }
         busy = true
         coreRequest(action, params: params) { [weak self] envelope in
             guard let self = self else { return }
@@ -215,14 +229,23 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
         window.makeFirstResponder(keyField)
     }
 
-    private func runTurn(id: String, text: String) {
-        guard credential == nil || requestsUsed <= 18 else { emit(id: id, ok: false, error: "This activation has fewer than two requests left. Disconnect or explicitly activate a new session."); return }
+    private func runTurn(id: String, text: String, confirmCase: Bool) {
+        let retainedTopic = confirmCase && pendingCaseProposal?.text == text ? pendingCaseProposal?.topic : nil
+        let requiredRequests = retainedTopic == nil ? 2 : 1
+        guard credential == nil || requestsUsed <= 20 - requiredRequests else { emit(id: id, ok: false, error: "This activation has insufficient requests left for this turn. Disconnect or explicitly activate a new session."); return }
         busy = true; activeUIID = id; pendingTransaction = nil
         generation += 1
         let token = generation
         emit(id: nil, result: [:])
-        if credential == nil { prepare(id: id, text: text, topic: nil, token: token); return }
-        coreRequest("classify_context", params: ["text": text]) { [weak self] envelope in
+        if credential == nil { prepare(id: id, text: text, topic: nil, confirmCase: confirmCase, token: token); return }
+        if let topic = retainedTopic {
+            pendingCaseProposal = nil
+            prepare(id: id, text: text, topic: topic, confirmCase: true, token: token)
+            return
+        }
+        // Core validates phase, remaining actions and explicit case confirmation
+        // before the first billable request. It checks again after classification.
+        coreRequest("classify_context", params: ["text": text, "confirm_case": confirmCase]) { [weak self] envelope in
             guard let self = self else { return }
             guard token == self.generation else { self.busy = false; self.emit(id: nil); return }
             guard envelope["ok"] as? Bool == true, let context = envelope["result"] as? [String: Any],
@@ -232,7 +255,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                   let topicProperty = properties["topic"] as? [String: Any],
                   let topics = topicProperty["enum"] as? [String], !topics.isEmpty, topics.count <= 32,
                   topics.allSatisfy({ !$0.isEmpty && $0.count <= 64 }) else {
-                self.failTurn(id: id, message: "The domain could not prepare topic classification.", token: token); return
+                self.failTurn(id: id, message: envelope["error"] as? String ?? "The domain could not prepare topic classification.", token: token); return
             }
             let topicSchema: [String: Any] = ["type": "object", "properties": ["topic": ["type": "string", "enum": topics]], "required": ["topic"], "additionalProperties": false]
             self.modelCall(ModelRequest(instructions: instructions, input: input, schema: topicSchema, name: "hal_topic", outputTokens: 200), token: token) { result in
@@ -243,14 +266,14 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                         self.failTurn(id: id, message: "The topic response did not match the domain contract.", token: token); return
                     }
                     self.verified = true
-                    self.prepare(id: id, text: text, topic: topic, token: token)
+                    self.prepare(id: id, text: text, topic: topic, confirmCase: confirmCase, token: token)
                 }
             }
         }
     }
 
-    private func prepare(id: String, text: String, topic: String?, token: Int) {
-        var params: [String: Any] = ["text": text]
+    private func prepare(id: String, text: String, topic: String?, confirmCase: Bool, token: Int) {
+        var params: [String: Any] = ["text": text, "confirm_case": confirmCase]
         if let topic = topic { params["topic"] = topic }
         coreRequest("prepare_turn", params: params) { [weak self] envelope in
             guard let self = self else { return }
@@ -261,6 +284,11 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                 return
             }
             guard envelope["ok"] as? Bool == true, let result = envelope["result"] as? [String: Any], let transaction = result["transaction_id"] as? String else {
+                if envelope["error"] as? String == "CASE_ACTION_CONFIRMATION_REQUIRED", let topic = topic {
+                    // Keep only this proposed topic until explicit confirmation;
+                    // no second classification charge for the identical message.
+                    self.pendingCaseProposal = (text, topic)
+                } else { self.pendingCaseProposal = nil }
                 self.failTurn(id: id, message: envelope["error"] as? String ?? "The domain could not prepare this turn.", token: token); return
             }
             self.pendingTransaction = transaction
@@ -304,6 +332,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                 return
             }
             self.busy = false; self.activeUIID = nil; self.pendingTransaction = nil
+            self.pendingCaseProposal = nil
             self.forward(envelope, id: id)
         }
     }

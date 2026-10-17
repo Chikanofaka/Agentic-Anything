@@ -20,3 +20,5 @@ private/
 *.log
 integrations/witness_loop/data/
 integrations/witness_loop/.build-cache/
+# Supplied mood boards are local review references; publication rights undecided.
+integrations/witness_loop/handoff_v03/references/

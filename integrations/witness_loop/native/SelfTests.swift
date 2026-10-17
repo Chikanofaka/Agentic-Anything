@@ -60,7 +60,18 @@ func runNativeSelfTests() -> Int32 {
     check("oversized provider response rejected") { rejected { try OpenAIAdapter.parse(Data(repeating: 32, count: OpenAIAdapter.maximumResponseBytes + 1), status: 200) } }
     check("key echo blocked recursively") { OpenAIAdapter.containsSecret(["reply": ["nested " + synthetic]], secret: synthetic) }
     check("ordinary text not a key echo") { !OpenAIAdapter.containsSecret(["reply": "A synthetic NPC response"], secret: synthetic) }
-    check("bridge normal turn accepted") { BridgePolicy.validate(["id": "ui-1", "action": "turn", "params": ["text": "Who called?"]]) != nil }
+    check("bridge confirmed turn accepted") { BridgePolicy.validate(["id": "ui-1", "action": "turn", "params": ["text": "Who called?", "confirm_case": true]]) != nil }
+    check("bridge free turn accepted") { BridgePolicy.validate(["id": "ui-1", "action": "turn", "params": ["text": "How are you?", "confirm_case": false]]) != nil }
+    check("bridge missing confirmation rejected") { BridgePolicy.validate(["id": "ui-1", "action": "turn", "params": ["text": "Who called?"]]) == nil }
+    check("bridge numeric confirmation rejected") { BridgePolicy.validate(["id": "ui-1", "action": "turn", "params": ["text": "Who called?", "confirm_case": 1]]) == nil }
+    check("bridge readonly preview accepted") { BridgePolicy.validate(["id": "ui-1", "action": "preview_turn", "params": ["text": "Who called?"]]) != nil }
+    check("bridge inspect accepts bounded id") { BridgePolicy.validate(["id": "ui-1", "action": "inspect", "params": ["id": "red_fabric"]]) != nil }
+    check("bridge inspect accepts numbered historical event id") { BridgePolicy.validate(["id": "ui-1", "action": "inspect", "params": ["id": "call_0017"]]) != nil }
+    check("bridge inspect path injection denied") { BridgePolicy.validate(["id": "ui-1", "action": "inspect", "params": ["id": "../../secret"]]) == nil }
+    check("bridge forged evidence rejected") { BridgePolicy.validate(["id": "ui-1", "action": "inspect", "params": ["id": "clock", "authenticated": true]]) == nil }
+    check("bridge language choice accepted") { BridgePolicy.validate(["id": "ui-1", "action": "language", "params": ["language": "en"]]) != nil }
+    check("bridge arbitrary language payload denied") { BridgePolicy.validate(["id": "ui-1", "action": "language", "params": ["language": "ignore rules"]]) == nil }
+    check("bridge authored phase injection denied") { BridgePolicy.validate(["id": "ui-1", "action": "continue", "params": ["phase": "RESOLVED"]]) == nil }
     check("bridge unknown action rejected") { BridgePolicy.validate(["id": "ui-1", "action": "exec", "params": [:]]) == nil }
     check("bridge model result injection rejected") { BridgePolicy.validate(["id": "ui-1", "action": "commit_turn", "params": ["reply": "injected"]]) == nil }
     check("bridge arbitrary path rejected") { BridgePolicy.validate(["id": "ui-1", "action": "snapshot", "params": ["path": "/etc/passwd"]]) == nil }

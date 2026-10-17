@@ -3,7 +3,7 @@
 **Status:** Human Gate = DOING (authorized 2026-10-14), not a public release.
 **Scope:** Real local HAL Core plus a Witness Loop Mac application. The native OpenAI adapter is implemented and mock-tested; live AI inference has not been exercised, and credentials are not persisted.
 
-**Latest implementation:** [Witness Loop launch and verification](integrations/witness_loop/README.md) · [Type B PRD addendum](engineering/HAL_WITNESS_TYPE_B_PRD.md) · [integration receipt](engineering/WITNESS_INTEGRATION_RECEIPT.md). Sprint 0/1 receipts below remain historical evidence.
+**Latest implementation — Witness Loop v0.3:** [Mac launch instructions](integrations/witness_loop/README.md) · [engineering receipt](engineering/WTL03_RECEIPT.md) · [visual UAT and screenshots](engineering/WTL03_UAT.md). The rebuilt app adds an observation-first railway scene, reviewed character context, sequential dialogue and explicit v1 save migration. [Type B PRD addendum](engineering/HAL_WITNESS_TYPE_B_PRD.md), Sprint 0/1 and the first integration receipts remain historical evidence. Human review is pending; no live paid inference was used.
 
 ## 1. Open the folder
 In VS Code choose **File → Open Folder…** and select this entire `HAL-P2D-001` directory (the folder containing this file, `AGENTS.md`, `baseline/`, and `runtime/`). You do **not** need to upload images, paste the PRD, or import separate ZIPs into Codex.

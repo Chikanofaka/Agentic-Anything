@@ -1,5 +1,7 @@
 # HAL-P2D-001 — DOING Sprint 1 (offline)
 
+**2026-10-17 v0.3 increment:** [Witness Loop launch guide](../integrations/witness_loop/README.md) and [current receipt](../engineering/WTL03_RECEIPT.md) describe the cinematic native app, compiled character context, observation ledger and non-destructive v1→v2 migration. Both entry paths still use this HAL Core. The historical CLI scope below does not describe the newer native host's implemented, mock-tested OpenAI adapter.
+
 **2026-10-16 application increment:** [Witness Loop](../integrations/witness_loop/README.md) adds a third reviewed domain, a shared transactional interactive host, persisted state and a native Mac UI/broker. The OpenAI adapter is implemented with mocked responses; real credentials/inference remain untested. The Sprint 1 description below is retained for the offline CLI, whose model preflight still fails closed. See the [current integration receipt](../engineering/WITNESS_INTEGRATION_RECEIPT.md) for new evidence and limitations.
 
 **Approved Human Gate:** DOING, 2026-10-14. Scope remains restricted: no public GitHub, no real API keys, no billable inference and no external data access.
