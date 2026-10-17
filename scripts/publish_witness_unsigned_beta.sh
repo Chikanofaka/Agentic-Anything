@@ -5,13 +5,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 REPO="Chikanofaka/HAL-P2D-001"
-BRANCH="fix/wtl029-adhoc-bundle-signature"
-TAG="v0.3.0-beta.2-adhoc"
+BRANCH="fix/wtl029-webkit-white-window"
+TAG="v0.3.0-beta.3-adhoc"
 APP="$ROOT/integrations/witness_loop/dist/Witness Loop Portable.app"
 OUT_DIR="$ROOT/integrations/witness_loop/dist/unsigned-release"
-ZIP="$OUT_DIR/WitnessLoop-v0.3.0-beta.2-adhoc-macOS-arm64.zip"
+ZIP="$OUT_DIR/WitnessLoop-v0.3.0-beta.3-adhoc-macOS-arm64.zip"
 SHA="$ZIP.sha256"
-NOTES="$ROOT/packaging/RELEASE_NOTES_v0.3.0-beta.2-adhoc.md"
+NOTES="$ROOT/packaging/RELEASE_NOTES_v0.3.0-beta.3-adhoc.md"
 
 [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]] || { echo "MACOS_ARM64_REQUIRED"; exit 2; }
 [[ "$(git branch --show-current)" == "$BRANCH" ]] || { echo "WRONG_GIT_BRANCH: switch to $BRANCH"; exit 2; }
@@ -57,6 +57,16 @@ codesign --verify --deep --strict --verbose=4 "$STAGED_APP" || {
 [[ ! -e "$STAGED_APP/Contents/Helpers/WitnessCore/_internal" ]] || {
   echo "OLD_ONEDIR_LAYOUT_REFUSED"; exit 3;
 }
+# The previous published beta passed codesign but opened only a white UI window.
+# Drive the actual WebKit/native/HAL UI flow before archiving; a build that cannot
+# render the case brief must not become a public release.
+echo "RUNNING_REAL_NATIVE_UI_SMOKE"
+"$STAGED_APP/Contents/MacOS/WitnessLoop" --ui-self-test || {
+  echo "NATIVE_UI_SMOKE_FAILED: refusing publication"; exit 3;
+}
+codesign --verify --deep --strict --verbose=4 "$STAGED_APP" || {
+  echo "APP_SIGNATURE_CHANGED_AFTER_UI_SMOKE: refusing publication"; exit 3;
+}
 # Do not use --sequesterRsrc; no Finder resource-fork AppleDouble payloads
 # should be reintroduced by the archiver.
 ditto -c -k --norsrc --keepParent "$STAGED_APP" "$ZIP"
@@ -68,18 +78,26 @@ ditto -x -k --norsrc "$ZIP" "$RESTORED"
 codesign --verify --deep --strict --verbose=4 "$RESTORED/Witness Loop.app" || {
   echo "EXTRACTED_APP_SIGNATURE_INVALID: refusing publication"; exit 3;
 }
+echo "RUNNING_EXTRACTED_APP_UI_SMOKE"
+"$RESTORED/Witness Loop.app/Contents/MacOS/WitnessLoop" --ui-self-test || {
+  echo "EXTRACTED_APP_UI_SMOKE_FAILED: refusing publication"; exit 3;
+}
+codesign --verify --deep --strict --verbose=4 "$RESTORED/Witness Loop.app" || {
+  echo "EXTRACTED_POST_UI_SIGNATURE_INVALID: refusing publication"; exit 3;
+}
+echo "PASS EXTRACTED_APP_NATIVE_UI_SMOKE"
 (
   cd "$OUT_DIR"
   shasum -a 256 "$(basename "$ZIP")" > "$(basename "$SHA")"
 )
 echo "PASS STAGED_AND_EXTRACTED_APP_SIGNATURE"
-echo "PACKAGED_BETA2_ADHOC: $ZIP"
+echo "PACKAGED_BETA3_ADHOC: $ZIP"
 echo "NO_DEVELOPER_ID_OR_NOTARIZATION: Gatekeeper may still block untrusted downloads."
 # This line is the only external publication action.
 gh release create "$TAG" "$ZIP" "$SHA" \
   --repo "$REPO" \
   --target "$BRANCH" \
-  --title "Witness Loop v0.3.0 Beta 2 — AD-HOC SIGNED (Apple Silicon)" \
+  --title "Witness Loop v0.3.0 Beta 3 — AD-HOC SIGNED (Apple Silicon)" \
   --notes-file "$NOTES" \
   --prerelease
 echo "RELEASE_URL:"
