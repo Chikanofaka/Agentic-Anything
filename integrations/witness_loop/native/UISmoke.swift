@@ -19,7 +19,7 @@ final class OfflineUISmoke {
     private let helpers = """
       const el=id=>document.getElementById(id);
       const pause=ms=>new Promise(r=>setTimeout(r,ms));
-      async function until(test) { for(let i=0;i<100;i++){if(test())return;await pause(40);}throw Error('DOM condition timeout'); }
+      async function until(test, attempts=100) { for(let i=0;i<attempts;i++){if(test())return;await pause(40);}throw Error('DOM condition timeout'); }
       async function snap(){const r=await window.request('snapshot');if(r.activation.state!=='OFFLINE'||r.activation.requests_used!==0)throw Error('Provider boundary');return r;}
       function phase(){return el('platform-stage').dataset.phase;}
       async function clickPhase(id,expected){el(id).click();await until(()=>phase()===expected);return await snap();}
@@ -29,6 +29,9 @@ final class OfflineUISmoke {
     """
     private let steps: [Step] = [
         Step(label: "fresh case brief precedes character and evidence", script: """
+          // PyInstaller onefile must extract/start before JS bootstrap completes.
+          // Never race app.js initialize() with a second native snapshot call.
+          await until(()=>document.documentElement.dataset.witnessReady==='true',1000);
           await until(()=>el('platform-image').naturalWidth>1000);
           const r=await snap();
           return {ok:r.state.phase==='CASE_BRIEF'&&r.state.clues.length===0&&el('linwu').hidden&&!el('caseBrief').hidden&&Object.values(r.state.evidence).every(x=>!x.inspected)};
