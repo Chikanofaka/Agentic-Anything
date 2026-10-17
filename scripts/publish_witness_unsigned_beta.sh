@@ -57,6 +57,16 @@ codesign --verify --deep --strict --verbose=4 "$STAGED_APP" || {
 [[ ! -e "$STAGED_APP/Contents/Helpers/WitnessCore/_internal" ]] || {
   echo "OLD_ONEDIR_LAYOUT_REFUSED"; exit 3;
 }
+# The previous published beta passed codesign but opened only a white UI window.
+# Drive the actual WebKit/native/HAL UI flow before archiving; a build that cannot
+# render the case brief must not become a public release.
+echo "RUNNING_REAL_NATIVE_UI_SMOKE"
+"$STAGED_APP/Contents/MacOS/WitnessLoop" --ui-self-test || {
+  echo "NATIVE_UI_SMOKE_FAILED: refusing publication"; exit 3;
+}
+codesign --verify --deep --strict --verbose=4 "$STAGED_APP" || {
+  echo "APP_SIGNATURE_CHANGED_AFTER_UI_SMOKE: refusing publication"; exit 3;
+}
 # Do not use --sequesterRsrc; no Finder resource-fork AppleDouble payloads
 # should be reintroduced by the archiver.
 ditto -c -k --norsrc --keepParent "$STAGED_APP" "$ZIP"
