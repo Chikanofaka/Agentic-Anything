@@ -78,6 +78,34 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
     private var seenIDs = Set<String>()
     private var pendingCaseProposal: (text: String, topic: String)?
     private let adapter = OpenAIAdapter()
+    private var navigationSucceeded = false
+    private var didReportNavigationFailure = false
+    private func reportWebKitFailure(_ detail: String) {
+        NSLog("WITNESS_WEBKIT_LOAD_FAILED: %@", detail)
+        guard !didReportNavigationFailure else { return }
+        didReportNavigationFailure = true
+        // Never leave the player staring at a blank, seemingly successful app.
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Witness Loop could not load its game screen"
+        alert.informativeText = detail + "\\n\\nKeep your downloaded ZIP and report this error. No player saves were deleted."
+        alert.addButton(withTitle: "OK")
+        alert.beginSheetModal(for: window)
+    }
+    private func checkRendererStartup() {
+        guard !didReportNavigationFailure else { return }
+        if !navigationSucceeded {
+            reportWebKitFailure("The embedded game page did not finish loading within 12 seconds.")
+            return
+        }
+        webView.evaluateJavaScript("Boolean(document.getElementById('game') && document.getElementById('caseBrief') && document.readyState !== 'loading')") { [weak self] result, error in
+            if let error = error {
+                self?.reportWebKitFailure("The game renderer could not be inspected: " + error.localizedDescription)
+            } else if (result as? Bool) != true {
+                self?.reportWebKitFailure("The embedded game page loaded but expected game elements are missing.")
+            }
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -88,6 +116,13 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                 throw ProviderFailure.invalidConfiguration
             }
             indexURL = resources.appendingPathComponent("ui/index.html").standardizedFileURL
+            for filename in ["index.html", "style.css", "app.js", "assets/platform_empty.png"] {
+                let fileURL = resources.appendingPathComponent("ui/" + filename)
+                guard FileManager.default.isReadableFile(atPath: fileURL.path) else {
+                    throw NSError(domain: "WitnessBundledUI", code: 10,
+                                  userInfo: [NSLocalizedDescriptionKey: "Missing game UI resource: " + filename])
+                }
+            }
             let dataDirectory: URL
             if uiSelfTest {
                 let testRoot = WitnessStorage.isolatedUITestRoot()
@@ -117,6 +152,9 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
             window.contentView = webView
             window.center(); window.makeKeyAndOrderFront(nil)
             webView.loadFileURL(indexURL, allowingReadAccessTo: resources.appendingPathComponent("ui"))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
+                self?.checkRendererStartup()
+            }
             installMenu()
             NSApp.activate(ignoringOtherApps: true)
         } catch {
@@ -146,7 +184,17 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         decisionHandler(navigationAction.targetFrame?.isMainFrame == true && navigationAction.request.url?.standardizedFileURL == indexURL ? .allow : .cancel)
     }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        reportWebKitFailure("WKWebView provisional navigation failed: " + error.localizedDescription)
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        reportWebKitFailure("WKWebView navigation failed: " + error.localizedDescription)
+    }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        reportWebKitFailure("WebKit's content process terminated before the game could be displayed.")
+    }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        navigationSucceeded = true
         guard uiSelfTest, uiSmoke == nil else { return }
         uiSmoke = OfflineUISmoke(webView: webView, screenshotURL: uiScreenshotURL!) { [weak self] code in
             self?.worker?.stop()
