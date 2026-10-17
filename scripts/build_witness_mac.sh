@@ -43,7 +43,7 @@ if any(path.name in ('case_brief.md', 'identity.md', 'memory.md', 'user.md', 'na
 art = [path for path in (staged / 'ui/assets').rglob('*') if path.is_file()]
 if not art:
     sys.exit('BUNDLED_ARTWORK_MISSING')
-(staged / 'config.json').write_text(json.dumps({'project_root': str(root), 'version': '0.3.0', 'character_digest': compiled['digest']}), encoding='utf-8')
+(staged / 'config.json').write_text(json.dumps({'version': '0.3.0', 'character_digest': compiled['digest']}), encoding='utf-8')
 manifest = {'version': '0.3.0', 'character_context': {'version': compiled['version'], 'digest': compiled['digest']},
             'artwork': {str(path.relative_to(staged)): hashlib.sha256(path.read_bytes()).hexdigest() for path in art},
             'raw_authoring_sources_bundled': False, 'live_api_tested': False}
