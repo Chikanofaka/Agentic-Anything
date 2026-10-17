@@ -16,7 +16,7 @@
   <a href="#status--roadmap">Release roadmap</a>
 </p>
 
-> **Current status — Public experimental macOS Beta.** [Download v0.3.0-beta.1-unsigned](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned) for **Apple Silicon (arm64)**. This is an **unsigned, unnotarized GitHub Prerelease**: Gatekeeper may block opening it, and a clean second-Mac compatibility test has not been completed. Offline dialogue is simulated; live OpenAI mode has a mock-tested native adapter but has not passed paid-model UAT. Not an Apple-certified or App Store release.
+> **Current status — Public experimental macOS Beta 2.** [Download v0.3.0-beta.2-adhoc](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.2-adhoc) for **Apple Silicon (arm64)**. Beta 2 fixes the invalid app signature in Beta 1: the final application and ZIP-extracted application passed strict code-signature verification. This is **ad-hoc signed, not Developer ID signed or notarized**; macOS Gatekeeper may still block opening it and a clean downloaded-app installation test is pending. Offline dialogue is simulated; live OpenAI mode remains mock-tested only. This is not an Apple-certified or App Store release.
 
 ## Step into the mystery
 
@@ -44,7 +44,7 @@ You are the detective. First **observe**, then **question Lin Wu**, connect what
 
 ## Play the prototype
 
-**Download:** [Witness Loop v0.3.0-beta.1-unsigned (Apple Silicon ZIP)](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.1-unsigned/WitnessLoop-v0.3.0-beta.1-unsigned-macOS-arm64.zip). Extract and move `Witness Loop.app` to Applications; due to missing Developer ID signature and Apple notarization, you may need to review the launch block in **System Settings → Privacy & Security → Open Anyway**. Only proceed if you trust the publisher. **Do not disable Gatekeeper globally.**
+**Download (Beta 2):** [Witness Loop v0.3.0-beta.2-adhoc (Apple Silicon ZIP)](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.2-adhoc/WitnessLoop-v0.3.0-beta.2-adhoc-macOS-arm64.zip). Extract and move `Witness Loop.app` to Applications. Beta 2 has a valid **ad-hoc** resource seal, but lacks Apple Developer ID signing and notarization; Gatekeeper may still block it. If you trust the exact download and macOS offers an override, review **System Settings → Privacy & Security → Open Anyway**. **Do not disable Gatekeeper globally.** [Beta 1](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned) remains for historical reference but contains a known invalid app signature and is not recommended.
 
 **Build from source:** Requires a Mac with a Swift compiler / compatible macOS SDK and the system Python used by the developer build. The script targets macOS 12+; broader compatibility has not been verified.
 
@@ -67,7 +67,7 @@ To exercise the actual native UI/bridge with **synthetic** saves and **no** prov
 
 See the [step-by-step game guide](integrations/witness_loop/README.md) and [reproducible UAT walkthrough](engineering/WTL03_UAT.md).
 
-**Do not publish the generated `.app` as a universal installer yet.** The current build is unsigned, not notarized, and its save configuration is tied to the source checkout's absolute path. Rebuilding locally is required after moving the checkout. This is an engineering preview, **not** a portable app bundle.
+**Development vs distribution:** The `scripts/build_witness_mac.sh` command builds a developer prototype with a system-Python fallback. For an independent Apple Silicon build, use `scripts/build_witness_portable_beta.sh` to embed the Python HAL worker in the `.app` and verify its ad-hoc signature. Beta 2 is a downloadable portable bundle, but cross-Mac compatibility and Gatekeeper approval remain unverified; it is not an Apple-certified universal installer.
 
 ### Playing the case
 
@@ -150,11 +150,11 @@ The broader **HAL-P2D-001** repo contains the general Harness Activation Layer r
 | Cinematic rainy platform, inspection and sequential UI | Implemented in local v0.3 |
 | Deterministic three-outcome case and v1 save migration | Implemented and regression-tested |
 | Live OpenAI v0.3 personality, memory and bilingual human UAT | **Pending** |
-| Experimental unsigned Apple Silicon GitHub ZIP prerelease | **Published** ([download](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned)); external Mac validation pending |
+| Experimental ad-hoc-signed Apple Silicon GitHub ZIP prerelease | **Beta 2 published** ([download](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.2-adhoc)); downloaded-app Gatekeeper validation pending. Beta 1 has a known invalid signature |
 | Developer ID signing, notarization and wider cross-Mac compatibility | **Not yet available** |
 | Mac App Store sandbox, privacy/compliance, TestFlight and review | **Planned** |
 
-**Human Gate: DOING / awaiting acceptance.** No App Store or portable binary release is implied by this public source showcase. Distribution and reuse terms for code, generated artwork and supplied references require explicit rights review; there is no license grant merely because the repository is public.
+**Human Gate: Beta 2 published / downloaded-app acceptance pending.** The portable Apple Silicon ZIP is downloadable, but no Developer ID signing, notarization, or App Store release is claimed. Distribution and reuse terms for code, generated artwork and supplied references require explicit rights review; there is no license grant merely because the repository is public.
 
 ---
 
