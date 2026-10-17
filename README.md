@@ -16,7 +16,7 @@
   <a href="#status--roadmap">Release roadmap</a>
 </p>
 
-> **Current status — macOS v0.3 development prototype.** The first-playable local app has an observation-first station scene, inspectable evidence, character dialogue, saved case state, and three deterministic verdicts. Offline dialogue is **simulated**; an opt-in native OpenAI Responses API adapter is implemented and mock-tested. The **v0.3 live-model personality UAT and portable distribution are not yet certified**. This repository is public source code, **not a downloadable, signed App Store build**.
+> **Current status — Public experimental macOS Beta.** [Download v0.3.0-beta.1-unsigned](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned) for **Apple Silicon (arm64)**. This is an **unsigned, unnotarized GitHub Prerelease**: Gatekeeper may block opening it, and a clean second-Mac compatibility test has not been completed. Offline dialogue is simulated; live OpenAI mode has a mock-tested native adapter but has not passed paid-model UAT. Not an Apple-certified or App Store release.
 
 ## Step into the mystery
 
@@ -44,7 +44,9 @@ You are the detective. First **observe**, then **question Lin Wu**, connect what
 
 ## Play the prototype
 
-**Requirements:** A Mac with the Swift compiler / compatible macOS SDK and the system Python expected by the development build. The script targets macOS 12+; broad machine/OS compatibility has **not** been verified. No separate app download is offered yet.
+**Download:** [Witness Loop v0.3.0-beta.1-unsigned (Apple Silicon ZIP)](https://github.com/Chikanofaka/HAL-P2D-001/releases/download/v0.3.0-beta.1-unsigned/WitnessLoop-v0.3.0-beta.1-unsigned-macOS-arm64.zip). Extract and move `Witness Loop.app` to Applications; due to missing Developer ID signature and Apple notarization, you may need to review the launch block in **System Settings → Privacy & Security → Open Anyway**. Only proceed if you trust the publisher. **Do not disable Gatekeeper globally.**
+
+**Build from source:** Requires a Mac with a Swift compiler / compatible macOS SDK and the system Python used by the developer build. The script targets macOS 12+; broader compatibility has not been verified.
 
 ```bash
 git clone https://github.com/Chikanofaka/HAL-P2D-001.git
@@ -148,7 +150,8 @@ The broader **HAL-P2D-001** repo contains the general Harness Activation Layer r
 | Cinematic rainy platform, inspection and sequential UI | Implemented in local v0.3 |
 | Deterministic three-outcome case and v1 save migration | Implemented and regression-tested |
 | Live OpenAI v0.3 personality, memory and bilingual human UAT | **Pending** |
-| External-Mac portability, signing, notarization, downloadable GitHub Release | **Not yet available** |
+| Experimental unsigned Apple Silicon GitHub ZIP prerelease | **Published** ([download](https://github.com/Chikanofaka/HAL-P2D-001/releases/tag/v0.3.0-beta.1-unsigned)); external Mac validation pending |
+| Developer ID signing, notarization and wider cross-Mac compatibility | **Not yet available** |
 | Mac App Store sandbox, privacy/compliance, TestFlight and review | **Planned** |
 
 **Human Gate: DOING / awaiting acceptance.** No App Store or portable binary release is implied by this public source showcase. Distribution and reuse terms for code, generated artwork and supplied references require explicit rights review; there is no license grant merely because the repository is public.
