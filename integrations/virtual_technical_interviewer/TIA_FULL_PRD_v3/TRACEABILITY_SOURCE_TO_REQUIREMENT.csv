@@ -1,0 +1,19 @@
+﻿Source_ID,Source_line_or_review,Intent,PRD_nodes_to_test,State
+SRC-001,"13,15","Admin, interviewer authority and NDA",F-ADMIN-01 / W01 / identity.md,REVIEW
+SRC-002,"21,31,33",Narrate plan and stages,C02 / COM-FR-003 / graph01,P0
+SRC-003,35,"Interviewer reacts to canonical, partial, novel",D02 / interviewer policy,P0
+SRC-004,"37,39",Candidate feedback → next move,D03 / COM-FR-007 / state graph,P0
+SRC-005,"39,51",Resource framing under strict help permissions,C04 / COM-FR-006 / hint ledger,P0
+SRC-006,"43,47",Technical knowledge + edge cases,"T02,T03 / tests/fixtures",P0
+SRC-007,53,Professional completion / feedback,C06 / W07,P0
+SRC-008,57-115,"Failure retention, partial value, cause analysis",D05 / T04 / COM-FR-005,P0
+SRC-009,127-151,"Interviewer time, bounded guidance, severe failure",D02/D05 / session policy,P0
+SRC-010,"153,171,181",Best-practice equilibrium and habits,D00/D08 / trainer/retest,P0
+SRC-011,"165,169",Weights and optional positive bonus,D06 / rubric version,P0
+SRC-012,"185,189","HAL Type B, API enablement, voice/OCR",domain package / capabilities roadmap,P1
+SRC-013,193-217,"Detailed explainable score, improvement prioritization",D06 / score receipt / trainer,P0
+SRC-014,221-229,Two-agent separation and training handoff,D07 / trainer packet,P0
+R-001,review F01-001,01/B05 yes/no reversal,graph01 B05,ACCEPTED BUT NOT DRAWN
+R-002,review F01-002/F02-001,Full post-response loop,graphs01/02 UAT,ACCEPTED WALKTHROUGH FIX
+R-003,review F03-001/F06-001,Communication P0 and observable score,COM-FR-001..012 / scorecard,OWNER PRIORITY
+R-004,2026-10-19 conversation,60/40 and communication systemic deviation,60+40 versioned rubric,CURRENT HYPOTHESIS

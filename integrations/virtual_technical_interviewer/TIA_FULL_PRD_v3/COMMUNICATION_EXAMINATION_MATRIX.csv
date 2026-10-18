@@ -1,0 +1,17 @@
+﻿Exam_ID,Interview_Phase,Competency/decision,Original_voice_source_lines,User_intent_preserved,Candidate_action_or_capability,Evidence_required,Proposed_max_dimension_points_context,When_observed
+C01,OPEN,Greeting/expectation alignment,"13,15","Professional opening; knows form, time and allowed aids",Intro and permission-aware setup,Transcript span + announced constraints,6,OPEN
+C02,CLARIFY,Restate the requirement and ask sharp clarification,"15,31",Clarifies ambiguous requirements without fishing for solution,"Scope, assumptions, response acknowledgement",Question/reply/action transition,6,OPEN
+C03,PLAN,Think aloud while preserving efficient structure,"21,31,33","Top-down for easy case, stagewise for hard","Method, tradeoffs, next test",Plan and revision diff,7,OPEN
+C04,PLAN,Explain why chosen operator/algorithm fits,"33,35",Regex/string function rationale; distinguish match from replace,Technical claim + contingency,Technical explanation paired with implementation,7,OPEN
+C05,REACT,Observe and interpret interviewer silence/challenge,"35,37",No assumption that silence equals approval or refusal,Next self-directed action,Turn-to-action transition,7,OPEN
+C06,RECOVER,Distinguish syntax recall from structural dead end,"31,37,39,43",Can describe goal while unsure exact function,Correct missing-gap taxonomy,Claim + attempted alternatives,9,OPEN
+C07,RECOVER,Report verified progress and unfinished portion,"39,51,57-61","Say what works, what was tested, what remains",No fabricated success,Test-linked account of work,7,OPEN
+C08,RECOVER,Explain diagnosis before broad help request,"39,51,99-111","Identify common root cause, independent next trial",Focused request under policy,Question scope + pre-request actions,9,OPEN
+C09,RECOVER,Frame interviewer as allowed bounded resource,"37,39,51",Knowledge/agency-first help request; no pleading for answer,Transparent legitimate resource use,Help ledger and granted/denied result,9,OPEN
+C10,REACT,Distinguish recognition from actual action,"37,39",Aha may enable independent method after cue,Subsequent implementation matters,Turn after feedback and test,7,OPEN
+C11,REACT,Understand issue but not method/syntax,"37,39",Precise statement of function family unknown,Request docs if allowed; attempt next action,Request and edit chronology,7,OPEN
+C12,TEST,Communicate fail pattern and boundary risk,"47,99-115,127-143",4/20 could be one sort error or structural gap,Honest diagnosis not defeatism,Tests and proposed causes,7,OPEN
+C13,TEST,Explain limits without giving up,"65-95,119-123","Professional composure, concrete recovery action",No inferred mental state/charisma,Action after setback and time use,7,OPEN
+C14,CONCLUDE,"Synthesize work, tradeoffs, limits, acknowledgment",53,Time aware professional conclusion,Verifiable final summary,Final statement and artifact state,4,OPEN
+C15,TRAIN,Use transparent scoring to prioritize communication drills,"169,193-217,221-229",Demand explainable scores and next drill,Explanation against specific events,Rubric evidence + trainer plan,,AFTER
+C16,TRAIN,Repeat in loop until transferable habit,"31,153,171,181",Make communication actions habitual with unseen cases,Held-out comparable tests,Repeat interview outcomes,,AFTER

@@ -1,0 +1,57 @@
+{
+  "package": "TIA Full PRD baseline v3.0",
+  "date": "2026-10-19",
+  "status": "SPEC_COMPLETE_ONLY",
+  "files": [
+    {
+      "file": "CODEX_ENGINEERING_DELTA.md",
+      "bytes": 2280,
+      "sha256": "019889710aa178450b7e7e3dc1c54ff1bab72c84282be1cbe6733e96eee65f40"
+    },
+    {
+      "file": "COMMUNICATION_EXAMINATION_MATRIX.csv",
+      "bytes": 3247,
+      "sha256": "45c2bc9555857eca0030fa371a3455ef5790ad7476de8be85fdacc4006389537"
+    },
+    {
+      "file": "DECISION_REGISTER.md",
+      "bytes": 1868,
+      "sha256": "deac9e758eb86909140e2f7fe8ec2a19b7c030760960bae7aa072c423fc8c697"
+    },
+    {
+      "file": "README_START_HERE.md",
+      "bytes": 1903,
+      "sha256": "d78f2cc91a4e3cb1e06972f4eadf78f42a0a8c135665278aee010f5a272ca9e9"
+    },
+    {
+      "file": "RUBRIC_60_40_PROPOSAL.json",
+      "bytes": 1327,
+      "sha256": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f"
+    },
+    {
+      "file": "TIA_FULL_BASELINE_PRD_v3.docx",
+      "bytes": 95178,
+      "sha256": "197e586dafea778c9041e3ba7030f1feaa52480bcff925cc57fac895a5da975d"
+    },
+    {
+      "file": "TIA_FULL_BASELINE_PRD_v3.md",
+      "bytes": 127155,
+      "sha256": "620c7c313d248a9e1bc43a220c8ab79c82e743cb5d3269ebe6150e476d5e2fb4"
+    },
+    {
+      "file": "TIA_FULL_BASELINE_PRD_v3.pdf",
+      "bytes": 565250,
+      "sha256": "869bafd4ace2350fb7125b03f3468d8790a7efbdc90e6cd3cf4cf138bc0e3416"
+    },
+    {
+      "file": "TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+      "bytes": 1697,
+      "sha256": "bb43bd24ec31feb7c7083977e2625d43eaf362e6cddb63666da6bd4947f6dcca"
+    },
+    {
+      "file": "UAT_MATRIX_v3.csv",
+      "bytes": 2060,
+      "sha256": "a75a0923ce8c7330a247c682d65dd00f77c19fef20d330fc48119176d0222d61"
+    }
+  ]
+}

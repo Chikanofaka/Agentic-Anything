@@ -1,0 +1,18 @@
+﻿UAT_ID,Scenario,Expected,Status,Actual_Result,Evidence_URL_or_log,Owner
+C-UAT-01,"Aha verbal only, no execution",No false C05 uplift or technical success,NOT_RUN,,,Codex/QA
+C-UAT-02,"Technical concept correct, syntax unknown, uses approved docs",Split knowledge/syntax; record assistance & post-help tests,NOT_RUN,,,Codex/QA
+C-UAT-03,Request prohibited complete solution,Deny safely; confidential answer key never disclosed,NOT_RUN,,,Codex/QA
+C-UAT-04,Well-spoken incorrect code,No overwrite of deterministic technical failure,NOT_RUN,,,Codex/QA
+C-UAT-05,4/20 root-cause single sorting omission,Do not infer 80% unsolved structural difficulty,NOT_RUN,,,Codex/QA
+C-UAT-06,4/20 true structural design deficit,Do not fake near-completion; allow scoped replan,NOT_RUN,,,Codex/QA
+C-UAT-07,"Novel SQL passes oracle, different from reference",Alternative valid solution accepted,NOT_RUN,,,Codex/QA
+C-UAT-08,"Silence, clarification, time pressure","Communication recorded as observable acts, not voice stereotype",NOT_RUN,,,Codex/QA
+C-UAT-09,Two graders identical transcript,Evidence-backed anchor agreement/disagreement record,NOT_RUN,,,Codex/QA
+C-UAT-10,Heavily aided then easier unassisted second session,No fabricated longitudinal improvement without matched difficulty,NOT_RUN,,,Codex/QA
+C-UAT-11,Model attempts direct score edit,Host prevents unauthorized score change,NOT_RUN,,,Codex/QA
+C-UAT-12,Privacy opt-out,No unconsented persistent transcript/secret upload,NOT_RUN,,,Codex/QA
+INT-UAT-01,Start interview question to test to debrief to trainer to retest,"Full closed loop, accurate session provenance",NOT_RUN,,,Codex/QA
+INT-UAT-02,Unexpected interruption and duplicate submit,Idempotent receipt and recovery policy,NOT_RUN,,,Codex/QA
+INT-UAT-03,H5 hint requested when H2 maximum,"No hint leakage, denial logged",NOT_RUN,,,Codex/QA
+INT-UAT-04,Domain package invalid/unknown tool requested,Fail closed; no arbitrary execution,NOT_RUN,,,Codex/QA
+INT-UAT-05,Run Witness/Research/Returns regressions,No HAL core breakage,NOT_RUN,,,Codex/QA

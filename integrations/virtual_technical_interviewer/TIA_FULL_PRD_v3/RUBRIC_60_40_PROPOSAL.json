@@ -1,0 +1,48 @@
+{
+  "schema_kind": "PROPOSAL_NOT_VALIDATED",
+  "rubric_version": "tia-60-40-owner-hypothesis-v0.3",
+  "base_points": 100,
+  "axes": {
+    "technical": {
+      "weight_points": 60,
+      "subscales": {
+        "T01": 24,
+        "T02": 13,
+        "T03": 10,
+        "T04": 9,
+        "T05": 4
+      }
+    },
+    "communication": {
+      "weight_points": 40,
+      "subscales": {
+        "C01": 6,
+        "C02": 7,
+        "C03": 7,
+        "C04": 9,
+        "C05": 7,
+        "C06": 4
+      }
+    }
+  },
+  "anchor_values": {
+    "0": "observed counterexample/ineffective",
+    "1": "requires repeated prompting",
+    "2": "partly demonstrated",
+    "3": "adequate without undue aid",
+    "4": "robust on novel comparable task"
+  },
+  "missing_evidence": "NOT_OBSERVED—not zero; explicitly declare coverage; do not infer hiring outcome",
+  "assistance": "store independently scored before and after hints; never hide in raw technical test results",
+  "score_authority": "HAL host uses reviewed evaluator and anchored evidence; model may propose observations only",
+  "extra_mentality_bonus": {
+    "enabled": false,
+    "user_hypothesis_range": [
+      10,
+      15
+    ],
+    "mode": "OPTIONAL_POSITIVE_ONLY",
+    "validation": "RESEARCH_PENDING"
+  },
+  "approval_state": "TOP_LEVEL_USER_HYPOTHESIS; SUBWEIGHTS_UNAPPROVED"
+}
