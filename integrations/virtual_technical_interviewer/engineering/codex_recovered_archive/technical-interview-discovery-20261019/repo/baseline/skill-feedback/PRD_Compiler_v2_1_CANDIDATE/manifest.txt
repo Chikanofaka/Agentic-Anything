@@ -1,0 +1,17 @@
+SKILL.md
+evals/PRD_EVALUATION.md
+examples/CROSS_DOMAIN_DRY_RUN.md
+references/01-CONVERSION_KERNEL.md
+references/02-SOURCE_ATLAS.md
+references/03-VISUAL_SOURCEMAP.md
+references/04-GENERATIVE_OPERATORS.md
+references/05-QUALITY_AND_CONFLICTS.md
+references/06-DEEP_CONVERSION_WORKED_EXAMPLES.md
+references/ABSTRACTION_RULE_LIBRARY.json
+templates/00-NEED_INTAKE.md
+templates/01-MASTER_PRD.md
+templates/02-FEATURE_WORKFLOW_UAT.md
+templates/03-ROLES_DATA_SECURITY.md
+templates/04-COST_VALUE_VENDOR.md
+templates/05-ROADMAP_DECISION_MATRIX.md
+templates/06-SLIDE_TO_PRD_VISUAL.md

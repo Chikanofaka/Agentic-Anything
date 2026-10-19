@@ -1,0 +1,137 @@
+{
+  "scope": "artifact/source integrity; these checks are not interview application acceptance",
+  "commit": "79656f5988bf861068052951d402fb6d8b2fd491",
+  "checks": [
+    {
+      "check": "pinned_repository_blobs_unchanged_after_checks",
+      "status": "PASS",
+      "detail": {
+        "count": 209,
+        "mismatches": [],
+        "commit": "79656f5988bf861068052951d402fb6d8b2fd491"
+      }
+    },
+    {
+      "check": "embedded_source_matches_full_original",
+      "status": "PASS",
+      "detail": {
+        "original_lines": 229,
+        "nodes": 166,
+        "diagrams": 9
+      }
+    },
+    {
+      "check": "all_p0_functional_contracts_mapped",
+      "status": "PASS",
+      "detail": [
+        "FR01",
+        "FR02",
+        "FR03",
+        "FR04",
+        "FR05",
+        "FR06",
+        "FR07",
+        "FR08",
+        "FR09",
+        "FR10"
+      ]
+    },
+    {
+      "check": "all_p0_functional_contracts_have_planned_tests",
+      "status": "PASS",
+      "detail": [
+        "FR01",
+        "FR02",
+        "FR03",
+        "FR04",
+        "FR05",
+        "FR06",
+        "FR07",
+        "FR08",
+        "FR09",
+        "FR10"
+      ]
+    },
+    {
+      "check": "all_node_references_resolve",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "all_physical_edge_references_resolve",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "acceptance_cases_unique_and_honestly_not_run",
+      "status": "PASS",
+      "detail": {
+        "count": 84,
+        "statuses": [
+          "NOT_RUN"
+        ]
+      }
+    },
+    {
+      "check": "trace_rows_unique",
+      "status": "PASS",
+      "detail": {
+        "count": 36
+      }
+    },
+    {
+      "check": "linked_issue_ids_exist",
+      "status": "PASS",
+      "detail": {
+        "known": [
+          "F01-001",
+          "F01-002",
+          "F02-001",
+          "F02-002"
+        ],
+        "linked": [
+          "F01-001",
+          "F01-002",
+          "F02-001",
+          "F02-002"
+        ]
+      }
+    },
+    {
+      "check": "proposed_rules_have_source_status_and_configurability",
+      "status": "PASS",
+      "detail": {
+        "count": 16,
+        "not_runtime_configuration": "DESIGN_ONLY_NOT_RUNTIME_CONFIGURATION"
+      }
+    },
+    {
+      "check": "current_plan1_caps_preserved",
+      "status": "PASS",
+      "detail": {
+        "technical": 60,
+        "communication": 40
+      }
+    },
+    {
+      "check": "original_checkout_still_clean",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "pass_count": 12,
+  "fail_count": 0,
+  "known_gaps": {
+    "missing_review_ids": [
+      "F03-001",
+      "F04-001",
+      "F05-001",
+      "F06-002"
+    ],
+    "pdf": "9-page Atlas export, no review dialogue transcript; all 9 pages visually inspected",
+    "rendered_edges": 226,
+    "unique_diagram_title_label_edges": 202,
+    "duplicate_renderings": 24,
+    "interview_acceptance_not_run": 84
+  }
+}

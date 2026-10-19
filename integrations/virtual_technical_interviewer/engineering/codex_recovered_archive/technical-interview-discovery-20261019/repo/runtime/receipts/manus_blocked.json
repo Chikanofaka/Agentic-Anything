@@ -1,0 +1,10 @@
+{
+  "checks": [],
+  "live_model_verified": false,
+  "missing_ports": [
+    "MANAGED_AGENT_PORT_MISMATCH",
+    "LOCAL_CALCULATE:NO_CURATED_BINDING"
+  ],
+  "provider": "manus",
+  "status": "BLOCKED"
+}

@@ -1,0 +1,13 @@
+{
+  "command": "bash scripts/verify_local.sh",
+  "cwd": "[LOCAL_PATH_REDACTED]",
+  "commit": "79656f5988bf861068052951d402fb6d8b2fd491",
+  "exit_code": 0,
+  "elapsed_seconds": 12.21,
+  "summary": [
+    "Ran 287 tests in 11.731s",
+    "OK",
+    "VERIFIED: CLI inspection, both domain results, and Manus denial (exit 2).",
+    "DONE: offline local verification complete; no model API calls were attempted."
+  ]
+}

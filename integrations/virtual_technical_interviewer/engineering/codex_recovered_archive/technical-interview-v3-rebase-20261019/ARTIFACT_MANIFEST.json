@@ -1,0 +1,161 @@
+{
+  "scope": "Local review package; no original private transcript, Atlas or old repo copy",
+  "source_commit": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+  "files": [
+    {
+      "path": "ACCEPTANCE_TEST_MATRIX_V3.csv",
+      "bytes": 188786,
+      "sha256": "a950f8edfd62a8c8199586992516aeabc6cbda7b6fd12e9e4659a3d2a375ce49"
+    },
+    {
+      "path": "ARCHITECTURE_READINESS_V3.md",
+      "bytes": 27175,
+      "sha256": "57c19858dbd20ae65cd906d21d801d883c9b327b3c79f07646861b68c17e24b1"
+    },
+    {
+      "path": "BASELINE_DELTA_RECEIPT.md",
+      "bytes": 10046,
+      "sha256": "708579b4a80ef7ed9fc1f519af35cc227a7e0ad3c40227197395bea81f463392"
+    },
+    {
+      "path": "DECISIONS_REQUIRED_V3.md",
+      "bytes": 3918,
+      "sha256": "cf07283839a8112816714caf94b0d597039f42a6bb5b39a919bd3acd5e9d6100"
+    },
+    {
+      "path": "LOCAL_PROTOTYPE_DESIGN_V3.md",
+      "bytes": 25697,
+      "sha256": "f2cebf865df0a763a3926632ae1be4739c86397f7b7f266b1d9ab5eadd55b704"
+    },
+    {
+      "path": "MVP_IMPLEMENTATION_PLAN_V3.md",
+      "bytes": 10561,
+      "sha256": "7d71f3eceb222c0afc733bf9fa8d989a5fa1eba7905504db51823bd6f0083812"
+    },
+    {
+      "path": "README_REBASE.md",
+      "bytes": 3035,
+      "sha256": "249cfe1054faa767886412787d3e5e3e809f982f9dab15bbb75d548695558b44"
+    },
+    {
+      "path": "REBASED_SOURCE_TRACEABILITY.csv",
+      "bytes": 298104,
+      "sha256": "0b5e97d03781ecda9df4970f9d23f0970576c6ca2da1148975f2528ade2805cc"
+    },
+    {
+      "path": "RULE_PROVENANCE_V3.json",
+      "bytes": 17623,
+      "sha256": "939b5a4b2747c0e07c4324d3e07af8e18b956280f0feb347cb345002d8cb6252"
+    },
+    {
+      "path": "SOURCE_AUDIT_V3.md",
+      "bytes": 26248,
+      "sha256": "f484b9d25bcd96d5d4994e9531d7e84242f923adb01521a0e0d79c9e03445228"
+    },
+    {
+      "path": "receipts/carried_forward/PROVENANCE.json",
+      "bytes": 313,
+      "sha256": "65784e9be121bf5ff59c786d72c4faeb00b1d6ff9e3921e09b002c8b8e746d88"
+    },
+    {
+      "path": "receipts/carried_forward/native_build.json",
+      "bytes": 148,
+      "sha256": "2c7ae64f5dd7ab68757751671903070eb9db66727549a80f939a480184489c6e"
+    },
+    {
+      "path": "receipts/carried_forward/native_build.log",
+      "bytes": 2703,
+      "sha256": "fb096a30fc77e38ab3cf73d5f3874559c0b22c975d08e14d782f2ceb404135e3"
+    },
+    {
+      "path": "receipts/carried_forward/verify_local.json",
+      "bytes": 445,
+      "sha256": "fab6a1cf7106a6b4d6f212956b7259725b3060fe97e586b8444f7f751235f2e6"
+    },
+    {
+      "path": "receipts/carried_forward/verify_local.log",
+      "bytes": 30388,
+      "sha256": "ebf7b67592c521bd762db5e96ae12323af269b7bf2a30cabc2692726188f33f0"
+    },
+    {
+      "path": "receipts/commit_delta.json",
+      "bytes": 1400,
+      "sha256": "dfbd8ea700855285bed4a5058cd3141b779336215cb12826e42fbdd94193de26"
+    },
+    {
+      "path": "receipts/package_rebase.py",
+      "bytes": 2521,
+      "sha256": "9c179107c70bf2d462d1874c398195c03de568bf09f3927c409d8f14bf742547"
+    },
+    {
+      "path": "receipts/rebase_validation.json",
+      "bytes": 10029,
+      "sha256": "dec5f8fddb5037584868bb16f70c79c75d9b5bdded9a937dbdc60f1a70d94e26"
+    },
+    {
+      "path": "receipts/remote_manifest.json",
+      "bytes": 71183,
+      "sha256": "52071edbcaac2a335f6b21fcb8d19a5123882c27f5316ee69b4b93bb4931dc0f"
+    },
+    {
+      "path": "receipts/source_verification.json",
+      "bytes": 2196,
+      "sha256": "6257fd1b958b63501b5b6d670d802d5716dfa1ae397e350c3f3c7c17e558aa3c"
+    },
+    {
+      "path": "receipts/validate_rebase.py",
+      "bytes": 12065,
+      "sha256": "c7a02cbf6f37632b242d682bff900b9f01b20a7847a1f7a2dd0c1980df10aef3"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/CODEX_ENGINEERING_DELTA.md",
+      "bytes": 2280,
+      "sha256": "019889710aa178450b7e7e3dc1c54ff1bab72c84282be1cbe6733e96eee65f40"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/COMMUNICATION_EXAMINATION_MATRIX.csv",
+      "bytes": 3247,
+      "sha256": "45c2bc9555857eca0030fa371a3455ef5790ad7476de8be85fdacc4006389537"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/DECISION_REGISTER.md",
+      "bytes": 1868,
+      "sha256": "deac9e758eb86909140e2f7fe8ec2a19b7c030760960bae7aa072c423fc8c697"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/README_START_HERE.md",
+      "bytes": 1903,
+      "sha256": "d78f2cc91a4e3cb1e06972f4eadf78f42a0a8c135665278aee010f5a272ca9e9"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/RUBRIC_60_40_PROPOSAL.json",
+      "bytes": 1327,
+      "sha256": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/SHA256_MANIFEST.json",
+      "bytes": 1742,
+      "sha256": "33a69fc167d55ff141aa591ca26d67904e1fac610328543840bee3627945518f"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md",
+      "bytes": 127155,
+      "sha256": "620c7c313d248a9e1bc43a220c8ab79c82e743cb5d3269ebe6150e476d5e2fb4"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+      "bytes": 1697,
+      "sha256": "bb43bd24ec31feb7c7083977e2625d43eaf362e6cddb63666da6bd4947f6dcca"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+      "bytes": 13091,
+      "sha256": "dbfe27300629b30caef4879b55ae2527fd8663f1691fec7978e24d872ac3f686"
+    },
+    {
+      "path": "sources/TIA_FULL_PRD_v3/UAT_MATRIX_v3.csv",
+      "bytes": 2060,
+      "sha256": "a75a0923ce8c7330a247c682d65dd00f77c19fef20d330fc48119176d0222d61"
+    }
+  ]
+}

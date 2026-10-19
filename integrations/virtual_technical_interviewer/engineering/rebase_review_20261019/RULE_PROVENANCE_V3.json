@@ -1,0 +1,491 @@
+{
+  "schema_version": "tia-rule-provenance/v0.3",
+  "status": "DESIGN_REGISTER_NOT_RUNTIME_CONFIGURATION",
+  "source_root": "sources/TIA_FULL_PRD_v3/",
+  "source_commit": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+  "rubric_version": "tia-60-40-owner-hypothesis-v0.3",
+  "supersedes": "[LOCAL_PATH_REDACTED]",
+  "approval_note": "Source requirements, owner hypotheses, engineering proposals and empirical validation are independent states. No production rules were activated by this document task.",
+  "rules": [
+    {
+      "rule_id": "score.base_caps",
+      "value": {
+        "technical": 60,
+        "communication": 40
+      },
+      "authority": "USER_HYPOTHESIS",
+      "source_ref": "§14/14A; DECISION_REGISTER D-03",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "not_employer_validated",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "60/40 is the current owner hypothesis; preserve independent axes.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "score.technical_subweights",
+      "value": {
+        "T01": 24,
+        "T02": 13,
+        "T03": 10,
+        "T04": 9,
+        "T05": 4
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "RUBRIC_60_40_PROPOSAL.json",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "SUBWEIGHTS_UNAPPROVED",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Fixture values only; production activation requires review.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "score.communication_subweights",
+      "value": {
+        "C01": 6,
+        "C02": 7,
+        "C03": 7,
+        "C04": 9,
+        "C05": 7,
+        "C06": 4
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "RUBRIC_60_40_PROPOSAL.json",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "SUBWEIGHTS_UNAPPROVED",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "rubric:C01..C06 differ from exam:C01..C16 and graph:02/C01..C23.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "score.quality_scale",
+      "value": {
+        "min": 0,
+        "max": 4,
+        "anchors": {
+          "0": "observed counterexample/ineffective",
+          "1": "requires repeated prompting",
+          "2": "partly demonstrated",
+          "3": "adequate without undue aid",
+          "4": "robust on novel comparable task"
+        }
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "§14A; RUBRIC_60_40_PROPOSAL.json",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "uncalibrated",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Observable anchors; no charisma, accent or inferred affect default.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "score.missing_evidence",
+      "value": {
+        "state": "NOT_OBSERVED",
+        "distinct_from_zero": true,
+        "show_coverage": true,
+        "automatic_normalization": false
+      },
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "§14A; FR-10; RUBRIC_60_40_PROPOSAL.json",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "presentation_and_applicability_unvalidated",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Known subtotal and coverage must not look like a complete grade.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "score.bonus",
+      "value": {
+        "enabled": false,
+        "user_hypothesis_range": [
+          10,
+          15
+        ],
+        "formula": null,
+        "mode": "OPTIONAL_POSITIVE_ONLY"
+      },
+      "authority": "USER_HYPOTHESIS",
+      "source_ref": "§14/14A; D-04; RUBRIC_60_40_PROPOSAL.json",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "RESEARCH_PENDING",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Supersedes the archived Rapid +10 cap; range is not an active entitlement or formula.",
+      "supersedes": "interview-proposed-rules/v0.1 score.bonus cap=10"
+    },
+    {
+      "rule_id": "score.assistance_ledger",
+      "value": {
+        "separate_before_after": true,
+        "automatic_penalty": null
+      },
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "§14A; FR-09/10; RUBRIC_60_40_PROPOSAL.json",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "accounting_contract_not_runtime_tested",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Store actual aid separately; do not alter execution facts to reflect impressions.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "flow.B05",
+      "value": {
+        "yes": "B06->B07->B05",
+        "no": "B08"
+      },
+      "authority": "USER_APPROVED",
+      "source_ref": "issue_register_v0_1.md F01-001; D-09",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": "versioned_review_change_only",
+      "validation_state": "approved_semantics_raw_graph_not_edited",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Versioned approved semantic correction; no silent source HTML edits.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "flow.feedback_states",
+      "value": [
+        "AH_AHA_AND_CAN_EXECUTE",
+        "BH_UNDERSTANDS_GAP_BUT_NO_METHOD",
+        "CH_NOT_UNDERSTANDING",
+        "DH_NO_PROGRESS_AFTER_HELP",
+        "EH_VALID_NOVEL_PATH"
+      ],
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "§11/11A; COM-FR-007/012",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "state_contract_proposed_not_runtime_tested",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Comprehension, executable next step, action and verified progress remain separate.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "flow.progress_threshold",
+      "value": {
+        "pass_ratio_trigger": null,
+        "completion_percent_trigger": null
+      },
+      "authority": "RESEARCH_PENDING",
+      "source_ref": "D-06; §11A; C-UAT-05/06",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "not_validated",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "No automatic 80/20 rule; fixture pass fraction is not completion or task difficulty.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "flow.repeated_stuck_limit",
+      "value": null,
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "§11/12; D-08",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unconfigured",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "No automatic escalation when candidate does not understand.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "session.duration_seconds",
+      "value": null,
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "FR-02; §12; §31A",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unconfigured",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Must be declared in a versioned session profile.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "aid.profile",
+      "value": {
+        "mode": null,
+        "hint_max": null,
+        "hint_count": null,
+        "documentation": null,
+        "web_search": null,
+        "ai_assistance": null
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "§12; FR-09; COM-FR-006",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unconfigured",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Modes and bounds selected before session; candidate/model cannot enlarge permission.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "aid.mode_candidates",
+      "value": [
+        "UNAIDED",
+        "INTERVIEWER_HINTS",
+        "DOCUMENTATION_ALLOWED",
+        "AI_ASSISTED_PRACTICE",
+        "TRAINER_DRILL"
+      ],
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "§12",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "not_empirically_validated",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "INTERVIEWER_HINTS H1–H3 is a proposed profile, not active universal policy.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "aid.clarification_accounting",
+      "value": null,
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "§12; FR-09; prior LOCAL_PROTOTYPE_DESIGN.md §3",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unresolved",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Whether clarification consumes a budget must be declared; never use this label to disclose method keys.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "question.sql_dialect",
+      "value": {
+        "selected": null,
+        "proposed": "SQLite"
+      },
+      "authority": "ENGINEERING_PROPOSAL",
+      "source_ref": "§13; FR-06/07; NFR-09",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "spike_not_run",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "First evaluator read-only, process and resource constrained; string filtering alone is insufficient.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "question.initial_family",
+      "value": {
+        "selected": null,
+        "candidates": [
+          "stable_order_and_nulls",
+          "dedup_select",
+          "join_cardinality"
+        ]
+      },
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "§13; D-11",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "pilot_choice_pending",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Use a bounded family plus unfamiliar comparable variant; DELETE outside initial read-only scope.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "evaluation.semantic_assessor",
+      "value": {
+        "selected": null,
+        "offline_proposal": "manual_review",
+        "model_observations": "proposal_only"
+      },
+      "authority": "ENGINEERING_PROPOSAL",
+      "source_ref": "§14A/18A; C-UAT-09/11",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "calibration_not_run",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Deterministic arithmetic does not validate a semantic label.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "evaluation.rater_protocol",
+      "value": {
+        "rater_count": null,
+        "agreement_threshold": null,
+        "adjudicator": null
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "§27/27A; C-UAT-09",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unconfigured",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Study counts and agreement thresholds must be preregistered rather than claimed as evidence.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "training.comparability",
+      "value": {
+        "required_dimensions": [
+          "skill",
+          "difficulty",
+          "aid",
+          "time",
+          "familiarity"
+        ],
+        "thresholds": null,
+        "held_out": true
+      },
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "§15; FR-12/18; C-UAT-10",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "transfer_unvalidated",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Different conditions labelled incomparable; repeated same task does not prove transfer.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "history.retention",
+      "value": {
+        "mode": null,
+        "ttl": null,
+        "raw_text_consent": false,
+        "training_memory_requires_review": true
+      },
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "§18A/22; FR-13; C-UAT-12",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "profile_pending",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "No-retention mode must honestly expose limits on later evidence reproduction.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "evaluation.review_and_appeal",
+      "value": {
+        "reviewer": null,
+        "correction_policy": null,
+        "original_facts_immutable": true
+      },
+      "authority": "CURRENT_V3_REQUIREMENT",
+      "source_ref": "FR-25; §18A; C-UAT-09",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "workflow_not_run",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Correction adds review/revision events; never silently rewrites technical facts.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "performance.local_p95_ms",
+      "value": {
+        "target": 300,
+        "hardware": null,
+        "corpus": null
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "NFR-05",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unmeasured",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Local command update target only; excludes provider latency; revise from measurements.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "validation.determinism_repeats",
+      "value": {
+        "proposed_minimum": 20
+      },
+      "authority": "DESIGN_PROPOSAL",
+      "source_ref": "NFR-02",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "NOT_RUN",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "A proposed target, not a test receipt.",
+      "supersedes": null
+    },
+    {
+      "rule_id": "runtime.resource_caps",
+      "value": {
+        "sql_timeout_ms": null,
+        "result_rows": null,
+        "event_bytes": null,
+        "session_events": null
+      },
+      "authority": "ENGINEERING_PROPOSAL",
+      "source_ref": "NFR-07/09",
+      "source_version": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+      "configurable": true,
+      "validation_state": "unconfigured",
+      "approved_for_production": false,
+      "effective_from": null,
+      "rationale": "Must be bounded before accepting untrusted queries; no missing-limit fallback to unlimited execution.",
+      "supersedes": null
+    }
+  ],
+  "rejected_legacy_rules": [
+    "40/20/25/15 active rubric",
+    "universal 80/20 help threshold",
+    "always escalate hints when candidate does not understand",
+    "Rapid bonus cap=10 as current v3 rule",
+    "charisma/accent/speed or inferred emotion as automatic score",
+    "verbal aha as proof of execution"
+  ],
+  "safety_invariants": [
+    {
+      "id": "authority.host",
+      "rule": "Only governed host may commit authoritative time, permissions, test receipts and scores; model proposes, host validates.",
+      "configurable_by_candidate_or_model": false
+    },
+    {
+      "id": "score.axes",
+      "rule": "Technical and Communication retain independent evidence and arithmetic; communication cannot manufacture a technical pass.",
+      "configurable_by_candidate_or_model": false
+    },
+    {
+      "id": "privacy.projections",
+      "rule": "Private answers, hidden tests and credentials never enter unauthorized candidate/model/export projections.",
+      "configurable_by_candidate_or_model": false
+    },
+    {
+      "id": "history.immutable_facts",
+      "rule": "Review correction is append-only; Trainer cannot modify closed interview facts.",
+      "configurable_by_candidate_or_model": false
+    },
+    {
+      "id": "execution.fail_closed",
+      "rule": "Untrusted SQL cannot start before permissions and resource limits are enforced.",
+      "configurable_by_candidate_or_model": false
+    },
+    {
+      "id": "consent.scope",
+      "rule": "No spending, publication, voice capture or external messaging follows solely from a future feature in this PRD.",
+      "configurable_by_candidate_or_model": false
+    }
+  ]
+}

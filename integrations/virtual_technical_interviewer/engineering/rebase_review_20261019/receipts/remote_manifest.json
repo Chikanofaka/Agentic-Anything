@@ -1,0 +1,1765 @@
+{
+  "commit": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+  "files": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3c92d7ca1e3b103f9bb9d8e9ac2c01c719dfac5b",
+      "size": 432,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3c92d7ca1e3b103f9bb9d8e9ac2c01c719dfac5b"
+    },
+    {
+      "path": "AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0c36b8613f5abac89bf433a0cfa36d1937f7242b",
+      "size": 3038,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0c36b8613f5abac89bf433a0cfa36d1937f7242b"
+    },
+    {
+      "path": "CODEX_FIRST_PROMPT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "530f287fedbcc89bdfb12fbbaba094f85832eed4",
+      "size": 3529,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/530f287fedbcc89bdfb12fbbaba094f85832eed4"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "060f8bc1b39ad7ec16820317ee49bfcc90843d44",
+      "size": 8577,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/060f8bc1b39ad7ec16820317ee49bfcc90843d44"
+    },
+    {
+      "path": "README_START_HERE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23596604034968ec9ba5e0224e64045e6242cf42",
+      "size": 4056,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/23596604034968ec9ba5e0224e64045e6242cf42"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f381082c56a7b20794d7418c216da7d74b18a55b",
+      "size": 1762,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f381082c56a7b20794d7418c216da7d74b18a55b"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/README_INSTALL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2a39b55b30c1ec54bc310df2fb5fd98e99bc580",
+      "size": 6155,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e2a39b55b30c1ec54bc310df2fb5fd98e99bc580"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/UAT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb7266755b04cbc94f88a6b4d626f88e0f51bcc1",
+      "size": 1452,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cb7266755b04cbc94f88a6b4d626f88e0f51bcc1"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/case_brief.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "713459b097d2ee1733b47ac1ce13c85f691047d3",
+      "size": 14988,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/713459b097d2ee1733b47ac1ce13c85f691047d3"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/experience-prd.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e5f394bd9a2bdd24b2ba37acf599568d322ef29",
+      "size": 1904,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0e5f394bd9a2bdd24b2ba37acf599568d322ef29"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/identity.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e950c809a06e8a18cdafeb5eed4270cd13e4f2d9",
+      "size": 8709,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e950c809a06e8a18cdafeb5eed4270cd13e4f2d9"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "571d74a00513380266d66661741f48de41177317",
+      "size": 24084,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/571d74a00513380266d66661741f48de41177317"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/lineage-and-arena.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e57efb740c896cb18e843418812c29f2f9e63f1b",
+      "size": 771,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e57efb740c896cb18e843418812c29f2f9e63f1b"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/memory.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8656e61d0282469bc9501e2e76cdcf4af3dc1213",
+      "size": 10375,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/8656e61d0282469bc9501e2e76cdcf4af3dc1213"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/narrative-state.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "09171b3cd91708376bb49abca57373999de6ca26",
+      "size": 478,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/09171b3cd91708376bb49abca57373999de6ca26"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/narrator_intro.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "903b5777c36c1b11dbaa8a0f2f2b9bb92b5b70b5",
+      "size": 8652,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/903b5777c36c1b11dbaa8a0f2f2b9bb92b5b70b5"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/skills.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a4bd929303cec81ac33dcabf4eba1f371c36dd57",
+      "size": 414,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/a4bd929303cec81ac33dcabf4eba1f371c36dd57"
+    },
+    {
+      "path": "WTL-029_Witness_Loop_v0.1/user.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3b658324c9d72d80c6f33e86820c832dd11091e7",
+      "size": 8855,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3b658324c9d72d80c6f33e86820c832dd11091e7"
+    },
+    {
+      "path": "baseline/CODEX_HANDOFF.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bbe9332eb314cfd2446acdcb9ff466b45654847a",
+      "size": 2668,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/bbe9332eb314cfd2446acdcb9ff466b45654847a"
+    },
+    {
+      "path": "baseline/HUMAN_UAT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25fab31ac71385d75f8a3f1d84a3cbc729eddf19",
+      "size": 2258,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/25fab31ac71385d75f8a3f1d84a3cbc729eddf19"
+    },
+    {
+      "path": "baseline/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0481700a13ae5036293b771a5cdc7ca3f6027b3c",
+      "size": 2397,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0481700a13ae5036293b771a5cdc7ca3f6027b3c"
+    },
+    {
+      "path": "baseline/examples/research/AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea3a39ad49f84f9c0b171fbd52fe22bac61e5e18",
+      "size": 310,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ea3a39ad49f84f9c0b171fbd52fe22bac61e5e18"
+    },
+    {
+      "path": "baseline/examples/research/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d4c5b2d069ea0a986a279d5ee87beabcf54f07e1",
+      "size": 758,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d4c5b2d069ea0a986a279d5ee87beabcf54f07e1"
+    },
+    {
+      "path": "baseline/examples/research/harness.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "51ca2d3ebbd26c13f92a7fa471c47ef356e5b361",
+      "size": 637,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/51ca2d3ebbd26c13f92a7fa471c47ef356e5b361"
+    },
+    {
+      "path": "baseline/examples/research/main.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "763b94020f8dc4dd4f1f161944083c3da82f0dda",
+      "size": 396,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/763b94020f8dc4dd4f1f161944083c3da82f0dda"
+    },
+    {
+      "path": "baseline/examples/research/skills/research/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad1ab0f3c68c7bf8643028d3b9d422aac82a814d",
+      "size": 437,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ad1ab0f3c68c7bf8643028d3b9d422aac82a814d"
+    },
+    {
+      "path": "baseline/examples/returns/AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3727e7e9eba1d7b193cb37b9b62a1a38d60c885d",
+      "size": 270,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3727e7e9eba1d7b193cb37b9b62a1a38d60c885d"
+    },
+    {
+      "path": "baseline/examples/returns/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "84084d39ffd0c42ae8a80abe6d2d1dbaceb3830a",
+      "size": 682,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/84084d39ffd0c42ae8a80abe6d2d1dbaceb3830a"
+    },
+    {
+      "path": "baseline/examples/returns/harness.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b4598a506d02a3d04948bc3f4fc6952b8bb51e1",
+      "size": 605,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7b4598a506d02a3d04948bc3f4fc6952b8bb51e1"
+    },
+    {
+      "path": "baseline/examples/returns/main.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3849731bcd8979722218ec02b343b445fd249564",
+      "size": 518,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3849731bcd8979722218ec02b343b445fd249564"
+    },
+    {
+      "path": "baseline/examples/returns/skills/returns/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fbc78a2049fa834490e38463c0d810a70148e4ba",
+      "size": 388,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/fbc78a2049fa834490e38463c0d810a70148e4ba"
+    },
+    {
+      "path": "baseline/prd/ARCHITECTURE_OPTIONS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2e64e6fb38f8eac52cb298b2788de07a03891d70",
+      "size": 2808,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/2e64e6fb38f8eac52cb298b2788de07a03891d70"
+    },
+    {
+      "path": "baseline/prd/ASSUMPTIONS_AND_OPEN_QUESTIONS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7fcad5f124d42f358423f3f41990b7c02d3b43f6",
+      "size": 2976,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7fcad5f124d42f358423f3f41990b7c02d3b43f6"
+    },
+    {
+      "path": "baseline/prd/HAL_PRD_v2_0.docx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "12afcbbedccc8df216d33fcab82330d8f86831fe",
+      "size": 56013,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/12afcbbedccc8df216d33fcab82330d8f86831fe"
+    },
+    {
+      "path": "baseline/prd/HAL_PRD_v2_0.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "342a23506d106b0abf8ccffcb610d7e326085d60",
+      "size": 34191,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/342a23506d106b0abf8ccffcb610d7e326085d60"
+    },
+    {
+      "path": "baseline/prd/IDEATION_DECISION.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1ff465efe1756cac978d04d95e6e0964ef1258c6",
+      "size": 1939,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/1ff465efe1756cac978d04d95e6e0964ef1258c6"
+    },
+    {
+      "path": "baseline/prd/MVM_SPEC.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "629ddaf0a6d35a178aa3c504f34015848b4f2a6a",
+      "size": 3089,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/629ddaf0a6d35a178aa3c504f34015848b4f2a6a"
+    },
+    {
+      "path": "baseline/prd/NEED_NORMALIZED.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fe9d4ad722a8522cf1a46970ea278a6885e1fd1a",
+      "size": 3793,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/fe9d4ad722a8522cf1a46970ea278a6885e1fd1a"
+    },
+    {
+      "path": "baseline/prd/PRD_QUALITY_RECEIPT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83b8404d59494a24c58fac1d44258180e9792473",
+      "size": 3626,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/83b8404d59494a24c58fac1d44258180e9792473"
+    },
+    {
+      "path": "baseline/prd/SOURCE_AND_DECISION_LEDGER.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "782a39f1b34bba7c2ed7f97e77e6f6e7ca2e9f80",
+      "size": 3674,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/782a39f1b34bba7c2ed7f97e77e6f6e7ca2e9f80"
+    },
+    {
+      "path": "baseline/prd/TRACEABILITY.csv",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f72613bbce9d0552275c1b15cb60bcfe0850a1d",
+      "size": 3267,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3f72613bbce9d0552275c1b15cb60bcfe0850a1d"
+    },
+    {
+      "path": "baseline/prd/UAT_MATRIX.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d9f20c5039d04618bf2151013409a8c5bf7513f",
+      "size": 3266,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7d9f20c5039d04618bf2151013409a8c5bf7513f"
+    },
+    {
+      "path": "baseline/quality/browser_checks.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8bff064151ebf7e6836c3fcca9b85fa5ef4bd2e7",
+      "size": 3527,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/8bff064151ebf7e6836c3fcca9b85fa5ef4bd2e7"
+    },
+    {
+      "path": "baseline/quality/preview_human.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3480a672539b7a260a0e015a82e16b5c700b697e",
+      "size": 176173,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3480a672539b7a260a0e015a82e16b5c700b697e"
+    },
+    {
+      "path": "baseline/quality/preview_mobile.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0f8b1b286140a0ffb3a6b0ae72fd9d22f112a22",
+      "size": 216117,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/b0f8b1b286140a0ffb3a6b0ae72fd9d22f112a22"
+    },
+    {
+      "path": "baseline/quality/preview_welcome.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3ef412f62254eef2bba8d8bfac49fe5ebdbbaa8",
+      "size": 313220,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f3ef412f62254eef2bba8d8bfac49fe5ebdbbaa8"
+    },
+    {
+      "path": "baseline/ready-mvm/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18e8d09070cb53b9fb6b283b59596be0feb4e4e7",
+      "size": 48608,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/18e8d09070cb53b9fb6b283b59596be0feb4e4e7"
+    },
+    {
+      "path": "baseline/ready-mvm/research-harness.zip",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e50c4bd588c5eef5786f11a67120924c7c70867a",
+      "size": 2116,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e50c4bd588c5eef5786f11a67120924c7c70867a"
+    },
+    {
+      "path": "baseline/ready-mvm/returns-harness.zip",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "da3539def8a1ec37ac308453405c9d038bae0410",
+      "size": 2122,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/da3539def8a1ec37ac308453405c9d038bae0410"
+    },
+    {
+      "path": "baseline/receipts/TEST_RESULTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d00d4de191e4444027ad9708c2a73d518707fde0",
+      "size": 2546,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d00d4de191e4444027ad9708c2a73d518707fde0"
+    },
+    {
+      "path": "baseline/skill-feedback/PILOT_RECURSION.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "90e2df724137a047f3b6df6b73e2b2a069fad761",
+      "size": 6160,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/90e2df724137a047f3b6df6b73e2b2a069fad761"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25f2f6d99e6752f437790b3ad1016c8eff5931ab",
+      "size": 6432,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/25f2f6d99e6752f437790b3ad1016c8eff5931ab"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/evals/HAL_PILOT_REGRESSION.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "779cbbd5a371d880d79271ed6ce83b58a07e8694",
+      "size": 1402,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/779cbbd5a371d880d79271ed6ce83b58a07e8694"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/evals/PRD_EVALUATION.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a043f1ef2bddeadeea9cb3a91ca458ccf8a7731",
+      "size": 2215,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7a043f1ef2bddeadeea9cb3a91ca458ccf8a7731"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/examples/CROSS_DOMAIN_DRY_RUN.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5cc09c08f2433cb0e194b4aa1a45da3cb940127a",
+      "size": 3430,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/5cc09c08f2433cb0e194b4aa1a45da3cb940127a"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/manifest.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d6bb7a460a30439d21fda8d9fb0dbfe2195c2e02",
+      "size": 570,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d6bb7a460a30439d21fda8d9fb0dbfe2195c2e02"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/01-CONVERSION_KERNEL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0bb1f033aa04ef0694fcc450993a8bd87a4abe27",
+      "size": 7794,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0bb1f033aa04ef0694fcc450993a8bd87a4abe27"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/02-SOURCE_ATLAS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "208d4106c9267f79d85e2d84f202001efe4a529c",
+      "size": 29862,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/208d4106c9267f79d85e2d84f202001efe4a529c"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/03-VISUAL_SOURCEMAP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2468189c20f672256e16386813644ad71d9af6ba",
+      "size": 5333,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/2468189c20f672256e16386813644ad71d9af6ba"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/04-GENERATIVE_OPERATORS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c07b383c2e4d49f91b215dbd292e48c3ef74e897",
+      "size": 38451,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/c07b383c2e4d49f91b215dbd292e48c3ef74e897"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/05-QUALITY_AND_CONFLICTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6ce3fb06c32e177d790a417648ba43afad37123",
+      "size": 2656,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/b6ce3fb06c32e177d790a417648ba43afad37123"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/06-DEEP_CONVERSION_WORKED_EXAMPLES.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f06c4b0ff6864edcda4e26bbbf62f4123313e06",
+      "size": 24144,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3f06c4b0ff6864edcda4e26bbbf62f4123313e06"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/07-PILOT_RECURSION_RULES.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a4b16dfc1e4898a15d7e3c9caa970933fb46748e",
+      "size": 2347,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/a4b16dfc1e4898a15d7e3c9caa970933fb46748e"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/references/ABSTRACTION_RULE_LIBRARY.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "908ddfa2d07cf69ae4fedf927df4dd94a3e9a2d7",
+      "size": 16771,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/908ddfa2d07cf69ae4fedf927df4dd94a3e9a2d7"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/00-NEED_INTAKE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6a84dbca9b8fe5fac88ae307cd2e6fbb55196619",
+      "size": 1356,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/6a84dbca9b8fe5fac88ae307cd2e6fbb55196619"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/01-MASTER_PRD.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7deb7eace232dafa1e39ba3b23ad5ab91e4f9105",
+      "size": 42565,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7deb7eace232dafa1e39ba3b23ad5ab91e4f9105"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/02-FEATURE_WORKFLOW_UAT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d1fa0c66524a4a5b3d8af6e6b04a12825862902d",
+      "size": 1452,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d1fa0c66524a4a5b3d8af6e6b04a12825862902d"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/03-ROLES_DATA_SECURITY.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18c5fd7dd891d9db6a3145025fa6964be5e97d45",
+      "size": 1072,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/18c5fd7dd891d9db6a3145025fa6964be5e97d45"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/04-COST_VALUE_VENDOR.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9703fb6cd39d301be219559bfc40560dd1bba6a",
+      "size": 1733,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d9703fb6cd39d301be219559bfc40560dd1bba6a"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/05-ROADMAP_DECISION_MATRIX.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6126eefcaa24901b7f18459083b812b0796c0a47",
+      "size": 972,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/6126eefcaa24901b7f18459083b812b0796c0a47"
+    },
+    {
+      "path": "baseline/skill-feedback/PRD_Compiler_v2_1_CANDIDATE/templates/06-SLIDE_TO_PRD_VISUAL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e90286bd05011fd28a55f5bff2a605d681907d4e",
+      "size": 2305,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e90286bd05011fd28a55f5bff2a605d681907d4e"
+    },
+    {
+      "path": "branding/WitnessLoop.icns",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1aa48fc8a04161226ca6e94435776558c3230cf",
+      "size": 3591113,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/c1aa48fc8a04161226ca6e94435776558c3230cf"
+    },
+    {
+      "path": "branding/after-the-last-train-install.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "57535d5925c872b3c8887175054acca7072812b2",
+      "size": 2344,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/57535d5925c872b3c8887175054acca7072812b2"
+    },
+    {
+      "path": "engineering/BASELINE_AUDIT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3768c0d87c8a77336d4d796e20804038ce9c7aa4",
+      "size": 5393,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3768c0d87c8a77336d4d796e20804038ce9c7aa4"
+    },
+    {
+      "path": "engineering/HAL_WITNESS_TYPE_B_PRD.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "391244a92697c909610ea652f5084ec6d9fb1460",
+      "size": 11654,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/391244a92697c909610ea652f5084ec6d9fb1460"
+    },
+    {
+      "path": "engineering/SPRINT1_RECEIPT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60f2162956e1e531736f7c3fb0a0ee4a92f1e909",
+      "size": 10612,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/60f2162956e1e531736f7c3fb0a0ee4a92f1e909"
+    },
+    {
+      "path": "engineering/WITNESS_INTEGRATION_RECEIPT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "919cd3f4162be07587e4455ee722d280a622752b",
+      "size": 11562,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/919cd3f4162be07587e4455ee722d280a622752b"
+    },
+    {
+      "path": "engineering/WITNESS_TECHNICAL_SHOWCASE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a47a1124068e926f4144ec5d55a46c0c0957f94c",
+      "size": 14094,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/a47a1124068e926f4144ec5d55a46c0c0957f94c"
+    },
+    {
+      "path": "engineering/WTL03_DECISIONS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d0f8bb9ccfc5868461f49fb5cf12c055907f3007",
+      "size": 6033,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d0f8bb9ccfc5868461f49fb5cf12c055907f3007"
+    },
+    {
+      "path": "engineering/WTL03_RECEIPT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4ac5424df626c2344d41aad3066d14146403b9bb",
+      "size": 12703,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/4ac5424df626c2344d41aad3066d14146403b9bb"
+    },
+    {
+      "path": "engineering/WTL03_UAT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "575996dccda1ce9f67d3f79f8e76a26a306bc64f",
+      "size": 8839,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/575996dccda1ce9f67d3f79f8e76a26a306bc64f"
+    },
+    {
+      "path": "engineering/WTL_PORTABLE_BETA_BUILD.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf34b7803c4894fcbff62d69df272ba9bf1d0bc4",
+      "size": 4344,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cf34b7803c4894fcbff62d69df272ba9bf1d0bc4"
+    },
+    {
+      "path": "engineering/WTL_PORTABLE_STORAGE_MIGRATION.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1eb7f4df7f62d17e798c9a57f285c1da150d7a22",
+      "size": 2416,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/1eb7f4df7f62d17e798c9a57f285c1da150d7a22"
+    },
+    {
+      "path": "engineering/wtl03-screenshots/00-baseline.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2d7859c9ed1e4f871a9d9c50a448a32777da432a",
+      "size": 689345,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/2d7859c9ed1e4f871a9d9c50a448a32777da432a"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/00–08 逐图评审对话.pdf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea53b4682d1b7abc0a9ef91eae258bc5af4e59c7",
+      "size": 4923014,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ea53b4682d1b7abc0a9ef91eae258bc5af4e59c7"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/CODEX_ENGINEERING_DELTA.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b42595bf02acd3c8e2727006e17498f5b2a49964",
+      "size": 2280,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/b42595bf02acd3c8e2727006e17498f5b2a49964"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/COMMUNICATION_EXAMINATION_MATRIX.csv",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e5d8d4438b22fd826a06db4863d8e8a837921c1a",
+      "size": 3247,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e5d8d4438b22fd826a06db4863d8e8a837921c1a"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/DECISION_REGISTER.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "784fe8fef295fb933575dc0958dff842734879e9",
+      "size": 1868,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/784fe8fef295fb933575dc0958dff842734879e9"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/README_START_HERE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "59b83b6e29fe0f9b5f722c84f0225422d733068f",
+      "size": 1903,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/59b83b6e29fe0f9b5f722c84f0225422d733068f"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/RUBRIC_60_40_PROPOSAL.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e54e627fdb56a8f4c3eb6bb15ec1c70fe3bdc84",
+      "size": 1327,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3e54e627fdb56a8f4c3eb6bb15ec1c70fe3bdc84"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/SHA256_MANIFEST.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d35e0caf5cbcf4f34a920207b9731edc4a0240d9",
+      "size": 1742,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d35e0caf5cbcf4f34a920207b9731edc4a0240d9"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.docx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e0a36810a3826d33da20fae6ce306915a96c10cc",
+      "size": 95178,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e0a36810a3826d33da20fae6ce306915a96c10cc"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "29917d5df2b2052ca947497d8a86970bf4c8573b",
+      "size": 127155,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/29917d5df2b2052ca947497d8a86970bf4c8573b"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.pdf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "67f6486b5d91c7238937516fb1717023fe1444e3",
+      "size": 590385,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/67f6486b5d91c7238937516fb1717023fe1444e3"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2b1ec56cd4202e0acf2f814b187341f8a273fca0",
+      "size": 1697,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/2b1ec56cd4202e0acf2f814b187341f8a273fca0"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6b883efc1d8130126498feb52283974c80daf7ba",
+      "size": 13091,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/6b883efc1d8130126498feb52283974c80daf7ba"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/UAT_MATRIX_v3.csv",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "159e1e386d05a63ec4a19aa3201bbabb6c81bfd5",
+      "size": 2060,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/159e1e386d05a63ec4a19aa3201bbabb6c81bfd5"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b759c5cb3a6e4974f4ad97a2da71e8d11ac8db61",
+      "size": 519440,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/b759c5cb3a6e4974f4ad97a2da71e8d11ac8db61"
+    },
+    {
+      "path": "integrations/virtual_technical_interviewer/粘贴的 Markdown (1)(6).md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2e1b678e94ba6191732940a70251461f41faaf26",
+      "size": 64901,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/2e1b678e94ba6191732940a70251461f41faaf26"
+    },
+    {
+      "path": "integrations/witness_loop/ASSET_PROVENANCE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1026dc52329be007a424ba9ef42ed93d33e16a9e",
+      "size": 7164,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/1026dc52329be007a424ba9ef42ed93d33e16a9e"
+    },
+    {
+      "path": "integrations/witness_loop/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "223377e978d67e761406db03a5e8e9d8b32621c1",
+      "size": 7211,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/223377e978d67e761406db03a5e8e9d8b32621c1"
+    },
+    {
+      "path": "integrations/witness_loop/SOURCE_PROVENANCE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b27aacd342cd0a40dffb7e7199cca817a4a1f9d",
+      "size": 9010,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/1b27aacd342cd0a40dffb7e7199cca817a4a1f9d"
+    },
+    {
+      "path": "integrations/witness_loop/handoff_v03/REFERENCE_MANIFEST.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0b250f37c437bc488bba40c1a0682a6ec4151ae",
+      "size": 864,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/b0b250f37c437bc488bba40c1a0682a6ec4151ae"
+    },
+    {
+      "path": "integrations/witness_loop/handoff_v03/WTL029_v0.3_Codex_Integrated_Implementation_Prompt.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1dab5477971855599a3b9a2528b45c163f404eda",
+      "size": 21994,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/1dab5477971855599a3b9a2528b45c163f404eda"
+    },
+    {
+      "path": "integrations/witness_loop/native/OpenAI.swift",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8f5aa5379ca4e2ecb9b0ca847bd31eae17a4b043",
+      "size": 10063,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/8f5aa5379ca4e2ecb9b0ca847bd31eae17a4b043"
+    },
+    {
+      "path": "integrations/witness_loop/native/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "67e82d4d41887ba08fbcfdcb85f7f57d87dc6857",
+      "size": 6703,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/67e82d4d41887ba08fbcfdcb85f7f57d87dc6857"
+    },
+    {
+      "path": "integrations/witness_loop/native/SelfTests.swift",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "17fe7eb77a394bc7d381042cd81e2517ad98f2a6",
+      "size": 13064,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/17fe7eb77a394bc7d381042cd81e2517ad98f2a6"
+    },
+    {
+      "path": "integrations/witness_loop/native/StrictJSON.swift",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "08d79e9eae3c28e62c2180679dbd10ed95f5327c",
+      "size": 3242,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/08d79e9eae3c28e62c2180679dbd10ed95f5327c"
+    },
+    {
+      "path": "integrations/witness_loop/native/UISmoke.swift",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "292ccb55f7c32289502521b6a291b60bc66eb563",
+      "size": 14711,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/292ccb55f7c32289502521b6a291b60bc66eb563"
+    },
+    {
+      "path": "integrations/witness_loop/native/Worker.swift",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "91bd61accc165374a39fb44c76fb765ce577ae1d",
+      "size": 4576,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/91bd61accc165374a39fb44c76fb765ce577ae1d"
+    },
+    {
+      "path": "integrations/witness_loop/native/check_unicode_bounds.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e274b42d96e3e32275b73e9b7c55bf87c3c0eee1",
+      "size": 2167,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e274b42d96e3e32275b73e9b7c55bf87c3c0eee1"
+    },
+    {
+      "path": "integrations/witness_loop/native/main.swift",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "33089f4041455f51153c78811a84c2a46b412f6c",
+      "size": 30408,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/33089f4041455f51153c78811a84c2a46b412f6c"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f381082c56a7b20794d7418c216da7d74b18a55b",
+      "size": 1762,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f381082c56a7b20794d7418c216da7d74b18a55b"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/UAT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb7266755b04cbc94f88a6b4d626f88e0f51bcc1",
+      "size": 1452,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cb7266755b04cbc94f88a6b4d626f88e0f51bcc1"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/experience-prd.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e5f394bd9a2bdd24b2ba37acf599568d322ef29",
+      "size": 1904,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0e5f394bd9a2bdd24b2ba37acf599568d322ef29"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/identity.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "906128aee95b0d773bd0b876afc607639fe47abf",
+      "size": 483,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/906128aee95b0d773bd0b876afc607639fe47abf"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "571d74a00513380266d66661741f48de41177317",
+      "size": 24084,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/571d74a00513380266d66661741f48de41177317"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/lineage-and-arena.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e57efb740c896cb18e843418812c29f2f9e63f1b",
+      "size": 771,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e57efb740c896cb18e843418812c29f2f9e63f1b"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/memory.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55197875cef7f23a0eea9f21dde158eb36109bd9",
+      "size": 431,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/55197875cef7f23a0eea9f21dde158eb36109bd9"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/narrative-state.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "09171b3cd91708376bb49abca57373999de6ca26",
+      "size": 478,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/09171b3cd91708376bb49abca57373999de6ca26"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/skills.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a4bd929303cec81ac33dcabf4eba1f371c36dd57",
+      "size": 414,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/a4bd929303cec81ac33dcabf4eba1f371c36dd57"
+    },
+    {
+      "path": "integrations/witness_loop/reference_v01/user.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2873c6ed60cc1c429f8a219395ff599c75ce7d28",
+      "size": 360,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/2873c6ed60cc1c429f8a219395ff599c75ce7d28"
+    },
+    {
+      "path": "integrations/witness_loop/source/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f381082c56a7b20794d7418c216da7d74b18a55b",
+      "size": 1762,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f381082c56a7b20794d7418c216da7d74b18a55b"
+    },
+    {
+      "path": "integrations/witness_loop/source/README_INSTALL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2a39b55b30c1ec54bc310df2fb5fd98e99bc580",
+      "size": 6155,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e2a39b55b30c1ec54bc310df2fb5fd98e99bc580"
+    },
+    {
+      "path": "integrations/witness_loop/source/UAT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb7266755b04cbc94f88a6b4d626f88e0f51bcc1",
+      "size": 1452,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cb7266755b04cbc94f88a6b4d626f88e0f51bcc1"
+    },
+    {
+      "path": "integrations/witness_loop/source/case_brief.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "713459b097d2ee1733b47ac1ce13c85f691047d3",
+      "size": 14988,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/713459b097d2ee1733b47ac1ce13c85f691047d3"
+    },
+    {
+      "path": "integrations/witness_loop/source/experience-prd.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e5f394bd9a2bdd24b2ba37acf599568d322ef29",
+      "size": 1904,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0e5f394bd9a2bdd24b2ba37acf599568d322ef29"
+    },
+    {
+      "path": "integrations/witness_loop/source/identity.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e950c809a06e8a18cdafeb5eed4270cd13e4f2d9",
+      "size": 8709,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e950c809a06e8a18cdafeb5eed4270cd13e4f2d9"
+    },
+    {
+      "path": "integrations/witness_loop/source/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "571d74a00513380266d66661741f48de41177317",
+      "size": 24084,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/571d74a00513380266d66661741f48de41177317"
+    },
+    {
+      "path": "integrations/witness_loop/source/lineage-and-arena.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e57efb740c896cb18e843418812c29f2f9e63f1b",
+      "size": 771,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e57efb740c896cb18e843418812c29f2f9e63f1b"
+    },
+    {
+      "path": "integrations/witness_loop/source/memory.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8656e61d0282469bc9501e2e76cdcf4af3dc1213",
+      "size": 10375,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/8656e61d0282469bc9501e2e76cdcf4af3dc1213"
+    },
+    {
+      "path": "integrations/witness_loop/source/narrative-state.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "09171b3cd91708376bb49abca57373999de6ca26",
+      "size": 478,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/09171b3cd91708376bb49abca57373999de6ca26"
+    },
+    {
+      "path": "integrations/witness_loop/source/narrator_intro.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "903b5777c36c1b11dbaa8a0f2f2b9bb92b5b70b5",
+      "size": 8652,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/903b5777c36c1b11dbaa8a0f2f2b9bb92b5b70b5"
+    },
+    {
+      "path": "integrations/witness_loop/source/skills.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a4bd929303cec81ac33dcabf4eba1f371c36dd57",
+      "size": 414,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/a4bd929303cec81ac33dcabf4eba1f371c36dd57"
+    },
+    {
+      "path": "integrations/witness_loop/source/user.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3b658324c9d72d80c6f33e86820c832dd11091e7",
+      "size": 8855,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3b658324c9d72d80c6f33e86820c832dd11091e7"
+    },
+    {
+      "path": "integrations/witness_loop/ui/app.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eb74f60476a086c7defae70d81db3534faa0fe37",
+      "size": 29548,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/eb74f60476a086c7defae70d81db3534faa0fe37"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/clock_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d6a41c9c1e5d4015449f1977631b0cb9e37b335f",
+      "size": 2413,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d6a41c9c1e5d4015449f1977631b0cb9e37b335f"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/clock_face.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3101daca04371f0a8954f902dd86e9f54fdcf3ca",
+      "size": 1250,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3101daca04371f0a8954f902dd86e9f54fdcf3ca"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/linwu_anxious.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ccd4beaa11ff408274103d0e500f2729254ca211",
+      "size": 2330691,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ccd4beaa11ff408274103d0e500f2729254ca211"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/platform_empty.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c7ef33dd98616e4218573edb558600cbcb3f10c3",
+      "size": 3031638,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/c7ef33dd98616e4218573edb558600cbcb3f10c3"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/red_fabric_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d4c72c1b33c7fb36036a91477e0c84b92a26c52",
+      "size": 1948,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/4d4c72c1b33c7fb36036a91477e0c84b92a26c52"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/ticket_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c93334b629bc386700e1d06eaa48e9d41fc04159",
+      "size": 2542,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/c93334b629bc386700e1d06eaa48e9d41fc04159"
+    },
+    {
+      "path": "integrations/witness_loop/ui/assets/train_departure_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9305e1b540d61b6201569507f04789eaeff9a7a6",
+      "size": 1809,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/9305e1b540d61b6201569507f04789eaeff9a7a6"
+    },
+    {
+      "path": "integrations/witness_loop/ui/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e2e8f4c82bd4cdc8b70f536a22cd97e4086d20c",
+      "size": 13509,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7e2e8f4c82bd4cdc8b70f536a22cd97e4086d20c"
+    },
+    {
+      "path": "integrations/witness_loop/ui/style.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "17cbe1368e62f873b4737a94ac1f9a95203a98c8",
+      "size": 25699,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/17cbe1368e62f873b4737a94ac1f9a95203a98c8"
+    },
+    {
+      "path": "issue_register_v0_1.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dd974e33fb62620f608273967a9435c24544744a",
+      "size": 4175,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/dd974e33fb62620f608273967a9435c24544744a"
+    },
+    {
+      "path": "packaging/RELEASE_NOTES_v0.3.0-beta.1-unsigned.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cc9cb4f223e1d8d9362e49c067c6dd5bf641fd93",
+      "size": 2223,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cc9cb4f223e1d8d9362e49c067c6dd5bf641fd93"
+    },
+    {
+      "path": "packaging/RELEASE_NOTES_v0.3.0-beta.1.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6ea46e01fbde655ce4134f9546e9c2adddddaabe",
+      "size": 1675,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/6ea46e01fbde655ce4134f9546e9c2adddddaabe"
+    },
+    {
+      "path": "packaging/RELEASE_NOTES_v0.3.0-beta.2-adhoc.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "94972fb6d54bcb4aa6fad32c75fe0c5e41d4e3f1",
+      "size": 1684,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/94972fb6d54bcb4aa6fad32c75fe0c5e41d4e3f1"
+    },
+    {
+      "path": "packaging/RELEASE_NOTES_v0.3.0-beta.3-adhoc.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3c8cfc8c82834c50ade50451733feef5476c8053",
+      "size": 3019,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3c8cfc8c82834c50ade50451733feef5476c8053"
+    },
+    {
+      "path": "packaging/WitnessLoop.DeveloperID.entitlements",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0c67376ebacb410fd873cac1d8d8dd431b262c02",
+      "size": 181,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0c67376ebacb410fd873cac1d8d8dd431b262c02"
+    },
+    {
+      "path": "runtime/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af7a3dc19e132e65604afcdc18c086c9f0ce3543",
+      "size": 6061,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/af7a3dc19e132e65604afcdc18c086c9f0ce3543"
+    },
+    {
+      "path": "runtime/docs/CODEX_NEXT_ENGINEERING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0addf470ae3a1242218ad52a853a44df74b653e9",
+      "size": 3168,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/0addf470ae3a1242218ad52a853a44df74b653e9"
+    },
+    {
+      "path": "runtime/docs/DECISION_AND_SOURCE_LEDGER.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9497ad119a739654fe658aaf8c2a250637af872",
+      "size": 1857,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d9497ad119a739654fe658aaf8c2a250637af872"
+    },
+    {
+      "path": "runtime/docs/DOMAIN_PACKAGE_V1.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5af0fa2368631528bf9c56eb4230eadb0b11a723",
+      "size": 8725,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/5af0fa2368631528bf9c56eb4230eadb0b11a723"
+    },
+    {
+      "path": "runtime/docs/SECURITY_AND_LIMITATIONS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c0a8250d71467bdb378b5e02fdbd68c529a91137",
+      "size": 5027,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/c0a8250d71467bdb378b5e02fdbd68c529a91137"
+    },
+    {
+      "path": "runtime/docs/SPRINT0_SCOPE_AND_ACCEPTANCE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ac3478459f553386bbfa4bf4e1c05efff6a9aee",
+      "size": 3508,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7ac3478459f553386bbfa4bf4e1c05efff6a9aee"
+    },
+    {
+      "path": "runtime/docs/TRACEABILITY_V2.csv",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f72613bbce9d0552275c1b15cb60bcfe0850a1d",
+      "size": 3267,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3f72613bbce9d0552275c1b15cb60bcfe0850a1d"
+    },
+    {
+      "path": "runtime/fixtures/research/AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea3a39ad49f84f9c0b171fbd52fe22bac61e5e18",
+      "size": 310,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ea3a39ad49f84f9c0b171fbd52fe22bac61e5e18"
+    },
+    {
+      "path": "runtime/fixtures/research/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d4c5b2d069ea0a986a279d5ee87beabcf54f07e1",
+      "size": 758,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d4c5b2d069ea0a986a279d5ee87beabcf54f07e1"
+    },
+    {
+      "path": "runtime/fixtures/research/harness.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "51ca2d3ebbd26c13f92a7fa471c47ef356e5b361",
+      "size": 637,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/51ca2d3ebbd26c13f92a7fa471c47ef356e5b361"
+    },
+    {
+      "path": "runtime/fixtures/research/main.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "763b94020f8dc4dd4f1f161944083c3da82f0dda",
+      "size": 396,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/763b94020f8dc4dd4f1f161944083c3da82f0dda"
+    },
+    {
+      "path": "runtime/fixtures/research/skills/research/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad1ab0f3c68c7bf8643028d3b9d422aac82a814d",
+      "size": 437,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ad1ab0f3c68c7bf8643028d3b9d422aac82a814d"
+    },
+    {
+      "path": "runtime/fixtures/returns/AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3727e7e9eba1d7b193cb37b9b62a1a38d60c885d",
+      "size": 270,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3727e7e9eba1d7b193cb37b9b62a1a38d60c885d"
+    },
+    {
+      "path": "runtime/fixtures/returns/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "84084d39ffd0c42ae8a80abe6d2d1dbaceb3830a",
+      "size": 682,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/84084d39ffd0c42ae8a80abe6d2d1dbaceb3830a"
+    },
+    {
+      "path": "runtime/fixtures/returns/harness.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b4598a506d02a3d04948bc3f4fc6952b8bb51e1",
+      "size": 605,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7b4598a506d02a3d04948bc3f4fc6952b8bb51e1"
+    },
+    {
+      "path": "runtime/fixtures/returns/main.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3849731bcd8979722218ec02b343b445fd249564",
+      "size": 518,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3849731bcd8979722218ec02b343b445fd249564"
+    },
+    {
+      "path": "runtime/fixtures/returns/skills/returns/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fbc78a2049fa834490e38463c0d810a70148e4ba",
+      "size": 388,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/fbc78a2049fa834490e38463c0d810a70148e4ba"
+    },
+    {
+      "path": "runtime/fixtures/witness/AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dd090f8f333e0395e41c99a0434de72359716111",
+      "size": 595,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/dd090f8f333e0395e41c99a0434de72359716111"
+    },
+    {
+      "path": "runtime/fixtures/witness/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d8cb13dd3ca924b6ece53edecbd7cb60c512f9a",
+      "size": 2275,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7d8cb13dd3ca924b6ece53edecbd7cb60c512f9a"
+    },
+    {
+      "path": "runtime/fixtures/witness/harness.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ced6df94b53e4b103b4195462cd7f1ab98c74711",
+      "size": 1134,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ced6df94b53e4b103b4195462cd7f1ab98c74711"
+    },
+    {
+      "path": "runtime/fixtures/witness/main.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3e8fe7898429b14d3933ae0449f238d65298585",
+      "size": 242,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d3e8fe7898429b14d3933ae0449f238d65298585"
+    },
+    {
+      "path": "runtime/fixtures/witness/skills/witness/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "61010baabca9e2b9bbe06d5ae64b72fc7180246b",
+      "size": 1725,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/61010baabca9e2b9bbe06d5ae64b72fc7180246b"
+    },
+    {
+      "path": "runtime/hal_core/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f822f8accd4c81876a155148e566443f2f846819",
+      "size": 74,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f822f8accd4c81876a155148e566443f2f846819"
+    },
+    {
+      "path": "runtime/hal_core/cli.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e30eada181ed27bd48598690d29da630210c1d23",
+      "size": 1521,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e30eada181ed27bd48598690d29da630210c1d23"
+    },
+    {
+      "path": "runtime/hal_core/contracts.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "12b31ad21f181dfcf96aeeee0bcc2503deb0d881",
+      "size": 12583,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/12b31ad21f181dfcf96aeeee0bcc2503deb0d881"
+    },
+    {
+      "path": "runtime/hal_core/engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4628f16b33d9beee64a301a1f4d877b199d11050",
+      "size": 3307,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/4628f16b33d9beee64a301a1f4d877b199d11050"
+    },
+    {
+      "path": "runtime/hal_core/interactive.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7bf9a09f27420ea2f544daf4e051fa4dfbeb45a3",
+      "size": 19918,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7bf9a09f27420ea2f544daf4e051fa4dfbeb45a3"
+    },
+    {
+      "path": "runtime/hal_core/ports.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3dc172492f9a0fe01d09b7e69428ac80945a9af2",
+      "size": 3338,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/3dc172492f9a0fe01d09b7e69428ac80945a9af2"
+    },
+    {
+      "path": "runtime/hal_core/registry.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ccdb48eefbdff3d1569c12d27f465df3a2d9baad",
+      "size": 2749,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ccdb48eefbdff3d1569c12d27f465df3a2d9baad"
+    },
+    {
+      "path": "runtime/hal_core/schema.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "70b719b65082364d64a354a9ee9ede098c8d70b7",
+      "size": 8197,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/70b719b65082364d64a354a9ee9ede098c8d70b7"
+    },
+    {
+      "path": "runtime/receipts/TEST_RESULTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eee980f4e3f3ea0e9838b17864aaf1096d2881b9",
+      "size": 1024,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/eee980f4e3f3ea0e9838b17864aaf1096d2881b9"
+    },
+    {
+      "path": "runtime/receipts/inspect_upstream_ready_zip.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca6d502d71c8c5ea6bf232eb3984decd36579ad6",
+      "size": 459,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ca6d502d71c8c5ea6bf232eb3984decd36579ad6"
+    },
+    {
+      "path": "runtime/receipts/manus_blocked.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad2c151792c12874536fc4893fd824863fc1d0bb",
+      "size": 199,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ad2c151792c12874536fc4893fd824863fc1d0bb"
+    },
+    {
+      "path": "runtime/receipts/research_run.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "812403ea1c90bd43052e76acdeefa87643195844",
+      "size": 636,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/812403ea1c90bd43052e76acdeefa87643195844"
+    },
+    {
+      "path": "runtime/receipts/returns_run.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1c14ebdc45aa901a462d07eadc35d5dbbddd92e2",
+      "size": 643,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/1c14ebdc45aa901a462d07eadc35d5dbbddd92e2"
+    },
+    {
+      "path": "runtime/receipts/unit_tests_stdout.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "725e89c6f4cb16ba4d5a697f7698f32f03ec5239",
+      "size": 2554,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/725e89c6f4cb16ba4d5a697f7698f32f03ec5239"
+    },
+    {
+      "path": "runtime/tests/test_capabilities.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "569c1368815370e4de8d2e117501d2016a21a286",
+      "size": 13955,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/569c1368815370e4de8d2e117501d2016a21a286"
+    },
+    {
+      "path": "runtime/tests/test_character_context.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d81c5674d49435338c6d63d0b22c97e57ce4bd03",
+      "size": 7938,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/d81c5674d49435338c6d63d0b22c97e57ce4bd03"
+    },
+    {
+      "path": "runtime/tests/test_cli.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dd9179b401aed3cd96445eec436e35bbbfba3a1c",
+      "size": 6391,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/dd9179b401aed3cd96445eec436e35bbbfba3a1c"
+    },
+    {
+      "path": "runtime/tests/test_hal.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e688d0c3d0129cacfaf6dddd840d4426577fd926",
+      "size": 7550,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/e688d0c3d0129cacfaf6dddd840d4426577fd926"
+    },
+    {
+      "path": "runtime/tests/test_interactive.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25eb205d3ad2081905219af4b518602ec2ab694c",
+      "size": 33752,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/25eb205d3ad2081905219af4b518602ec2ab694c"
+    },
+    {
+      "path": "runtime/tests/test_package_security.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "50339aceefd8c59b5cc5a012fd7bde64c002b77f",
+      "size": 15044,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/50339aceefd8c59b5cc5a012fd7bde64c002b77f"
+    },
+    {
+      "path": "runtime/tests/test_schema.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f57fc1f68121359af54ecab247e89cc338ce0d3f",
+      "size": 16696,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f57fc1f68121359af54ecab247e89cc338ce0d3f"
+    },
+    {
+      "path": "runtime/tests/test_witness_domain.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "91f4a63fc5fc74c164a2778fd11a7a489ec66010",
+      "size": 20027,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/91f4a63fc5fc74c164a2778fd11a7a489ec66010"
+    },
+    {
+      "path": "runtime/tests/test_witness_v2.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60a1480535658111dd5b3d3244fa7ee059b3d140",
+      "size": 26869,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/60a1480535658111dd5b3d3244fa7ee059b3d140"
+    },
+    {
+      "path": "runtime/trusted_adapters/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5f692a1f4383de6b03b244dda4f60124a99badee",
+      "size": 66,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/5f692a1f4383de6b03b244dda4f60124a99badee"
+    },
+    {
+      "path": "runtime/trusted_adapters/character_context.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a9974e1df81ec6385463e59c0aa77cb54ebece5",
+      "size": 6877,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7a9974e1df81ec6385463e59c0aa77cb54ebece5"
+    },
+    {
+      "path": "runtime/trusted_adapters/research.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "504badeb821054bac7a8b372b5a5021aa634a5a3",
+      "size": 640,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/504badeb821054bac7a8b372b5a5021aa634a5a3"
+    },
+    {
+      "path": "runtime/trusted_adapters/returns.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fd0fd1feb2dbcc7e19f451a6969f5a2052ea6a10",
+      "size": 735,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/fd0fd1feb2dbcc7e19f451a6969f5a2052ea6a10"
+    },
+    {
+      "path": "runtime/trusted_adapters/value_contracts.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f777cd7f1d373021497ef14d3495efbba69c25cc",
+      "size": 2760,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f777cd7f1d373021497ef14d3495efbba69c25cc"
+    },
+    {
+      "path": "runtime/trusted_adapters/witness.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f42b379ac5e32a6782bbd559e406abaa41a11854",
+      "size": 41225,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/f42b379ac5e32a6782bbd559e406abaa41a11854"
+    },
+    {
+      "path": "runtime/trusted_adapters/witness_character.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "39bd7b83bb348cee2d90982f838d44aa93b7094a",
+      "size": 4237,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/39bd7b83bb348cee2d90982f838d44aa93b7094a"
+    },
+    {
+      "path": "runtime/trusted_adapters/witness_v1.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4251811a02172a8803d09dd0b4b17abb5046d103",
+      "size": 21791,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/4251811a02172a8803d09dd0b4b17abb5046d103"
+    },
+    {
+      "path": "scripts/build_witness_mac.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "010bc7a623176baa09e842920ae1583746f69c02",
+      "size": 4202,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/010bc7a623176baa09e842920ae1583746f69c02"
+    },
+    {
+      "path": "scripts/build_witness_portable_beta.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19f42e215d42f6b310152bdd6309d0deed184eb5",
+      "size": 2884,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/19f42e215d42f6b310152bdd6309d0deed184eb5"
+    },
+    {
+      "path": "scripts/compile_witness_character.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ee9d78e644185f262c55f064d41170ba57e1311",
+      "size": 1088,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7ee9d78e644185f262c55f064d41170ba57e1311"
+    },
+    {
+      "path": "scripts/finalize_witness_github_showcase.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cbd5e9f6881bd2f99a52b73e0e590663969854cc",
+      "size": 432,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cbd5e9f6881bd2f99a52b73e0e590663969854cc"
+    },
+    {
+      "path": "scripts/migrate_witness_saves.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55495d3c2ac2207df216c9367a3b9facbf911bfe",
+      "size": 3904,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/55495d3c2ac2207df216c9367a3b9facbf911bfe"
+    },
+    {
+      "path": "scripts/package_witness_source.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6b909e36dff93e6c32f03b9f45513034e159d18a",
+      "size": 2719,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/6b909e36dff93e6c32f03b9f45513034e159d18a"
+    },
+    {
+      "path": "scripts/publish_witness_unsigned_beta.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9a5dd5e45d44c6bc6f7cdb710449394e66379fe3",
+      "size": 5553,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/9a5dd5e45d44c6bc6f7cdb710449394e66379fe3"
+    },
+    {
+      "path": "scripts/sign_notarize_release_witness.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1688e3255df0d7e1435079d208eaa6b571671ec",
+      "size": 5263,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/c1688e3255df0d7e1435079d208eaa6b571671ec"
+    },
+    {
+      "path": "scripts/sign_witness_adhoc.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa800f7e17bff21b688dc17b43dfbdc8b1afee9c",
+      "size": 1918,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/aa800f7e17bff21b688dc17b43dfbdc8b1afee9c"
+    },
+    {
+      "path": "scripts/verify_local.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "db02238a649b8d5e4ebb52cf0bc8dc75c9dbea75",
+      "size": 2607,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/db02238a649b8d5e4ebb52cf0bc8dc75c9dbea75"
+    },
+    {
+      "path": "scripts/verify_witness_local.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e5218f893d172ad33282f21344ba59362ae4e4b",
+      "size": 360,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/7e5218f893d172ad33282f21344ba59362ae4e4b"
+    },
+    {
+      "path": "scripts/verify_witness_portable_candidate.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cdf5031055f2db5aaf97849dbca0db84dd74c86b",
+      "size": 2318,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/cdf5031055f2db5aaf97849dbca0db84dd74c86b"
+    },
+    {
+      "path": "scripts/witness_core_entry.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9fef7a650a58debba889e5da66c78a84cf58275e",
+      "size": 334,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/9fef7a650a58debba889e5da66c78a84cf58275e"
+    },
+    {
+      "path": "showcases/WITNESS_LOOP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bc7a95af69ee22b41f97548bb6d2505a2eead48e",
+      "size": 2590,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/bc7a95af69ee22b41f97548bb6d2505a2eead48e"
+    },
+    {
+      "path": "status/HUMAN_GATE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ded8a874ded4dddb09c2aa6c510bdf837f258911",
+      "size": 934,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/ded8a874ded4dddb09c2aa6c510bdf837f258911"
+    },
+    {
+      "path": "status/SOURCE_HASHES.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aed8aa73dbc0d18cd61813c7b8793e9cd1358906",
+      "size": 215,
+      "url": "https://api.github.com/repos/Chikanofaka/Agentic-Anything/git/blobs/aed8aa73dbc0d18cd61813c7b8793e9cd1358906"
+    }
+  ]
+}

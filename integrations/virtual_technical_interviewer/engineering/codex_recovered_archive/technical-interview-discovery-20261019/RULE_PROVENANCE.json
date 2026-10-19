@@ -1,0 +1,174 @@
+{
+  "schema_version": "interview-proposed-rules/v0.1",
+  "status": "DESIGN_ONLY_NOT_RUNTIME_CONFIGURATION",
+  "source_commit": "79656f5988bf861068052951d402fb6d8b2fd491",
+  "effective_from": null,
+  "supersedes": null,
+  "validation_evidence": "receipts/ — repository tests do not validate interview rules",
+  "rules": [
+    {
+      "rule_id": "score.base_caps",
+      "value": {
+        "technical": 60,
+        "communication": 40
+      },
+      "authority": "SOURCE",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §5",
+      "validation_state": "training_hypothesis_not_employer_validated",
+      "configurable": true
+    },
+    {
+      "rule_id": "score.technical_subweights",
+      "value": null,
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §5",
+      "validation_state": "unconfigured_requires_rubric_review",
+      "configurable": true
+    },
+    {
+      "rule_id": "score.communication_subweights",
+      "value": null,
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §2/§5",
+      "validation_state": "unconfigured_requires_rubric_review",
+      "configurable": true
+    },
+    {
+      "rule_id": "score.quality_scale",
+      "value": null,
+      "proposed_option": {
+        "minimum": 0,
+        "maximum": 4
+      },
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "LOCAL_PROTOTYPE_DESIGN.md §6",
+      "validation_state": "uncalibrated",
+      "configurable": true
+    },
+    {
+      "rule_id": "score.missing_evidence",
+      "value": null,
+      "proposed_option": "null total + known subtotal + coverage; no implicit zero or normalization",
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md FR05/§5",
+      "validation_state": "requires_applicability_rules",
+      "configurable": true
+    },
+    {
+      "rule_id": "score.bonus",
+      "value": {
+        "enabled": false,
+        "cap": 10,
+        "anchors": null
+      },
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §5",
+      "source_attestation": "PRD reports optional maximum +10; default disabled is engineering proposal; missing F06-002 not fabricated",
+      "validation_state": "uncalibrated",
+      "configurable": true
+    },
+    {
+      "rule_id": "flow.B05",
+      "value": {
+        "yes": "B06->B07->B05",
+        "no": "B08"
+      },
+      "authority": "USER-APPROVED",
+      "source_ref": "repo/issue_register_v0_1.md:7 F01-001",
+      "validation_state": "approved_semantics_not_runtime_tested",
+      "configurable": "versioned_review_change_only"
+    },
+    {
+      "rule_id": "flow.feedback_progress",
+      "value": null,
+      "proposed_option": "separate comprehension, executable knowledge, action, validation; action/results required for progress claim",
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §2/§3; repo/issue_register_v0_1.md F02-001",
+      "validation_state": "graph_guard_design_pending",
+      "configurable": true
+    },
+    {
+      "rule_id": "session.duration_seconds",
+      "value": null,
+      "authority": "RESEARCH PENDING",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md FR01/§7",
+      "validation_state": "no_universal_duration",
+      "configurable": true
+    },
+    {
+      "rule_id": "session.repeated_stuck_limit",
+      "value": null,
+      "authority": "RESEARCH PENDING",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §3",
+      "validation_state": "no_validated_count_threshold",
+      "configurable": true
+    },
+    {
+      "rule_id": "aid.profile",
+      "value": {
+        "clarification": null,
+        "documentation": null,
+        "web_search": null,
+        "ai_assistance": null,
+        "hint_ladder": null,
+        "hint_count": null,
+        "hint_effect_on_score": null
+      },
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §2/§3/FR01",
+      "validation_state": "must_be_declared_before_session",
+      "configurable": true
+    },
+    {
+      "rule_id": "aid.clarification_accounting",
+      "value": null,
+      "proposed_option": "task clarification free of solution-hint charge; content boundaries still enforced",
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "LOCAL_PROTOTYPE_DESIGN.md §3",
+      "validation_state": "policy_choice_not_approved_fact",
+      "configurable": true
+    },
+    {
+      "rule_id": "question.sql_dialect",
+      "value": null,
+      "proposed_option": "SQLite in bounded local verifier after safety acceptance",
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md §1/§6",
+      "validation_state": "technical_spike_not_run",
+      "configurable": true
+    },
+    {
+      "rule_id": "evaluation.semantic_assessor",
+      "value": null,
+      "proposed_option": "manual attribution / scripted fixture; no autonomous quality claim",
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md FR05/FR06",
+      "validation_state": "needs_anchor_calibration",
+      "configurable": true
+    },
+    {
+      "rule_id": "training.comparability",
+      "value": null,
+      "proposed_option": "compare skill evidence + time + aid + difficulty + familiarity; label noncomparable conditions",
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "repo/integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md FR08",
+      "validation_state": "transfer_not_validated",
+      "configurable": true
+    },
+    {
+      "rule_id": "history.retention",
+      "value": null,
+      "authority": "ENGINEERING PROPOSAL",
+      "source_ref": "LOCAL_PROTOTYPE_DESIGN.md §7; DECISIONS_REQUIRED.md D08",
+      "validation_state": "pending_user_preference",
+      "configurable": true
+    }
+  ],
+  "safety_invariants": [
+    "candidate/model cannot grant aid permissions or edit host-owned test/time records",
+    "Technical and Communication preserve independent evidence/arithmetic",
+    "Trainer cannot rewrite closed interview records",
+    "public/export views exclude unauthorized private assets",
+    "no untrusted execution, credentials, paid providers or publication in this design stage"
+  ]
+}

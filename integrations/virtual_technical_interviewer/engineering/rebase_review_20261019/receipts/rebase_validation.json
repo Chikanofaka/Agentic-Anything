@@ -1,0 +1,360 @@
+{
+  "scope": "source and document consistency only; NOT TIA application acceptance",
+  "source_commit": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+  "source_date": "2026-10-19 Asia/Shanghai",
+  "prior_test_status": "CARRIED_FORWARD_PASS: 287 HAL + 52 Witness mock; no rerun at v3 SHA",
+  "checks": [
+    {
+      "check": "pinned_source_revision",
+      "status": "PASS",
+      "detail": "53188034400be6c534d2ded56a9386ea55d6ad0e"
+    },
+    {
+      "check": "ten_text_sources_match_pinned_git_blobs",
+      "status": "PASS",
+      "detail": [
+        {
+          "file": "CODEX_ENGINEERING_DELTA.md",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "019889710aa178450b7e7e3dc1c54ff1bab72c84282be1cbe6733e96eee65f40"
+        },
+        {
+          "file": "COMMUNICATION_EXAMINATION_MATRIX.csv",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "45c2bc9555857eca0030fa371a3455ef5790ad7476de8be85fdacc4006389537"
+        },
+        {
+          "file": "DECISION_REGISTER.md",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "deac9e758eb86909140e2f7fe8ec2a19b7c030760960bae7aa072c423fc8c697"
+        },
+        {
+          "file": "README_START_HERE.md",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "d78f2cc91a4e3cb1e06972f4eadf78f42a0a8c135665278aee010f5a272ca9e9"
+        },
+        {
+          "file": "RUBRIC_60_40_PROPOSAL.json",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f"
+        },
+        {
+          "file": "SHA256_MANIFEST.json",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "33a69fc167d55ff141aa591ca26d67904e1fac610328543840bee3627945518f"
+        },
+        {
+          "file": "TIA_FULL_BASELINE_PRD_v3.md",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "620c7c313d248a9e1bc43a220c8ab79c82e743cb5d3269ebe6150e476d5e2fb4"
+        },
+        {
+          "file": "TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "bb43bd24ec31feb7c7083977e2625d43eaf362e6cddb63666da6bd4947f6dcca"
+        },
+        {
+          "file": "Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "dbfe27300629b30caef4879b55ae2527fd8663f1691fec7978e24d872ac3f686"
+        },
+        {
+          "file": "UAT_MATRIX_v3.csv",
+          "git_blob_match": true,
+          "bytes_match": true,
+          "sha256": "a75a0923ce8c7330a247c682d65dd00f77c19fef20d330fc48119176d0222d61"
+        }
+      ]
+    },
+    {
+      "check": "eight_manifest_covered_text_files_match",
+      "status": "PASS",
+      "detail": [
+        {
+          "file": "CODEX_ENGINEERING_DELTA.md",
+          "match": true
+        },
+        {
+          "file": "COMMUNICATION_EXAMINATION_MATRIX.csv",
+          "match": true
+        },
+        {
+          "file": "DECISION_REGISTER.md",
+          "match": true
+        },
+        {
+          "file": "README_START_HERE.md",
+          "match": true
+        },
+        {
+          "file": "RUBRIC_60_40_PROPOSAL.json",
+          "match": true
+        },
+        {
+          "file": "TIA_FULL_BASELINE_PRD_v3.md",
+          "match": true
+        },
+        {
+          "file": "TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+          "match": true
+        },
+        {
+          "file": "UAT_MATRIX_v3.csv",
+          "match": true
+        }
+      ]
+    },
+    {
+      "check": "tree_delta_has_no_modified_existing_files",
+      "status": "PASS",
+      "detail": {
+        "added": [
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/CODEX_ENGINEERING_DELTA.md",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/COMMUNICATION_EXAMINATION_MATRIX.csv",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/DECISION_REGISTER.md",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/README_START_HERE.md",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/RUBRIC_60_40_PROPOSAL.json",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/SHA256_MANIFEST.json",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.docx",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.pdf",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+          "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/UAT_MATRIX_v3.csv"
+        ],
+        "removed": [
+          "integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md"
+        ],
+        "modified": []
+      }
+    },
+    {
+      "check": "audited_runtime_native_scripts_unchanged",
+      "status": "PASS",
+      "detail": {
+        "count": 75,
+        "mismatches": []
+      }
+    },
+    {
+      "check": "trace_all_28_fr_and_12_com",
+      "status": "PASS",
+      "detail": {
+        "missing": [],
+        "rows": 144
+      }
+    },
+    {
+      "check": "trace_ids_unique",
+      "status": "PASS",
+      "detail": 144
+    },
+    {
+      "check": "all_old_trace_rows_reconciled",
+      "status": "PASS",
+      "detail": {
+        "old_count": 36,
+        "missing": []
+      }
+    },
+    {
+      "check": "all_84_old_cases_reconciled",
+      "status": "PASS",
+      "detail": {
+        "old_count": 84,
+        "missing": []
+      }
+    },
+    {
+      "check": "new_acceptance_statuses_are_honest",
+      "status": "PASS",
+      "detail": {
+        "rows": 202,
+        "statuses": {
+          "NOT_RUN": 202
+        }
+      }
+    },
+    {
+      "check": "new_test_ids_unique",
+      "status": "PASS",
+      "detail": 202
+    },
+    {
+      "check": "trace_to_planned_acceptance_links_resolve",
+      "status": "PASS",
+      "detail": {
+        "requirements_without_test_link": [],
+        "unresolved_links": []
+      }
+    },
+    {
+      "check": "all_17_supplied_uat_planned",
+      "status": "PASS",
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "check": "twelve_hard_stop_scenarios_planned",
+      "status": "PASS",
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "check": "all_12_com_have_planned_cases",
+      "status": "PASS",
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "check": "all_16_exam_observations_planned",
+      "status": "PASS",
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "check": "each_m0_requirement_has_positive_and_negative_plan",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "each_case_has_expected_and_failure_conditions",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "each_case_has_verification_and_evidence_plan",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "p0_agent_host_trainer_mapping_proposals_present",
+      "status": "PASS",
+      "detail": {
+        "required_rows": 39,
+        "actual_rows": 39
+      }
+    },
+    {
+      "check": "namespaced_graph_node_references_resolve",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "independent_weight_fixture_sums",
+      "status": "PASS",
+      "detail": {
+        "technical": {
+          "T01": 24,
+          "T02": 13,
+          "T03": 10,
+          "T04": 9,
+          "T05": 4
+        },
+        "communication": {
+          "C01": 6,
+          "C02": 7,
+          "C03": 7,
+          "C04": 9,
+          "C05": 7,
+          "C06": 4
+        }
+      }
+    },
+    {
+      "check": "v3_bonus_disabled_no_inherited_cap",
+      "status": "PASS",
+      "detail": {
+        "enabled": false,
+        "user_hypothesis_range": [
+          10,
+          15
+        ],
+        "formula": null,
+        "mode": "OPTIONAL_POSITIVE_ONLY"
+      }
+    },
+    {
+      "check": "all_rules_have_origin_status_and_no_production_activation",
+      "status": "PASS",
+      "detail": {
+        "rules": 25,
+        "status": "DESIGN_REGISTER_NOT_RUNTIME_CONFIGURATION"
+      }
+    },
+    {
+      "check": "original_checkout_unchanged",
+      "status": "PASS",
+      "detail": {
+        "head": "6898e563b6cab76517dad13919f7d3c172881f7c",
+        "status": ""
+      }
+    },
+    {
+      "check": "required_artifacts_present",
+      "status": "PASS",
+      "detail": []
+    }
+  ],
+  "known_source_warnings": [
+    {
+      "type": "BINARY_NOT_DOWNLOADED_OR_CONTENT_VERIFIED",
+      "file": "TIA_FULL_BASELINE_PRD_v3.docx",
+      "manifest_bytes": 95178,
+      "git_tree_bytes": 95178,
+      "metadata_size_match": true
+    },
+    {
+      "type": "BINARY_NOT_DOWNLOADED_OR_CONTENT_VERIFIED",
+      "file": "TIA_FULL_BASELINE_PRD_v3.pdf",
+      "manifest_bytes": 565250,
+      "git_tree_bytes": 590385,
+      "metadata_size_match": false
+    },
+    {
+      "type": "DRAFT_ATLAS_NODES_NOT_MAPPED_TO_REQUIREMENTS",
+      "mapped_count": 145,
+      "total_count": 166,
+      "unmapped": [
+        "graph:00/A01",
+        "graph:00/A02",
+        "graph:00/A03",
+        "graph:00/A04",
+        "graph:00/A05",
+        "graph:00/A06",
+        "graph:00/A07",
+        "graph:00/A08",
+        "graph:00/A13",
+        "graph:01/B17",
+        "graph:01/B27",
+        "graph:02/C01",
+        "graph:02/C15",
+        "graph:02/C23",
+        "graph:03/D07",
+        "graph:03/D16",
+        "graph:04/E01",
+        "graph:05/F17",
+        "graph:05/F18",
+        "graph:05/F21",
+        "graph:07/J01"
+      ],
+      "meaning": "Conceptual trace coverage only; see source audit for engineering gate impact."
+    }
+  ],
+  "summary": {
+    "PASS": 26
+  }
+}

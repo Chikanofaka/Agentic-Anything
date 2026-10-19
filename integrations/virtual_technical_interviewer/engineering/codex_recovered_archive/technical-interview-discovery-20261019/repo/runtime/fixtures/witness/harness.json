@@ -1,0 +1,29 @@
+{
+  "schema_version": "hal-domain/v1",
+  "id": "witness-loop",
+  "name": "Witness Loop · 证词回环",
+  "version": "1.1.0",
+  "domain": "narrative-game",
+  "description": "Reviewed case rules, evidence, player-attributed memory and open conversation for one witness.",
+  "entrypoint": "main.py",
+  "readme": "README.md",
+  "agents": "AGENTS.md",
+  "skills": ["skills/witness/SKILL.md"],
+  "host": {"api": "hal-core/v1"},
+  "permissions": {"filesystem": "selected_paths_only", "external_write": "approval_required"},
+  "tools": [{
+    "id": "witness-step", "port": "TOOL_API",
+    "input_contract": "witness-turn-input/v1",
+    "output_contract": "witness-turn-output/v1", "permissions": []
+  }],
+  "features": [{
+    "id": "witness-step", "tool": "witness-step", "permissions": [],
+    "required_capabilities": [{"port": "TOOL_API", "capabilities": ["narrative_state"]}]
+  }, {
+    "id": "intelligent-witness", "tool": "witness-step", "permissions": [],
+    "required_capabilities": [
+      {"port": "TOOL_API", "capabilities": ["narrative_state"]},
+      {"port": "LLM_DIRECT", "capabilities": ["structured_output"]}
+    ]
+  }]
+}

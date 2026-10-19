@@ -1,0 +1,21 @@
+{
+  "purpose": "User-provided visual references for local WTL-029 v0.3 engineering only; do not assume public redistribution rights or treat these images as completed evidence art.",
+  "files": {
+    "references/linwu_anime_reference.png": {
+      "sha256": "721b6f615fb5c49e0b520824dd9bb319a28a87087b2ce7368fbcefb6b73dc0ee",
+      "size_bytes": 1591610
+    },
+    "references/rainy_platform_reference.png": {
+      "sha256": "3d23d772529fec34acfdc4f7e64633e3254fd49b300307ccabd9bd53531d20c3",
+      "size_bytes": 759122
+    },
+    "references/evidence_prop_reference.png": {
+      "sha256": "fed030f9f26714bf8ecbf4c591d71d5cb50d3b9c823a51f6dc2d5458fbe7c4d2",
+      "size_bytes": 8977437
+    },
+    "references/clock_style_reference.png": {
+      "sha256": "a032bbe9ccd13854773051d2cd0464601f7d2d7b24f981f43219d8413da6b4b1",
+      "size_bytes": 3766368
+    }
+  }
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "file": "RUBRIC_60_40_PROPOSAL.json",
+    "git_blob_verified": true,
+    "sha256": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f",
+    "bytes": 1327,
+    "package_manifest_match": true
+  },
+  {
+    "file": "TIA_FULL_BASELINE_PRD_v3.md",
+    "git_blob_verified": true,
+    "sha256": "620c7c313d248a9e1bc43a220c8ab79c82e743cb5d3269ebe6150e476d5e2fb4",
+    "bytes": 127155,
+    "package_manifest_match": true
+  },
+  {
+    "file": "README_START_HERE.md",
+    "git_blob_verified": true,
+    "sha256": "d78f2cc91a4e3cb1e06972f4eadf78f42a0a8c135665278aee010f5a272ca9e9",
+    "bytes": 1903,
+    "package_manifest_match": true
+  },
+  {
+    "file": "Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+    "git_blob_verified": true,
+    "sha256": "dbfe27300629b30caef4879b55ae2527fd8663f1691fec7978e24d872ac3f686",
+    "bytes": 13091,
+    "package_manifest_match": null
+  },
+  {
+    "file": "CODEX_ENGINEERING_DELTA.md",
+    "git_blob_verified": true,
+    "sha256": "019889710aa178450b7e7e3dc1c54ff1bab72c84282be1cbe6733e96eee65f40",
+    "bytes": 2280,
+    "package_manifest_match": true
+  },
+  {
+    "file": "SHA256_MANIFEST.json",
+    "git_blob_verified": true,
+    "sha256": "33a69fc167d55ff141aa591ca26d67904e1fac610328543840bee3627945518f",
+    "bytes": 1742,
+    "package_manifest_match": null
+  },
+  {
+    "file": "DECISION_REGISTER.md",
+    "git_blob_verified": true,
+    "sha256": "deac9e758eb86909140e2f7fe8ec2a19b7c030760960bae7aa072c423fc8c697",
+    "bytes": 1868,
+    "package_manifest_match": true
+  },
+  {
+    "file": "UAT_MATRIX_v3.csv",
+    "git_blob_verified": true,
+    "sha256": "a75a0923ce8c7330a247c682d65dd00f77c19fef20d330fc48119176d0222d61",
+    "bytes": 2060,
+    "package_manifest_match": true
+  },
+  {
+    "file": "COMMUNICATION_EXAMINATION_MATRIX.csv",
+    "git_blob_verified": true,
+    "sha256": "45c2bc9555857eca0030fa371a3455ef5790ad7476de8be85fdacc4006389537",
+    "bytes": 3247,
+    "package_manifest_match": true
+  },
+  {
+    "file": "TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+    "git_blob_verified": true,
+    "sha256": "bb43bd24ec31feb7c7083977e2625d43eaf362e6cddb63666da6bd4947f6dcca",
+    "bytes": 1697,
+    "package_manifest_match": true
+  }
+]

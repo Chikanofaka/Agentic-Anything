@@ -1,0 +1,6 @@
+{
+  "commit": "79656f5988bf861068052951d402fb6d8b2fd491",
+  "query": "GET /repos/Chikanofaka/Agentic-Anything/actions/runs?head_sha=79656f5988bf861068052951d402fb6d8b2fd491&per_page=100",
+  "total_count": 0,
+  "interpretation": "No runs returned for pinned head; not evidence of passing CI"
+}

@@ -1,0 +1,19 @@
+{
+  "digest": "f1e7edf1efa0b3bf87c1acd69edd453aa95b6a21648c415d64eadd02a8078e6f",
+  "execution_policy": "CURATED_ADAPTERS_ONLY",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "harness.json",
+    "main.py",
+    "skills/research/SKILL.md"
+  ],
+  "package_id": "research-diagnostics",
+  "package_kind": "zip",
+  "schema_version": "hal-demo/v0.2",
+  "warnings": [
+    "UNSIGNED_PACKAGE",
+    "LICENSE_NOT_VERIFIED",
+    "UNTRUSTED_SOURCE_NOT_EXECUTED"
+  ]
+}

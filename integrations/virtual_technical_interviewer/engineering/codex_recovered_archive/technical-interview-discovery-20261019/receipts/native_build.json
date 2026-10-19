@@ -1,0 +1,7 @@
+{
+  "command": "bash scripts/build_witness_mac.sh",
+  "exit_code": 0,
+  "elapsed_seconds": 35.39,
+  "live_api_used": false,
+  "gui_uat_run": false
+}

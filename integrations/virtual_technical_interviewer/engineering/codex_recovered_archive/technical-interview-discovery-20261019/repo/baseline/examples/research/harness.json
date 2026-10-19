@@ -1,0 +1,8 @@
+{
+  "schema_version":"hal-demo/v0.2","id":"research-diagnostics","name":"Research Diagnostics","version":"0.2.0","domain":"research",
+  "description":"A small deterministic margin-analysis capability with developer export and optional AI explanation slot.",
+  "entrypoint":"main.py","readme":"README.md","skills":["skills/research/SKILL.md"],
+  "features":[{"id":"calculate-margin","required_ports":["LOCAL_CALCULATE"]},{"id":"ai-interpretation","required_ports":["LLM_DIRECT","LOCAL_CALCULATE"]}],
+  "permissions":{"filesystem":"selected_paths_only","external_write":"approval_required"},
+  "model_requirements":{"tool_calling":true}
+}

@@ -1,0 +1,27 @@
+{
+  "domain_id": "returns-operations",
+  "elapsed_ms": 0.98,
+  "events": [
+    {
+      "code": "PACKAGE_INSPECTED"
+    },
+    {
+      "code": "FEATURE_RESOLVED"
+    },
+    {
+      "code": "TRUSTED_TOOL_EXECUTED"
+    }
+  ],
+  "external_writes": false,
+  "feature": "triage-return",
+  "kind": "DETERMINISTIC_OFFLINE",
+  "live_model_used": false,
+  "package_digest": "fb11240fdbb983a29456b5f80eaefe7791fcb7ed5ca1e3a4b4c30d26410ec0ac",
+  "result": {
+    "classification": "STANDARD_RETURN",
+    "not_a_real_business_policy": true,
+    "rule": "fictional-returns-v1"
+  },
+  "run_id": "e4b65047-bfca-4c38-b92f-a6ec370dfe46",
+  "status": "SUCCESS"
+}

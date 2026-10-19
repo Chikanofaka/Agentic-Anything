@@ -1,0 +1,197 @@
+{
+  "tests": [
+    {
+      "test": "Loads welcome",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "No key input",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Path A shows README",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "README checkpoint",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Real developer ZIP exists & link accurate",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Wrong academy response denied",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Lesson 1",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Lesson 2",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Lesson 3",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Lesson 4",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Four lesson completion",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Managed agent blocked",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Cannot activate managed agent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Simulated preflight tagged",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Open studio",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Research math profit",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Research math margin",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Real report export",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Invalid research denied",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Stale report cannot be exported",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Research recovery",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Switched domain without shell reload",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Returns-specific workflow shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Returns deterministic result",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Returns negative review",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Readme follows domain",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Second real ZIP exists & link accurate",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Bindings domain adapted",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Compatibility export",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Manifest export",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Disconnect simulation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Deterministic still usable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "All mission flags",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Human UAT feedback export",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Journey log export",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "Reset and pending",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "test": "No JavaScript page errors",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "test": "Mobile renders",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "errors": [],
+  "total": 38,
+  "passed": 38
+}

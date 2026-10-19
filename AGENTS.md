@@ -26,3 +26,8 @@ One reusable local-first HAL Shell; two entry paths into a domain package: Path 
 
 ## End-of-run receipt
 Provide: changed files, exact tests and results, demonstrated outputs, issues/risks, F-requirement trace, what is truly implemented vs simulated, next decision points. Stage stays DOING; never self-approve publication or Completion.
+
+<!-- TIA_REPO_FIRST_RECOVERY_POLICY -->
+## Repository-first artifact persistence
+
+For all Codex work started in this repository, write durable source, documentation, design files, verification scripts, logs, and receipts under this Git checkout on a named branch. Treat `/private/tmp/` only as disposable scratch; before finishing, migrate any useful outputs into the repository and report excluded material. Never commit or push credentials, personal data, or unreviewed private logs. Use the project-specific `integrations/virtual_technical_interviewer/AGENTS.md` for TIA details.

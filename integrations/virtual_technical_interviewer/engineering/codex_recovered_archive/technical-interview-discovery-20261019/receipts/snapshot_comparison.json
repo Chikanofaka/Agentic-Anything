@@ -1,0 +1,10 @@
+{
+  "remote_commit": "056780409250e226c58ce5e4b524a595045466eb",
+  "local_commit": "6898e563b6cab76517dad13919f7d3c172881f7c",
+  "matching_blob_count": 204,
+  "missing": [
+    "Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+    "index.html"
+  ],
+  "different": []
+}

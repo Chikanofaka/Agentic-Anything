@@ -1,0 +1,22 @@
+{
+  "old_commit": "79656f5988bf861068052951d402fb6d8b2fd491",
+  "new_commit": "53188034400be6c534d2ded56a9386ea55d6ad0e",
+  "added": [
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/CODEX_ENGINEERING_DELTA.md",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/COMMUNICATION_EXAMINATION_MATRIX.csv",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/DECISION_REGISTER.md",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/README_START_HERE.md",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/RUBRIC_60_40_PROPOSAL.json",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/SHA256_MANIFEST.json",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.docx",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.pdf",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/TRACEABILITY_SOURCE_TO_REQUIREMENT.csv",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/Technical_Interview_MVP_PRD_RAPID_v0.1.md",
+    "integrations/virtual_technical_interviewer/TIA_FULL_PRD_v3/UAT_MATRIX_v3.csv"
+  ],
+  "modified": [],
+  "removed": [
+    "integrations/virtual_technical_interviewer/Technical_Interview_MVP_PRD_RAPID_v0.1.md"
+  ]
+}

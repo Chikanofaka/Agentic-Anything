@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="444" viewBox="0 0 1120 444" role="img" aria-labelledby="title description">
+<title id="title">最终安装流程 — 雨夜回环</title>
+<desc id="description">四步纵向安装清单：从 GitHub 下载并解压，使用 Finder 移入 Applications，必要时完成系统安全授权，启动游戏进入云江站。</desc>
+<rect width="1120" height="444" rx="15" fill="#f9fafb"/>
+<rect x="2" y="2" width="1116" height="440" rx="14" fill="none" stroke="#e3e6e8" stroke-width="2"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', Arial, sans-serif">
+<text x="54" y="65" font-size="30" font-weight="700" fill="#22272c">最终安装流程</text>
+<text x="1070" y="63" text-anchor="end" font-size="17" fill="#7b8791">GET STARTED</text>
+<g fill="none" stroke="#6c7278" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+<!-- Down-arrow and download tray -->
+<path d="M82 118 V148 M69 137 L82 150 L95 137 M63 157 H101" />
+<!-- Folder -->
+<path d="M63 211 H78 L86 220 H101 V246 H63 Z" />
+<!-- Shield -->
+<path d="M82 283 L104 291 V306 C104 321 94 333 82 337 C70 333 60 321 60 306 V291 Z M73 309 L80 316 L93 301"/>
+</g>
+<!-- Final controller icon -->
+<g fill="none" stroke="#168a48" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M65 369 C53 369 53 400 65 402 C72 404 74 394 81 394 H86 C93 394 95 404 102 402 C114 400 114 369 102 369 C91 365 76 365 65 369 Z"/>
+<path d="M72 377 V390 M65 384 H79"/>
+<circle cx="94" cy="379" r="1.6" fill="#168a48"/><circle cx="101" cy="385" r="1.6" fill="#168a48"/>
+</g>
+<g font-size="26" fill="#25292d">
+<text x="132" y="143">从 GitHub 下载并解压《雨夜回环》</text>
+<text x="132" y="234">使用 Finder 移入 Applications</text>
+<text x="132" y="325">必要时通过 Privacy &amp; Security → Open Anyway 授权</text>
+<text x="132" y="409">启动 Witness Loop，进入云江站</text>
+</g>
+<g fill="#68727c" font-size="16">
+<text x="1060" y="143" text-anchor="end">01</text>
+<text x="1060" y="234" text-anchor="end">02</text>
+<text x="1060" y="325" text-anchor="end">03</text>
+<text x="1060" y="409" text-anchor="end">04</text>
+</g>
+<g stroke="#e5e8ea" stroke-width="1"><path d="M54 175 H1066 M54 268 H1066 M54 355 H1066"/></g>
+</g>
+</svg>
