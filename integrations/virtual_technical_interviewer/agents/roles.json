@@ -1,0 +1,31 @@
+{
+  "schema_version": "tia-roles/v1",
+  "mode": "OFFLINE_SIMULATION",
+  "source": "TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md#cross-agent-knowledge-boundary",
+  "roles": [
+    {
+      "role_id": "interviewer",
+      "display_name": "Interviewer",
+      "active_states": ["INTERVIEWING"],
+      "allowed_inputs": ["public_task", "public_session_context", "candidate_events"],
+      "forbidden_authorities": ["state_mutation", "scoring", "test_execution", "answer_vault", "role_handoff", "provider_selection", "credentials"],
+      "documents": {
+        "identity": "agents/interviewer/identity.md",
+        "soul": "agents/interviewer/soul.md",
+        "instructions": "agents/interviewer/AGENTS.md"
+      }
+    },
+    {
+      "role_id": "trainer",
+      "display_name": "Trainer",
+      "active_states": ["TRAINING"],
+      "allowed_inputs": ["closed_reviewed_receipt"],
+      "forbidden_authorities": ["state_mutation", "scoring", "test_execution", "answer_vault", "role_handoff", "provider_selection", "credentials"],
+      "documents": {
+        "identity": "agents/trainer/identity.md",
+        "soul": "agents/trainer/soul.md",
+        "instructions": "agents/trainer/AGENTS.md"
+      }
+    }
+  ]
+}

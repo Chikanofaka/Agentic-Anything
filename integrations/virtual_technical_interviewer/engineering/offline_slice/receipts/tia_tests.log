@@ -1,0 +1,45 @@
+test_document_symlink_escape_is_rejected (test_contracts.RoleContractsTests) ... ok
+test_early_trainer_permission_is_rejected (test_contracts.RoleContractsTests) ... ok
+test_independent_roles_load_with_narrow_permissions (test_contracts.RoleContractsTests) ... ok
+test_invalid_json_is_a_contract_error (test_contracts.RoleContractsTests) ... ok
+test_missing_document_is_rejected (test_contracts.RoleContractsTests) ... ok
+test_path_traversal_and_absolute_documents_are_rejected (test_contracts.RoleContractsTests) ... ok
+test_score_authority_cannot_be_removed (test_contracts.RoleContractsTests) ... ok
+test_unknown_and_duplicate_roles_are_rejected (test_contracts.RoleContractsTests) ... ok
+test_unknown_manifest_fields_are_rejected (test_contracts.RoleContractsTests) ... ok
+test_cannot_enter_trainer_until_session_closed_and_reviewed (test_controller.ControllerTests) ... ok
+test_cli_is_deterministic_and_finishes_with_unscored_receipt (test_controller.ControllerTests) ... ok
+test_cli_rejects_openai_provider_without_live_transport (test_controller.ControllerTests) ... ok
+test_close_is_idempotent_through_review_training_and_completion (test_controller.ControllerTests) ... ok
+test_concurrent_operations_cannot_interleave_an_inflight_reply (test_controller.ControllerTests) ... ok
+test_deterministic_interview_to_reviewed_trainer_handoff (test_controller.ControllerTests) ... ok
+test_event_history_is_append_only_and_receipt_remains_frozen (test_controller.ControllerTests) ... ok
+test_event_limit_reserves_room_for_close_review_and_training (test_controller.ControllerTests) ... ok
+test_failed_trainer_handoff_preserves_review_and_sealed_receipt (test_controller.ControllerTests) ... ok
+test_independent_roles_receive_only_their_own_operations (test_controller.ControllerTests) ... ok
+test_input_byte_limit_unknown_action_and_blank_input (test_controller.ControllerTests) ... ok
+test_invalid_transitions_leave_state_unchanged (test_controller.ControllerTests) ... ok
+test_model_text_cannot_transition_or_assign_scores (test_controller.ControllerTests) ... ok
+test_nonfinite_and_invalid_configuration_is_rejected (test_controller.ControllerTests) ... ok
+test_provider_failure_preserves_committed_candidate_evidence (test_controller.ControllerTests) ... ok
+test_provider_timeout_preserves_candidate_evidence_and_allows_close (test_controller.ControllerTests) ... ok
+test_reply_arriving_after_deadline_is_not_committed (test_controller.ControllerTests) ... ok
+test_sealed_receipt_digest_matches_canonical_contents (test_controller.ControllerTests) ... ok
+test_session_expiry_closes_before_accepting_late_candidate_action (test_controller.ControllerTests) ... ok
+test_session_expiry_prevents_provider_request (test_controller.ControllerTests) ... ok
+test_snapshot_and_receipt_mutations_do_not_modify_session (test_controller.ControllerTests) ... ok
+test_bad_request_rejected_before_adapter (test_provider.ProviderTests) ... ok
+test_config_rejects_nonfinite_nonpositive_and_wrong_types (test_provider.ProviderTests) ... ok
+test_default_is_offline_and_all_operations_are_deterministic (test_provider.ProviderTests) ... ok
+test_fixture_timeout_and_error_controls (test_provider.ProviderTests) ... ok
+test_invalid_outputs_cannot_set_score_state_or_wrong_role (test_provider.ProviderTests) ... ok
+test_live_providers_fail_closed_without_calling_adapter (test_provider.ProviderTests) ... ok
+test_provider_error_does_not_echo_exception_contents (test_provider.ProviderTests) ... ok
+test_timeout_is_real_and_cancels_pending_generation (test_provider.ProviderTests) ... ok
+test_unknown_operation_and_role_operation_mismatch_rejected (test_provider.ProviderTests) ... ok
+test_valid_output_text_stays_text_even_if_it_requests_a_score (test_provider.ProviderTests) ... ok
+
+----------------------------------------------------------------------
+Ran 40 tests in 0.290s
+
+OK

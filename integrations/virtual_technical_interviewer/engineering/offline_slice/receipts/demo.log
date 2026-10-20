@@ -1,0 +1,22 @@
+TIA offline demonstration | SYNTHETIC SCRIPT | SIMULATED MODEL | NO SQL / NO GRADING
+01 [host] session_started: {"duration_seconds": 300, "mode": "OFFLINE_MOCK", "model_controls_scores": false, "question": "Describe how you would find the first order per customer, including ties and NULL dates. Text-only mock; no query execution.", "role_versions": {"interviewer": "tia-roles/v1", "trainer": "tia-roles/v1"}}
+02 [interviewer] reply: SIMULATED interview: explain how you would find each customer's first order. Clarify ties and missing values before describing your plan. This demonstration does not execute SQL or calculate scores.
+03 [candidate] clarify: For tied dates I will use order ID as a stable tie-breaker. Should unknown dates be excluded?
+04 [interviewer] reply: For this fixture, return one order per customer. Break equal timestamps using the smallest order ID, and exclude missing timestamps.
+05 [candidate] plan: I will partition by customer, order by date and order ID, then inspect one row per customer.
+06 [interviewer] reply: You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified.
+07 [candidate] help: I have a plan but have not verified row grain. May I check one customer with tied dates before implementing?
+08 [interviewer] reply: You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified.
+09 [candidate] implement: Proposed text: ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id). This has not been executed.
+10 [interviewer] reply: You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified.
+11 [candidate] test: Proposed checks: tied dates, NULL dates and customers with multiple orders. These are planned checks, not passing tests.
+12 [interviewer] reply: You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified.
+13 [candidate] conclude: I can explain the intended row grain and tie policy; correctness remains unverified because this slice has no SQL evaluator.
+14 [interviewer] reply: Please conclude with what you established and what remains unverified. The host will close the interview and record a review before granting the separate Trainer access to its frozen receipt.
+15 [host] session_closed: submitted
+16 [reviewer] receipt_reviewed: {"receipt_sha256": "cd130806c3c425f0c0103a1eb12726135330ca3ceffbc5588d776f30f6985d85", "reviewer": "synthetic-demo-reviewer", "scope": "handoff_eligibility_only; no competency grading"}
+17 [trainer] drill_assigned: Communication practice: give a short progress report stating what you proved, the specific gap, what you already tried, and one bounded help request. Then explain the next action you would take after feedback. This is a synthetic drill, not a score or a verified learning result.
+18 [host] training_completed: {"assessment": "NOT_SCORED", "transfer_claim": "NOT_EVALUATED"}
+State: COMPLETE | Events: 18
+Technical: NOT_SCORED | Communication: NOT_SCORED
+Reviewed receipt unchanged after Trainer: True

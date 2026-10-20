@@ -1,0 +1,505 @@
+{
+  "demo": {
+    "clock": "DETERMINISTIC_FIXTURE",
+    "input": "SYNTHETIC_SCRIPT",
+    "receipt_unchanged_after_training": true,
+    "review": "SCRIPTED_HANDOFF_REVIEW_NOT_HUMAN_CALIBRATION"
+  },
+  "events": [
+    {
+      "actor": "host",
+      "elapsed_seconds": 0.0,
+      "id": "demo-001:1",
+      "kind": "session_started",
+      "payload": {
+        "duration_seconds": 300,
+        "mode": "OFFLINE_MOCK",
+        "model_controls_scores": false,
+        "question": "Describe how you would find the first order per customer, including ties and NULL dates. Text-only mock; no query execution.",
+        "role_versions": {
+          "interviewer": "tia-roles/v1",
+          "trainer": "tia-roles/v1"
+        }
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "HOST_VERIFIED",
+      "sequence": 1
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 0.0,
+      "id": "demo-001:2",
+      "kind": "reply",
+      "payload": {
+        "operation": "brief",
+        "text": "SIMULATED interview: explain how you would find each customer's first order. Clarify ties and missing values before describing your plan. This demonstration does not execute SQL or calculate scores."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 2
+    },
+    {
+      "actor": "candidate",
+      "elapsed_seconds": 1.0,
+      "id": "demo-001:3",
+      "kind": "clarify",
+      "payload": {
+        "execution": "NOT_APPLICABLE",
+        "text": "For tied dates I will use order ID as a stable tie-breaker. Should unknown dates be excluded?"
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "USER_SAID",
+      "sequence": 3
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 1.0,
+      "id": "demo-001:4",
+      "kind": "reply",
+      "payload": {
+        "operation": "clarify",
+        "text": "For this fixture, return one order per customer. Break equal timestamps using the smallest order ID, and exclude missing timestamps."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 4
+    },
+    {
+      "actor": "candidate",
+      "elapsed_seconds": 2.0,
+      "id": "demo-001:5",
+      "kind": "plan",
+      "payload": {
+        "execution": "NOT_APPLICABLE",
+        "text": "I will partition by customer, order by date and order ID, then inspect one row per customer."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "USER_SAID",
+      "sequence": 5
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 2.0,
+      "id": "demo-001:6",
+      "kind": "reply",
+      "payload": {
+        "operation": "feedback",
+        "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 6
+    },
+    {
+      "actor": "candidate",
+      "elapsed_seconds": 3.0,
+      "id": "demo-001:7",
+      "kind": "help",
+      "payload": {
+        "execution": "NOT_APPLICABLE",
+        "text": "I have a plan but have not verified row grain. May I check one customer with tied dates before implementing?"
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "USER_SAID",
+      "sequence": 7
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 3.0,
+      "id": "demo-001:8",
+      "kind": "reply",
+      "payload": {
+        "operation": "feedback",
+        "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 8
+    },
+    {
+      "actor": "candidate",
+      "elapsed_seconds": 4.0,
+      "id": "demo-001:9",
+      "kind": "implement",
+      "payload": {
+        "execution": "NOT_EXECUTED",
+        "text": "Proposed text: ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id). This has not been executed."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "USER_SAID",
+      "sequence": 9
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 4.0,
+      "id": "demo-001:10",
+      "kind": "reply",
+      "payload": {
+        "operation": "feedback",
+        "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 10
+    },
+    {
+      "actor": "candidate",
+      "elapsed_seconds": 5.0,
+      "id": "demo-001:11",
+      "kind": "test",
+      "payload": {
+        "execution": "NOT_EXECUTED",
+        "text": "Proposed checks: tied dates, NULL dates and customers with multiple orders. These are planned checks, not passing tests."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "USER_SAID",
+      "sequence": 11
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 5.0,
+      "id": "demo-001:12",
+      "kind": "reply",
+      "payload": {
+        "operation": "feedback",
+        "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 12
+    },
+    {
+      "actor": "candidate",
+      "elapsed_seconds": 6.0,
+      "id": "demo-001:13",
+      "kind": "conclude",
+      "payload": {
+        "execution": "NOT_APPLICABLE",
+        "text": "I can explain the intended row grain and tie policy; correctness remains unverified because this slice has no SQL evaluator."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "USER_SAID",
+      "sequence": 13
+    },
+    {
+      "actor": "interviewer",
+      "elapsed_seconds": 6.0,
+      "id": "demo-001:14",
+      "kind": "reply",
+      "payload": {
+        "operation": "close",
+        "text": "Please conclude with what you established and what remains unverified. The host will close the interview and record a review before granting the separate Trainer access to its frozen receipt."
+      },
+      "phase": "INTERVIEWING",
+      "provenance": "SIMULATED",
+      "sequence": 14
+    },
+    {
+      "actor": "host",
+      "elapsed_seconds": 7.0,
+      "id": "demo-001:15",
+      "kind": "session_closed",
+      "payload": {
+        "reason": "submitted"
+      },
+      "phase": "CLOSED",
+      "provenance": "HOST_VERIFIED",
+      "sequence": 15
+    },
+    {
+      "actor": "reviewer",
+      "elapsed_seconds": 7.0,
+      "id": "demo-001:16",
+      "kind": "receipt_reviewed",
+      "payload": {
+        "receipt_sha256": "cd130806c3c425f0c0103a1eb12726135330ca3ceffbc5588d776f30f6985d85",
+        "reviewer": "synthetic-demo-reviewer",
+        "scope": "handoff_eligibility_only; no competency grading"
+      },
+      "phase": "REVIEWED",
+      "provenance": "HOST_VERIFIED",
+      "sequence": 16
+    },
+    {
+      "actor": "trainer",
+      "elapsed_seconds": 7.0,
+      "id": "demo-001:17",
+      "kind": "drill_assigned",
+      "payload": {
+        "receipt_sha256": "cd130806c3c425f0c0103a1eb12726135330ca3ceffbc5588d776f30f6985d85",
+        "review_event_id": "demo-001:16",
+        "text": "Communication practice: give a short progress report stating what you proved, the specific gap, what you already tried, and one bounded help request. Then explain the next action you would take after feedback. This is a synthetic drill, not a score or a verified learning result."
+      },
+      "phase": "TRAINING",
+      "provenance": "SIMULATED",
+      "sequence": 17
+    },
+    {
+      "actor": "host",
+      "elapsed_seconds": 7.0,
+      "id": "demo-001:18",
+      "kind": "training_completed",
+      "payload": {
+        "assessment": "NOT_SCORED",
+        "transfer_claim": "NOT_EVALUATED"
+      },
+      "phase": "COMPLETE",
+      "provenance": "HOST_VERIFIED",
+      "sequence": 18
+    }
+  ],
+  "mode": "OFFLINE_MOCK",
+  "phase": "COMPLETE",
+  "receipt": {
+    "assessment": {
+      "communication": {
+        "evidence_ids": [
+          "demo-001:3",
+          "demo-001:5",
+          "demo-001:7",
+          "demo-001:9",
+          "demo-001:11",
+          "demo-001:13"
+        ],
+        "status": "NOT_SCORED",
+        "value": null
+      },
+      "technical": {
+        "evidence_ids": [
+          "demo-001:5",
+          "demo-001:9",
+          "demo-001:11"
+        ],
+        "status": "NOT_SCORED",
+        "value": null
+      }
+    },
+    "events": [
+      {
+        "actor": "host",
+        "elapsed_seconds": 0.0,
+        "id": "demo-001:1",
+        "kind": "session_started",
+        "payload": {
+          "duration_seconds": 300,
+          "mode": "OFFLINE_MOCK",
+          "model_controls_scores": false,
+          "question": "Describe how you would find the first order per customer, including ties and NULL dates. Text-only mock; no query execution.",
+          "role_versions": {
+            "interviewer": "tia-roles/v1",
+            "trainer": "tia-roles/v1"
+          }
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "HOST_VERIFIED",
+        "sequence": 1
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 0.0,
+        "id": "demo-001:2",
+        "kind": "reply",
+        "payload": {
+          "operation": "brief",
+          "text": "SIMULATED interview: explain how you would find each customer's first order. Clarify ties and missing values before describing your plan. This demonstration does not execute SQL or calculate scores."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 2
+      },
+      {
+        "actor": "candidate",
+        "elapsed_seconds": 1.0,
+        "id": "demo-001:3",
+        "kind": "clarify",
+        "payload": {
+          "execution": "NOT_APPLICABLE",
+          "text": "For tied dates I will use order ID as a stable tie-breaker. Should unknown dates be excluded?"
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "USER_SAID",
+        "sequence": 3
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 1.0,
+        "id": "demo-001:4",
+        "kind": "reply",
+        "payload": {
+          "operation": "clarify",
+          "text": "For this fixture, return one order per customer. Break equal timestamps using the smallest order ID, and exclude missing timestamps."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 4
+      },
+      {
+        "actor": "candidate",
+        "elapsed_seconds": 2.0,
+        "id": "demo-001:5",
+        "kind": "plan",
+        "payload": {
+          "execution": "NOT_APPLICABLE",
+          "text": "I will partition by customer, order by date and order ID, then inspect one row per customer."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "USER_SAID",
+        "sequence": 5
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 2.0,
+        "id": "demo-001:6",
+        "kind": "reply",
+        "payload": {
+          "operation": "feedback",
+          "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 6
+      },
+      {
+        "actor": "candidate",
+        "elapsed_seconds": 3.0,
+        "id": "demo-001:7",
+        "kind": "help",
+        "payload": {
+          "execution": "NOT_APPLICABLE",
+          "text": "I have a plan but have not verified row grain. May I check one customer with tied dates before implementing?"
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "USER_SAID",
+        "sequence": 7
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 3.0,
+        "id": "demo-001:8",
+        "kind": "reply",
+        "payload": {
+          "operation": "feedback",
+          "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 8
+      },
+      {
+        "actor": "candidate",
+        "elapsed_seconds": 4.0,
+        "id": "demo-001:9",
+        "kind": "implement",
+        "payload": {
+          "execution": "NOT_EXECUTED",
+          "text": "Proposed text: ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id). This has not been executed."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "USER_SAID",
+        "sequence": 9
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 4.0,
+        "id": "demo-001:10",
+        "kind": "reply",
+        "payload": {
+          "operation": "feedback",
+          "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 10
+      },
+      {
+        "actor": "candidate",
+        "elapsed_seconds": 5.0,
+        "id": "demo-001:11",
+        "kind": "test",
+        "payload": {
+          "execution": "NOT_EXECUTED",
+          "text": "Proposed checks: tied dates, NULL dates and customers with multiple orders. These are planned checks, not passing tests."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "USER_SAID",
+        "sequence": 11
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 5.0,
+        "id": "demo-001:12",
+        "kind": "reply",
+        "payload": {
+          "operation": "feedback",
+          "text": "You have described a plan. State what you have established, the remaining uncertainty, and how you would test ties and missing timestamps. No SQL result or capability score has been verified."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 12
+      },
+      {
+        "actor": "candidate",
+        "elapsed_seconds": 6.0,
+        "id": "demo-001:13",
+        "kind": "conclude",
+        "payload": {
+          "execution": "NOT_APPLICABLE",
+          "text": "I can explain the intended row grain and tie policy; correctness remains unverified because this slice has no SQL evaluator."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "USER_SAID",
+        "sequence": 13
+      },
+      {
+        "actor": "interviewer",
+        "elapsed_seconds": 6.0,
+        "id": "demo-001:14",
+        "kind": "reply",
+        "payload": {
+          "operation": "close",
+          "text": "Please conclude with what you established and what remains unverified. The host will close the interview and record a review before granting the separate Trainer access to its frozen receipt."
+        },
+        "phase": "INTERVIEWING",
+        "provenance": "SIMULATED",
+        "sequence": 14
+      },
+      {
+        "actor": "host",
+        "elapsed_seconds": 7.0,
+        "id": "demo-001:15",
+        "kind": "session_closed",
+        "payload": {
+          "reason": "submitted"
+        },
+        "phase": "CLOSED",
+        "provenance": "HOST_VERIFIED",
+        "sequence": 15
+      }
+    ],
+    "live_model_used": false,
+    "mode": "OFFLINE_MOCK",
+    "reason": "submitted",
+    "schema": "tia-offline-receipt/v1",
+    "session_id": "demo-001",
+    "sha256": "cd130806c3c425f0c0103a1eb12726135330ca3ceffbc5588d776f30f6985d85",
+    "sql_executed": false,
+    "status": "CLOSED"
+  },
+  "review": {
+    "actor": "reviewer",
+    "elapsed_seconds": 7.0,
+    "id": "demo-001:16",
+    "kind": "receipt_reviewed",
+    "payload": {
+      "receipt_sha256": "cd130806c3c425f0c0103a1eb12726135330ca3ceffbc5588d776f30f6985d85",
+      "reviewer": "synthetic-demo-reviewer",
+      "scope": "handoff_eligibility_only; no competency grading"
+    },
+    "phase": "REVIEWED",
+    "provenance": "HOST_VERIFIED",
+    "sequence": 16
+  },
+  "scoring": "NOT_IMPLEMENTED",
+  "session_id": "demo-001",
+  "sql_evaluator": "NOT_IMPLEMENTED"
+}

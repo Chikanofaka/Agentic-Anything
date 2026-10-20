@@ -1,0 +1,29 @@
+{
+  "branch": "feat/tia-s02-traceability",
+  "base_commit": "21512016ba46fa81dec9ece659e6b25370a93333",
+  "python": "Python 3.9.6",
+  "tia_tests": {
+    "command": "python3 -B integrations/virtual_technical_interviewer/run_tests.py",
+    "passed": 40,
+    "exit_code": 0
+  },
+  "hal_baseline": {
+    "command": "bash scripts/verify_local.sh",
+    "passed": 287,
+    "exit_code": 0,
+    "scope": "Executed before this additive TIA change; shared HAL code unchanged."
+  },
+  "demo": {
+    "phase": "COMPLETE",
+    "events": 18,
+    "receipt_frozen": true,
+    "scripted_candidate": true,
+    "model": "SIMULATED",
+    "review": "SCRIPTED_HANDOFF_ONLY"
+  },
+  "live_provider_denial_exit": 2,
+  "live_model_used": false,
+  "sql_executed": false,
+  "scoring": "NOT_IMPLEMENTED",
+  "preserved_existing_tia_files": 221
+}
