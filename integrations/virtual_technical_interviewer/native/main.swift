@@ -7,13 +7,21 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     var webView: WKWebView!
     var worker: TIAWorker?
     private var indexURL: URL!
-    let portal = NativePortal()
+    lazy var portal: NativePortal = {
+        // Every automated App run uses a fail-closed mock URLProtocol, including
+        // the older tutorial tests. No test flag can spend a real credential.
+        NativePortal(adapter: TIAOpenAIAdapter(configuration: uiTesting ? TIATestHTTPProtocol.configuration() : .ephemeral))
+    }()
     private var busy = false
     private var seenIDs = Set<String>()
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test")
+    private var liveRequestID: String?
+    private var liveGeneration: String?
+    private var liveStage = "idle"
+    private var cancellationIDs = [String]()
     private var loaded = false
     private var dataDirectory: URL!
     private var smokeDirectory: URL!
@@ -27,6 +35,20 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                 else { throw CocoaError(.fileNoSuchFile) }
             }
             if uiTesting {
+                TIATestHTTPProtocol.reset(CommandLine.arguments.contains("--ui-live-test") ? [
+                    .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
+                    .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
+                ] : [])
+                if CommandLine.arguments.contains("--ui-provider-failure-test") {
+                    var delayed = TIATestHTTPProtocol.Plan.reply("This cancelled mock response must never commit.")
+                    delayed.delay = 1
+                    TIATestHTTPProtocol.reset([
+                        .init(status: 401, payload: Data("{}".utf8)),
+                        .init(payload: Data(), error: .timedOut),
+                        .reply("Please clarify how ties should be resolved."), delayed,
+                        .reply("Explain your own diagnosis before asking for another hint.")
+                    ])
+                }
                 // Optional output location is native argv, never a renderer parameter.
                 if let i = CommandLine.arguments.firstIndex(of: "--test-output"), CommandLine.arguments.count > i + 1 {
                     smokeDirectory = URL(fileURLWithPath: CommandLine.arguments[i + 1], isDirectory: true)
@@ -40,8 +62,11 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             }
             worker = try TIAWorker(runtime: resources.appendingPathComponent("runtime"), dataDirectory: dataDirectory)
             worker?.onFailure = { [weak self] in
-                self?.portal.disconnect()
-                self?.emit(["ok": false, "error": "LOCAL_CONTROLLER_UNAVAILABLE"])
+                guard let self = self else { return }
+                self.portal.disconnect()
+                self.finishLive(ok: false, error: "LOCAL_CONTROLLER_UNAVAILABLE")
+                self.busy = false
+                self.emit(["ok": false, "state": self.lastState, "error": "LOCAL_CONTROLLER_UNAVAILABLE"])
             }
             let config = WKWebViewConfiguration()
             config.websiteDataStore = .nonPersistent()
@@ -125,15 +150,19 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         guard seenIDs.count < 10000, seenIDs.insert(id).inserted else {
             emit(["id": id, "ok": false, "error": "DUPLICATE_OR_EXHAUSTED_REQUEST"]); return
         }
-        guard !busy, portalSheet == nil else { emit(["id": id, "ok": false, "error": "NATIVE_BUSY"]); return }
-        if action.hasPrefix("setup_"), action != "setup_back", portal.state != "activated-unverified" {
-            emit(["id": id, "ok": false, "state": lastState, "error": "NATIVE_CREDENTIAL_CONFIGURATION_REQUIRED"]); return
+        // Cancellation remains available while a paid request is pending. The
+        // renderer can request cancellation but cannot call prepare/commit itself.
+        if action == "disconnect" || action == "preview_cancel" {
+            cancelLive(id: id, disconnect: action == "disconnect"); return
         }
+        guard !busy, portalSheet == nil else { emit(["id": id, "ok": false, "error": "NATIVE_BUSY"]); return }
         if action == "api_portal" {
-            guard lastState["screen"] as? String == "API_PORTAL" else { emit(["id": id, "ok": false, "error": "INVALID_TRANSITION"]); return }
+            guard ["API_PORTAL", "LIVE_PREVIEW", "REVIEW"].contains(lastState["screen"] as? String ?? "") else { emit(["id": id, "ok": false, "error": "INVALID_TRANSITION"]); return }
             openPortal { self.respondWithState(id) }; return
         }
-        if action == "disconnect" { portal.disconnect(); respondWithState(id); return }
+        if action == "preview_verify" || action == "preview_send" {
+            beginLive(id: id, action: action, params: params); return
+        }
         if action == "reset" || action == "tutorial_replay" {
             confirm(action == "reset" ? "Delete the local tutorial save and transcript?" : "Replace this tutorial with a fresh rehearsal? Export first if you want to keep it.") { confirmed in
                 if confirmed { self.portal.disconnect(); self.forward(id: id, action: action, params: params) }
@@ -171,11 +200,113 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
     }
 
+    private func beginLive(id: String, action: String, params: [String: Any]) {
+        guard portal.publicState["live_enabled"] as? Bool == true else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "PAID_CONSENT_REQUIRED"]); return
+        }
+        if action == "preview_send", portal.publicState["authenticated"] as? Bool != true {
+            emit(["id": id, "ok": false, "state": lastState, "error": "PROVIDER_AUTHENTICATION_REQUIRED"]); return
+        }
+        let preview = lastState["live_preview"] as? [String: Any]
+        let config = lastState["setup_config"] as? [String: Any]
+        let currentMechanism = preview?["closed"] as? Bool == false ? preview?["mechanism"] as? String : nil
+        let mechanism = currentMechanism ?? config?["interviewer_mechanism"] as? String ?? "STRICT_CHALLENGING"
+        let generation = portal.generation
+        let requestID = UUID().uuidString
+        busy = true; liveRequestID = id; liveGeneration = generation; liveStage = "preparing"
+        let preparedParams: [String: Any] = [
+            "request_id": requestID, "generation": generation,
+            "operation": action == "preview_verify" ? "verify" : "reply",
+            "text": params["text"] as? String ?? "", "kind": params["kind"] as? String ?? "clarify",
+            "mechanism": mechanism
+        ]
+        worker?.request("native_prepare_preview", params: preparedParams) { [weak self] response in
+            guard let self = self else { return }
+            if let state = response["state"] as? [String: Any] { self.lastState = state }
+            guard self.liveGeneration == self.portal.generation else { self.cancelPrepared(error: "REQUEST_CANCELLED"); return }
+            guard response["ok"] as? Bool == true,
+                  let prepared = response["prepared"] as? [String: Any],
+                  let spec = try? TIAModelRequest(prepared), spec.generation == generation,
+                  spec.requestID == requestID else {
+                self.cancelPrepared(error: response["error"] as? String ?? "INVALID_PREPARED_REQUEST"); return
+            }
+            self.liveStage = "calling"
+            self.portal.send(spec) { [weak self] result in
+                guard let self = self, self.liveStage == "calling",
+                      self.liveGeneration == generation, self.portal.generation == generation else { return }
+                switch result {
+                case .failure(let failure): self.cancelPrepared(error: failure.code)
+                case .success(let reply):
+                    // Linearization point: only this native callback may authorize
+                    // commit, after checking the same activation generation again.
+                    self.liveStage = "committing"
+                    let commitment: [String: Any] = [
+                        "transaction_id": spec.transactionID, "request_id": requestID,
+                        "generation": generation, "reply": ["reply": reply.text],
+                        "model": self.portal.publicState["model"] as? String ?? "",
+                        "usage": reply.usage as Any? ?? NSNull()
+                    ]
+                    self.worker?.request("native_commit_preview", params: commitment) { [weak self] committed in
+                        guard let self = self else { return }
+                        if let state = committed["state"] as? [String: Any] { self.lastState = state }
+                        self.finishLive(ok: committed["ok"] as? Bool == true,
+                                        error: committed["error"] as? String)
+                    }
+                }
+            }
+            // Unsolicited status contains no request instructions or credentials.
+            self.emit(["ok": true, "state": self.lastState])
+        }
+    }
+
+    private func cancelLive(id: String, disconnect: Bool) {
+        if disconnect { portal.disconnect() } else { portal.cancel() }
+        if disconnect, let sheet = portalSheet, portalIsVisible {
+            window.endSheet(sheet.window, returnCode: .alertSecondButtonReturn)
+        }
+        guard liveRequestID != nil else { respondWithState(id); return }
+        if liveStage == "committing" {
+            // A controller commitment already submitted is atomic. Disconnect still
+            // clears the credential immediately; never claim this saved turn rolled back.
+            emit(["id": id, "ok": disconnect, "state": lastState,
+                  "error": "COMMIT_ALREADY_SUBMITTED"]); return
+        }
+        cancellationIDs.append(id)
+        if liveStage == "calling" { cancelPrepared(error: "REQUEST_CANCELLED") }
+        // During preparation the Worker callback runs first, then cancels its
+        // transaction. Never send two concurrent requests to the serial Worker.
+    }
+
+    private func cancelPrepared(error: String) {
+        guard liveStage != "cancelling" else { return }
+        liveStage = "cancelling"
+        worker?.request("native_cancel_preview") { [weak self] response in
+            guard let self = self else { return }
+            if let state = response["state"] as? [String: Any] { self.lastState = state }
+            self.finishLive(ok: false, error: error)
+        }
+    }
+
+    private func finishLive(ok: Bool, error: String?) {
+        guard let id = liveRequestID else { return }
+        liveRequestID = nil; liveGeneration = nil; liveStage = "idle"; busy = false
+        var result: [String: Any] = ["id": id, "ok": ok, "state": lastState]
+        if let error = error { result["error"] = error }
+        emit(result)
+        let cancelled = cancellationIDs; cancellationIDs.removeAll()
+        for cancellation in cancelled { respondWithState(cancellation) }
+    }
+
     private func respondWithState(_ id: String) { emit(["id": id, "ok": true, "state": lastState]) }
     func emit(_ raw: [String: Any]) {
         var result = raw
         if var state = result["state"] as? [String: Any] {
             state["activation"] = portal.publicState
+            if portal.publicState["authenticated"] as? Bool == true,
+               let blockers = state["setup_blockers"] as? [String] {
+                state["setup_blockers"] = blockers.filter { $0 != "PROVIDER_AUTHENTICATION_REQUIRED" }
+            }
+            if uiTesting { state["transport_mode"] = "MOCK_HTTP" }
             result["state"] = state
         }
         guard JSONSerialization.isValidJSONObject(result),
@@ -200,29 +331,44 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         alert.messageText = "API Portal · OpenAI"
         alert.informativeText = """
         Native secure input · 原生安全输入
-        Live calls are disabled in this increment. A stored key is UNVERIFIED, not authenticated.
-        本版本不调用 API；保存密钥不代表验证或成功激活。密钥仅留在此原生进程内，断开或退出即清除。
+        Your key stays in native memory until Disconnect or Quit. Activation makes no request and is UNVERIFIED until a valid response.
+        Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. No retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
+        Only the approved role, public preview question and your submitted text are sent. No SQL execution or scores. Cancelled requests may still be billed.
+        密钥仅留在原生内存；授权不发送请求。验证或发送每次最多调用一次，可能收费；取消后仍可能计费。预览不执行 SQL，也不评分。
         """
-        alert.addButton(withTitle: "Keep locally · 未验证")
+        alert.addButton(withTitle: "Allow bounded requests / 授权有限请求")
         alert.addButton(withTitle: "Cancel / 取消")
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 94))
-        let field = NSSecureTextField(frame: NSRect(x: 0, y: 58, width: 440, height: 26))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 460, height: 180))
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 146, width: 460, height: 26))
         field.placeholderString = "API key (session only)"; field.setAccessibilityLabel("Session-only API key")
-        let consent = NSButton(checkboxWithTitle: "Keep this key in memory only / 仅在本次运行中保留", target: nil, action: nil)
-        consent.frame = NSRect(x: 0, y: 23, width: 440, height: 24)
-        container.addSubview(field); container.addSubview(consent); alert.accessoryView = container
+        let modelLabel = NSTextField(labelWithString: "Model / 模型")
+        modelLabel.frame = NSRect(x: 0, y: 111, width: 120, height: 22)
+        let model = NSTextField(frame: NSRect(x: 130, y: 106, width: 330, height: 26))
+        model.stringValue = "gpt-4.1-mini"; model.setAccessibilityLabel("OpenAI model identifier")
+        let limitLabel = NSTextField(labelWithString: "Request cap / 请求上限")
+        limitLabel.frame = NSRect(x: 0, y: 74, width: 220, height: 22)
+        let limit = NSPopUpButton(frame: NSRect(x: 260, y: 68, width: 200, height: 28))
+        limit.addItems(withTitles: ["1", "2", "5", "10", "20"]); limit.selectItem(withTitle: "2")
+        limit.setAccessibilityLabel("Maximum paid requests per activation")
+        let consent = NSButton(checkboxWithTitle: "I consent to paid requests / 我同意付费请求", target: nil, action: nil)
+        consent.frame = NSRect(x: 0, y: 22, width: 460, height: 24)
+        for view in [field, modelLabel, model, limitLabel, limit, consent] { container.addSubview(view) }
+        alert.accessoryView = container
         alert.buttons[0].isEnabled = false
-        let delegate = CredentialFieldDelegate { [weak alert, weak field, weak consent] in
-            alert?.buttons[0].isEnabled = NativePortal.validCredential(field?.stringValue ?? "") && consent?.state == .on
+        let delegate = CredentialFieldDelegate { [weak alert, weak field, weak model, weak consent] in
+            alert?.buttons[0].isEnabled = NativePortal.validCredential(field?.stringValue ?? "") &&
+                (model?.stringValue.range(of: "\\A[A-Za-z0-9][A-Za-z0-9._-]{0,79}\\z", options: .regularExpression) != nil) && consent?.state == .on
         }
-        field.delegate = delegate
+        field.delegate = delegate; model.delegate = delegate
         consent.target = delegate; consent.action = #selector(CredentialFieldDelegate.changed)
         portalSheet = alert
         alert.beginSheetModal(for: window) { [weak self] result in
             guard let self = self else { return }
             _ = delegate // Retain for the sheet's entire lifetime.
             if result == .alertFirstButtonReturn {
-                _ = self.portal.configure(field.stringValue, consent: consent.state == .on)
+                _ = self.portal.activate(key: field.stringValue, model: model.stringValue,
+                                        requestLimit: Int(limit.titleOfSelectedItem ?? "") ?? 0,
+                                        paidConsent: consent.state == .on)
             }
             field.stringValue = ""; consent.state = .off
             self.portalSheet = nil; completion()
@@ -230,7 +376,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         alert.window.makeFirstResponder(field)
     }
 
-    // UI test checks the real native sheet; it never enters a credential.
+    // Test fixture input is synthetic and all automated HTTP is intercepted.
     var portalIsVisible: Bool { portalSheet?.messageText == "API Portal · OpenAI" }
     func cancelPortalForTest() {
         guard uiTesting, let alert = portalSheet else { return }
@@ -239,16 +385,33 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     func enterSyntheticCredentialForTest() -> Bool {
         guard uiTesting, let alert = portalSheet, portalIsVisible,
               let field = alert.accessoryView?.subviews.compactMap({ $0 as? NSSecureTextField }).first,
-              let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first,
+              let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first(where: { !($0 is NSPopUpButton) }),
               let delegate = field.delegate as? CredentialFieldDelegate else { return false }
         field.stringValue = "synthetic-ui-fixture-not-a-real-key"
+        if CommandLine.arguments.contains("--ui-provider-failure-test") {
+            alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
+        }
         consent.state = .on; delegate.changed()
         guard alert.buttons[0].isEnabled else { return false }
         window.endSheet(alert.window, returnCode: .alertFirstButtonReturn)
         return true
     }
     private func exportReceipt(_ result: [String: Any], completion: @escaping (String) -> Void) {
-        guard let exported = result["export"] ?? result["record"],
+        guard var exported = (result["export"] ?? result["record"]) as? [String: Any] else {
+            completion("FAILED"); return
+        }
+        if exported["live_preview"] != nil {
+            // Native-only provider facts decorate the export; frozen controller
+            // receipts and their hashes are never rewritten.
+            exported["native_provider_at_export"] = portal.publicState
+            if uiTesting { exported["transport_mode"] = "MOCK_HTTP" }
+            if portal.publicState["authenticated"] as? Bool == true,
+               var setup = exported["setup"] as? [String: Any], let blockers = setup["blockers"] as? [String] {
+                setup["blockers"] = blockers.filter { $0 != "PROVIDER_AUTHENTICATION_REQUIRED" }
+                exported["setup"] = setup
+            }
+        }
+        guard
               JSONSerialization.isValidJSONObject(exported),
               let data = try? JSONSerialization.data(withJSONObject: exported, options: [.prettyPrinted, .sortedKeys]) else {
             completion("FAILED"); return
@@ -274,7 +437,9 @@ final class CredentialFieldDelegate: NSObject, NSTextFieldDelegate {
 }
 
 if CommandLine.arguments.contains("--self-test") {
-    exit(runNativeTests())
+    let core = runNativeTests()
+    let provider = runProviderTests()
+    exit(core == 0 && provider == 0 ? 0 : 1)
 }
 let application = NSApplication.shared
 application.setActivationPolicy(.regular)

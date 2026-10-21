@@ -188,3 +188,15 @@ textarea::placeholder { font-family: -apple-system, BlinkMacSystemFont, sans-ser
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* Live preview uses the same accessible layout; only native code owns requests. */
+.provider-details { margin: 18px 0 24px; padding: 14px 16px; background: #f1f4ee; border-radius: 10px; font-size: .84rem; }
+.provider-details p { margin: 0 0 6px; }
+.provider-details p:last-child { margin-bottom: 0; }
+.preview-start-card { margin-top: 24px; padding: 22px; border: 1px solid var(--border); border-radius: 14px; background: #f8faf5; }
+.preview-start-card .full-width { margin-top: 18px; }
+.preview-start-card .field-help { margin-bottom: 0; }
+.live-request-controls { position: sticky; top: 12px; z-index: 5; margin-bottom: 24px; padding: 16px 20px; border: 1px solid #a9c4af; border-radius: 12px; background: #f0f7ed; box-shadow: 0 3px 16px #152e1818; }
+.live-request-controls p { margin-bottom: 0; font-size: .88rem; }
+.live-request-controls .actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 12px; }
+textarea[readonly] { background: #f4f6f0; }

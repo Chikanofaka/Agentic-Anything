@@ -30,7 +30,8 @@ enum BridgePolicy {
     static let emptyActions: Set<String> = [
         "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
         "tutorial_complete", "tutorial_replay", "choose_real", "reset",
-        "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch"
+        "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch",
+        "preview_verify", "preview_close", "preview_cancel"
     ]
     static func validate(_ value: Any) -> (String, String, [String: Any])? {
         guard let body = value as? [String: Any],
@@ -47,13 +48,13 @@ enum BridgePolicy {
         } else if action == "language" {
             guard Set(params.keys) == ["language"], let lang = params["language"] as? String,
                   ["en", "zh"].contains(lang) else { return nil }
-        } else if action == "tutorial_submit" {
+        } else if action == "tutorial_submit" || action == "preview_send" {
             guard Set(params.keys) == ["kind", "text"],
                   let kind = params["kind"] as? String,
-                  ["clarify", "plan", "implement", "test", "help"].contains(kind),
+                  (action == "preview_send" ? ["clarify", "plan", "implement", "help"] : ["clarify", "plan", "implement", "test", "help"]).contains(kind),
                   let text = params["text"] as? String,
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  text.utf8.count <= 8192 else { return nil }
+                  text.utf8.count <= (action == "preview_send" ? 4096 : 8192) else { return nil }
         } else if action == "setup_config" {
             guard Set(params.keys) == ["config"], let config = params["config"] as? [String: Any],
                   Set(config.keys) == ["technical_environment", "duration_minutes", "difficulty", "question_source", "interviewer_mechanism"],
@@ -73,28 +74,5 @@ enum BridgePolicy {
                   ["STRICT_CHALLENGING", "PROFESSIONAL_SUPPORTIVE"].contains(mechanism) else { return nil }
         } else { return nil }
         return (id, action, params)
-    }
-}
-
-// Credentials only exist in this native object. No method serializes them. This
-// increment deliberately has no network transport: configuration is NOT authentication.
-final class NativePortal {
-    private var credential: String?
-    private(set) var state = "offline"
-    private(set) var requestsUsed = 0
-    static func validCredential(_ key: String) -> Bool {
-        (16...1024).contains(key.utf8.count)
-            && key.unicodeScalars.allSatisfy { (33...126).contains($0.value) }
-    }
-    @discardableResult func configure(_ key: String, consent: Bool) -> Bool {
-        guard consent, Self.validCredential(key) else { return false }
-        credential = key
-        state = "activated-unverified"
-        return true
-    }
-    func disconnect() { credential = nil; state = "offline" }
-    var publicState: [String: Any] {
-        ["state": state, "requests_used": requestsUsed, "live_enabled": false,
-         "authenticated": false, "provider": "OpenAI", "reason": "LIVE_TRANSPORT_DISABLED"]
     }
 }

@@ -71,6 +71,10 @@ class InterviewController:
         self._question = None
         self._review = None
         self._busy = False
+        # Native provider transactions are a separate, explicitly opted-in path.
+        # The original ModelPortal continues to accept SIMULATED responses only.
+        self._native_preview = False
+        self._native_pending = None
 
     @property
     def phase(self):
@@ -83,8 +87,92 @@ class InterviewController:
     def snapshot(self):
         return {'session_id': self.config.session_id, 'phase': self.phase,
                 'events': copy.deepcopy(self._events), 'receipt': self.receipt,
-                'review': copy.deepcopy(self._review), 'mode': 'OFFLINE_MOCK',
+                'review': copy.deepcopy(self._review),
+                'mode': 'LIVE_CONVERSATIONAL_PREVIEW' if self._native_preview else 'OFFLINE_MOCK',
                 'sql_evaluator': 'NOT_IMPLEMENTED', 'scoring': 'NOT_IMPLEMENTED'}
+
+    @property
+    def native_pending(self):
+        return copy.deepcopy(self._native_pending)
+
+    def start_native_preview(self, question, profile):
+        """Native host-only entrypoint; starting a session makes no model call."""
+        self._available()
+        if self.phase != 'NEW' or profile.get('role') != 'interviewer':
+            raise SessionError('INVALID_TRANSITION')
+        question = self._text(question)
+        self._native_preview = True
+        self._started = self._clock()
+        self._question = question
+        self._phase = 'INTERVIEWING'
+        return self._append('host', 'session_started', {
+            'question': question, 'duration_seconds': self.config.duration_seconds,
+            'role_versions': {k: v.version for k, v in self._roles.items()},
+            'mode': 'LIVE_CONVERSATIONAL_PREVIEW', 'model_controls_scores': False,
+            'execution_status': 'NOT_RUN', 'prompt_sha256': profile['sha256'],
+            'source_sha256': profile['source_sha256'],
+            'mechanism': profile['mechanism'],
+            'scope': 'One candidate turn; conversational preview, not a technical interview',
+        })
+
+    def prepare_native_reply(self, request_id, generation, operation, profile, policy):
+        """Issue an expiring, single-use commitment bound to current evidence.
+
+        Only the native worker transport calls this method. It never receives a
+        credential and does not perform I/O. The Swift bridge does not expose it.
+        """
+        self._active()
+        if (not self._native_preview or self._native_pending is not None
+                or operation not in ('verify', 'reply')
+                or self.phase not in self._roles['interviewer'].active_states):
+            raise SessionError('NATIVE_REQUEST_NOT_ALLOWED')
+        for value in (request_id, generation):
+            if type(value) is not str or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', value):
+                raise SessionError('INVALID_NATIVE_REQUEST')
+        binding = {'session_id': self.config.session_id, 'request_id': request_id,
+                   'generation': generation, 'operation': operation,
+                   'revision': len(self._events), 'phase': self.phase,
+                   'prompt_sha256': profile['sha256']}
+        transaction_id = hashlib.sha256(json.dumps(binding, sort_keys=True).encode()).hexdigest()
+        if any(event['payload'].get('transaction_id') == transaction_id for event in self._events):
+            raise SessionError('NATIVE_REQUEST_REUSED')
+        self._native_pending = dict(binding, transaction_id=transaction_id,
+                                    source_sha256=copy.deepcopy(profile['source_sha256']),
+                                    policy=copy.deepcopy(policy))
+        return copy.deepcopy(self._native_pending)
+
+    def commit_native_reply(self, transaction_id, request_id, generation, reply, model, usage):
+        from .native_contract import validate_commit
+
+        validate_commit({'transaction_id': transaction_id, 'request_id': request_id,
+                         'generation': generation, 'reply': reply, 'model': model, 'usage': usage})
+        self._active()
+        pending = self._native_pending
+        if (not self._native_preview or pending is None
+                or any(pending[key] != value for key, value in (
+                    ('transaction_id', transaction_id), ('request_id', request_id), ('generation', generation)))
+                or pending['revision'] != len(self._events) or pending['phase'] != self.phase):
+            raise SessionError('STALE_NATIVE_REPLY')
+        event = self._append('interviewer', 'reply', {
+            'operation': pending['operation'], 'text': reply['reply'], 'model': model,
+            'transaction_id': transaction_id, 'request_id': request_id,
+            'prompt_sha256': pending['prompt_sha256'],
+            'source_sha256': pending['source_sha256'], 'policy': pending['policy'],
+            'usage': usage,
+        }, 'LIVE_MODEL')
+        self._native_pending = None
+        return event
+
+    def cancel_native_reply(self):
+        pending = self._native_pending
+        self._native_pending = None
+        if pending is not None and self.phase == 'INTERVIEWING':
+            self._append('host', 'model_request_cancelled', {
+                'transaction_id': pending['transaction_id'],
+                'request_id': pending['request_id'], 'operation': pending['operation'],
+                'reply_committed': False,
+            })
+        return pending is not None
 
     def _text(self, value):
         if not isinstance(value, str) or not value.strip():
@@ -154,6 +242,8 @@ class InterviewController:
 
     async def respond(self, operation='feedback'):
         self._active()
+        if self._native_preview:
+            raise SessionError('NATIVE_PROVIDER_REQUIRED')
         if operation not in ('brief', 'clarify', 'feedback', 'close'):
             raise SessionError('INVALID_OPERATION')
         if self.phase not in self._roles['interviewer'].active_states:
@@ -181,6 +271,7 @@ class InterviewController:
             return self.receipt
         if self.phase != 'INTERVIEWING' or reason not in ('submitted', 'timeout', 'cancelled', 'event_limit'):
             raise SessionError('INVALID_TRANSITION')
+        self.cancel_native_reply()
         self._phase = 'CLOSED'
         self._append('host', 'session_closed', {'reason': reason})
         candidate = [e for e in self._events if e['actor'] == 'candidate']
@@ -192,6 +283,11 @@ class InterviewController:
                                      'evidence_ids': [e['id'] for e in candidate if e['kind'] in ('plan', 'implement', 'test')]},
                        'communication': {'status': 'NOT_SCORED', 'value': None,
                                          'evidence_ids': [e['id'] for e in candidate]}}}
+        if self._native_preview:
+            receipt.update(schema='tia-live-preview-receipt/v1',
+                           mode='LIVE_CONVERSATIONAL_PREVIEW',
+                           live_model_used=any(e['provenance'] == 'LIVE_MODEL' for e in self._events),
+                           execution_status='NOT_RUN', preview_only=True)
         encoded = json.dumps(receipt, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
         receipt['sha256'] = hashlib.sha256(encoded).hexdigest()
         self._closed_receipt = receipt

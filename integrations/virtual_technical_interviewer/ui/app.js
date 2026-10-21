@@ -12,10 +12,34 @@
   let busy = false;
   let draft = "";
   let draftKind = "clarify";
+  let liveDraft = "";
+  let liveKind = "clarify";
   let questionDrafts = [];
   let previousScreen = null;
   const strings = {
     en: {
+      livePreview: "Live Conversational Preview", livePreviewNote: "A bounded conversation with a Senior Interviewer, not a full technical interview. SQL is NOT_RUN. Technical Capability and Communication remain independently NOT_SCORED.",
+      previewQuestion: "Approved conversation case · no grading", verifyPreview: "Verify access & open preview · 1 paid request",
+      previewSelected: "Selected mechanism", previewSource: "Choose the mechanism in the configuration preview; it controls the approved instructions used here.",
+      previewSend: "Send to Senior Interviewer · 1 paid request", previewRetry: "Retry recorded response · 1 paid request",
+      retryRecorded: "Your input was recorded, but no model reply was committed. A retry sends the same recorded text and uses one additional request. There are no automatic retries.",
+      previewComplete: "The preview exchange is complete. Close it to freeze the record; no score is assigned.",
+      previewClosed: "Preview closed · record frozen", closePreview: "Close preview & freeze record", cancelRequest: "Cancel pending request",
+      pendingRequest: "Waiting for the native provider. Cancellation prevents a late reply from being committed; a request already sent may still be billed.",
+      liveResponse: "Senior Interviewer · LIVE_MODEL", noLiveResponse: "No model reply has been committed.",
+      previewRecorded: "Model reply committed by the trusted controller.", previewInput: "Your preview response", previewPrivacy: "Submitted text and the approved question are sent to the selected provider only after native paid-request consent. The local transcript includes your submitted text.",
+      requestsTotal: "Requests in this App process", unmeasuredRequests: "Requests without measured usage", model: "Model", requestLimit: "Request limit", tokenUsage: "Reported tokens", usageUnknown: "Not supplied by provider", usageScope: "Usage is provider-reported, not a cost estimate.",
+      previewFrozen: "The frozen record preserves response provenance and submitted text. Technical and Communication are not scored; no SQL was executed.",
+      providerConsentRequired: "Open the native API Portal to authorize paid requests before verifying access.",
+      invalidCredential: "The provider rejected the credential. Reopen the native API Portal to replace it.",
+      modelUnavailable: "The selected model is unavailable for this credential. Choose an accessible model in the native API Portal.",
+      rateLimited: "The provider rate limit was reached. Nothing was retried automatically.",
+      usageLimited: "The approved request limit or provider usage limit was reached. No automatic request was made.",
+      providerTimeout: "The provider request timed out. No model reply was committed.",
+      providerRefused: "The provider refused this request. No model reply was committed.",
+      invalidProviderResponse: "The provider response failed validation. No model reply was committed.",
+      networkFailure: "The provider could not be reached. Your text remains available; retry only when you choose.",
+      providerCancelled: "The pending request was cancelled. A late response cannot be committed.",
       title: "TECHNICAL INTERVIEW LAB", subtitle: "A thoughtful rehearsal. A stronger next interview.",
       language: "中文", languageLabel: "Switch interface to Chinese", reset: "Restart / delete local session",
       entry: "Choose your experience", entryBody: "Learn the interview flow, then prepare for a real technical interview.",
@@ -49,7 +73,7 @@
       receipt: "Frozen receipt", receiptNote: "This receipt records the tutorial and submitted text. Export includes your responses; share it only when you choose.",
       digest: "Receipt SHA-256", replay: "Replay tutorial", explore: "Explore Real AI →", export: "Export receipt…",
       api: "Activate Real AI", apiBody: "Credentials are entered in a native secure sheet. They are never sent to this webpage or the Python controller.",
-      portal: "Open native API Portal…", disconnected: "Disconnect", apiGate: "Live AI is disabled in this increment. Entering a key does not verify it or authorize a paid request. Real interview launch stays blocked.",
+      portal: "Open native API Portal…", disconnected: "Disconnect", apiGate: "Native activation asks for your model, request limit and paid-request consent. Storing a key makes no request and does not verify access. A successful authorized reply verifies the connection; full interview launch remains blocked.",
       requests: "API requests", offline: "Offline", unverified: "Configured locally · unverified", unavailable: "Unavailable",
       connecting: "Connecting", verified: "Live · verified", saved: "Saved locally", notSaved: "Not saved locally",
       tutorialStep: "Tutorial", entryStep: "Choose experience", portalStep: "API Portal",
@@ -64,8 +88,8 @@
       recoveryReset: "Delete saved session and restart…",
       saveRecoveryBody: "The latest changes are still in memory but could not be saved. Export a recovery copy before deleting or closing this session.",
       recoveryExport: "Export a recovery copy…",
-      prepareSetup: "Prepare setup · verification pending",
-      setupPending: "Local setup only. Provider authentication is pending; no live interview or paid request is authorized.",
+      prepareSetup: "Preview interview configuration · no paid call",
+      setupPending: "Configuration preview is available without an API key and makes no model requests. Full interview launch still requires validated questions, execution adapters and host policy guards.",
       configuration: "Interview configuration", environment: "Technical environment",
       duration: "Session duration", minutes: "minutes", questionCount: "Questions · derived from duration",
       hardOnly: "Hard · fixed for real interviews", configNote: "45 minutes requires 3 questions; 60 minutes requires 4. The host validates this contract.",
@@ -91,6 +115,28 @@
       setupStep: "Real AI setup", preflightNote: "This check cannot make a paid call. Authentication, independently validated questions and a supported execution adapter are still required.",
     },
     zh: {
+      livePreview: "真实模型对话预览", livePreviewNote: "与资深面试官进行有边界的对话预览，并非完整技术面试。SQL 保持 NOT_RUN；技术能力与沟通分别保持 NOT_SCORED。",
+      previewQuestion: "已批准的对话题目 · 不评分", verifyPreview: "验证访问并打开预览 · 1 次付费请求",
+      previewSelected: "当前面试机制", previewSource: "可在配置预览中选择面试机制；此选项决定实际使用的已批准指令。",
+      previewSend: "发送给资深面试官 · 1 次付费请求", previewRetry: "重试已记录的回答 · 1 次付费请求",
+      retryRecorded: "你的回答已记录，但尚未提交模型回复。重试会发送同一段已记录文本，并消耗额外 1 次请求；不会自动重试。",
+      previewComplete: "预览对话已完成。关闭预览即可冻结记录，不会生成分数。",
+      previewClosed: "预览已关闭 · 记录已冻结", closePreview: "关闭预览并冻结记录", cancelRequest: "取消当前请求",
+      pendingRequest: "正在等待原生模型请求。取消后，迟到的回复不会被提交；已经发出的请求仍可能产生费用。",
+      liveResponse: "资深面试官 · LIVE_MODEL", noLiveResponse: "尚未提交模型回复。",
+      previewRecorded: "可信控制器已提交模型回复。", previewInput: "你的预览回答", previewPrivacy: "仅在原生窗口明确同意付费请求后，已提交文本和已批准题目才会发送给所选服务商。本地记录包含你提交的文本。",
+      requestsTotal: "本次 App 进程的请求总数", unmeasuredRequests: "用量未知的请求", model: "模型", requestLimit: "请求上限", tokenUsage: "已报告 Token", usageUnknown: "服务商未提供", usageScope: "用量来自服务商报告，不代表费用估算。",
+      previewFrozen: "冻结记录保留回复来源和已提交文本。技术能力与沟通未评分；未执行 SQL。",
+      providerConsentRequired: "请在原生 API Portal 中授权付费请求后，再验证访问。",
+      invalidCredential: "服务商拒绝了此凭证。请重新打开原生 API Portal 更换凭证。",
+      modelUnavailable: "此凭证无法访问所选模型。请在原生 API Portal 中选择可用模型。",
+      rateLimited: "服务商请求频率达到上限，没有自动重试。",
+      usageLimited: "已达到授权请求上限或服务商用量上限，没有自动发起请求。",
+      providerTimeout: "模型请求超时，没有提交模型回复。",
+      providerRefused: "服务商拒绝了此请求，没有提交模型回复。",
+      invalidProviderResponse: "模型回复未通过验证，没有提交模型回复。",
+      networkFailure: "无法连接服务商。你的文本仍然保留，仅在你选择后才重试。",
+      providerCancelled: "当前请求已取消，迟到的回复无法提交。",
       title: "TECHNICAL INTERVIEW LAB", subtitle: "认真练习，让下一次面试更从容。",
       language: "English", languageLabel: "Switch interface to English", reset: "重新开始 / 删除本地会话",
       entry: "选择你的体验", entryBody: "先熟悉面试流程，再准备真实技术面试。",
@@ -125,7 +171,7 @@
       receipt: "冻结回执", receiptNote: "回执记录教程过程和已提交文本。导出内容包含你的回答，请自行决定是否分享。",
       digest: "回执 SHA-256", replay: "重玩教程", explore: "探索真实 AI →", export: "导出回执…",
       api: "激活真实 AI", apiBody: "凭证通过原生安全窗口输入，绝不会传给此网页或 Python 控制器。",
-      portal: "打开原生 API Portal…", disconnected: "断开连接", apiGate: "此增量尚未启用真实 AI。输入 Key 不代表验证成功，也不授权付费请求。真实面试仍禁止启动。",
+      portal: "打开原生 API Portal…", disconnected: "断开连接", apiGate: "原生激活窗口会要求选择模型、请求上限并明确同意付费请求。保存 Key 不会发起请求，也不代表已验证访问权限。授权请求成功后才会验证连接；完整面试仍禁止启动。",
       requests: "API 请求数", offline: "离线", unverified: "已配置 · 未验证", unavailable: "不可用",
       connecting: "连接中", verified: "已验证 · 在线", saved: "已保存在本机", notSaved: "未保存在本机",
       tutorialStep: "教程", entryStep: "选择体验", portalStep: "API Portal",
@@ -139,8 +185,8 @@
       recoveryReset: "删除已保存会话并重新开始…",
       saveRecoveryBody: "最新变更仍保留在内存中，但尚未成功保存。请先导出恢复副本，再删除或关闭此会话。",
       recoveryExport: "导出恢复副本…",
-      prepareSetup: "准备配置 · 待验证",
-      setupPending: "仅准备本地配置。服务商身份验证仍待完成；尚未授权真实面试或付费请求。",
+      prepareSetup: "预览面试配置 · 不调用付费 API",
+      setupPending: "无需 API Key 即可预览配置，此流程不会调用模型。完整面试仍需通过题目验证、执行适配器及宿主策略检查。",
       configuration: "面试配置", environment: "技术环境", duration: "会话时长", minutes: "分钟",
       questionCount: "题目数量 · 根据时长推导", hardOnly: "Hard · 真实面试固定难度",
       configNote: "45 分钟必须为 3 题，60 分钟必须为 4 题。此约束由宿主验证。",
@@ -185,12 +231,37 @@
     errors.hidden = true;
     errors.textContent = "";
   }
+  const liveRequestActions = new Set(["preview_verify", "preview_send"]);
+  const interruptActions = new Set(["preview_cancel", "disconnect"]);
+  const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
     busy = value;
     app.setAttribute("aria-busy", String(value));
+    const livePending = hasLiveRequest();
+    const interruptPending = [...pending.values()].some(item => interruptActions.has(item.action));
     for (const element of app.querySelectorAll("button, select, textarea")) {
-      element.disabled = value || element.dataset.unavailable === "true";
+      const mayInterrupt = livePending && !interruptPending && element.dataset.interrupt === "true";
+      element.disabled = (value && !mayInterrupt) || element.dataset.unavailable === "true";
     }
+    for (const element of app.querySelectorAll("[data-live-pending]")) element.hidden = !livePending;
+  }
+  function errorText(code) {
+    const mapping = {
+      INVALID_CREDENTIALS: "invalidCredential", INVALID_CREDENTIAL: "invalidCredential", UNAUTHORIZED: "invalidCredential",
+      MODEL_UNAVAILABLE: "modelUnavailable", RATE_LIMIT: "rateLimited", RATE_LIMITED: "rateLimited",
+      REQUEST_LIMIT: "usageLimited", REQUEST_BUDGET_EXHAUSTED: "usageLimited", USAGE_LIMIT: "usageLimited",
+      TIMEOUT: "providerTimeout", PROVIDER_TIMEOUT: "providerTimeout", REFUSED: "providerRefused",
+      INVALID_RESPONSE: "invalidProviderResponse", OVERSIZED_RESPONSE: "invalidProviderResponse",
+      REDIRECT_REJECTED: "invalidProviderResponse", NETWORK_ERROR: "networkFailure", TRANSPORT_ERROR: "networkFailure",
+      CANCELLED: "providerCancelled", REQUEST_CANCELLED: "providerCancelled",
+      PROVIDER_RATE_LIMIT: "rateLimited", PROVIDER_USAGE_LIMIT: "usageLimited", REQUEST_LIMIT_REACHED: "usageLimited",
+      PROVIDER_REFUSED: "providerRefused", INVALID_PROVIDER_RESPONSE: "invalidProviderResponse",
+      PROVIDER_RESPONSE_TOO_LARGE: "invalidProviderResponse", INCOMPLETE_PROVIDER_RESPONSE: "invalidProviderResponse",
+      PROVIDER_REDIRECT_REJECTED: "invalidProviderResponse", PROVIDER_NETWORK_ERROR: "networkFailure",
+      PROVIDER_CANCELLED: "providerCancelled", PAID_CONSENT_REQUIRED: "providerConsentRequired",
+      LOCAL_CONTROLLER_UNAVAILABLE: "requestTimeout",
+    };
+    return t(mapping[code] || "requestFailed");
   }
   function request(action, params = {}) {
     clearError();
@@ -205,7 +276,9 @@
       // Native confirmation and file/credential sheets await the user's decision.
       // Their lifetime is not a provider/worker timeout.
       const awaitsHuman = ["api_portal", "reset", "tutorial_replay", "export"].includes(action);
-      const timer = awaitsHuman ? null : setTimeout(() => {
+      // Native code bounds prepare, HTTP and commit individually. A renderer timer
+      // must not abandon a paid request while native code may still commit it.
+      const timer = awaitsHuman || liveRequestActions.has(action) ? null : setTimeout(() => {
         pending.delete(id);
         setBusy(pending.size > 0);
         showError(t("requestTimeout"));
@@ -238,8 +311,9 @@
     if (hasState) {
       if (response.ok === true && (item?.action === "tutorial_replay" || item?.action === "reset")) {
         draft = "";
-        if (item.action === "reset") questionDrafts = [];
+        if (item.action === "reset") { questionDrafts = []; liveDraft = ""; liveKind = "clarify"; }
       }
+      if (response.ok === true && item?.action === "preview_verify" && state?.screen !== "LIVE_PREVIEW") { liveDraft = ""; liveKind = "clarify"; }
       state = response.state;
       // Read-only diagnostic copy for native UI tests. It is never submitted as authority.
       window.tiaState = JSON.parse(JSON.stringify(state));
@@ -248,17 +322,19 @@
     }
     if (response.ok === true && hasState) {
       if (item?.action === "tutorial_submit") announcement.textContent = t("recordedNotice");
+      if (item?.action === "preview_send") announcement.textContent = t("previewRecorded");
       item?.resolve(state);
     } else {
       const code = typeof response.error === "string" ? response.error :
         (typeof response.error?.code === "string" ? response.error.code : "HOST_ERROR");
-      showError(`${t("requestFailed")} (${code.slice(0, 100)})`);
+      showError(`${errorText(code)} (${code.slice(0, 100)})`);
       item?.reject(new Error(code));
     }
     setBusy(pending.size > 0);
   };
   function act(action, params = {}) {
-    if (busy) return;
+    if (busy && (!interruptActions.has(action) || !hasLiveRequest() ||
+        [...pending.values()].some(item => interruptActions.has(item.action)))) return;
     request(action, params).catch(() => {});
   }
   function button(id, text, handler, style = "secondary") {
@@ -318,10 +394,10 @@
     });
     add(main, list, node("p", t("simulation"), "notice"), nav(t("understand")), skip());
   }
-  function questionCard(compact = false) {
-    const q = state.question || {};
+  function questionCard(compact = false, previewQuestion = null) {
+    const q = previewQuestion || state.question || {};
     const card = node("section", null, `question-card${compact ? " compact" : ""}`);
-    add(card, badge(t("medium")), node(compact ? "h3" : "h2", q.title || "First Order per Customer"),
+    add(card, badge(t(previewQuestion ? "previewQuestion" : "medium")), node(compact ? "h3" : "h2", q.title || "First Order per Customer"),
       node("p", q.statement || "", "question-statement"), node("h3", t("schema")),
       add(node("pre", null, "code-block"), node("code", q.schema || "")));
     return card;
@@ -341,10 +417,10 @@
     }
     return grid;
   }
-  function conversation() {
+  function conversation(session = state.session, isLive = false) {
     const box = node("section", null, "conversation");
     add(box, node("h2", t("recorded")));
-    const events = (state.session?.events || []).filter(event =>
+    const events = (session?.events || []).filter(event =>
       event.actor === "candidate" || (event.actor === "interviewer" && event.kind === "reply"));
     if (!events.length) add(box, node("p", t("emptyHistory"), "muted"));
     for (const event of events) {
@@ -353,7 +429,7 @@
       const text = typeof payload.text === "string" ? payload.text : "";
       if (!text) continue;
       const entry = node("div", null, `transcript-entry ${candidate ? "candidate" : "interviewer"}`);
-      add(entry, node("div", candidate ? `${t("candidate")} · ${t(event.kind || "response")}` : t("feedback"), "transcript-speaker"),
+      add(entry, node("div", candidate ? `${t("candidate")} · ${t(event.kind || "response")}` : t(isLive && event.provenance === "LIVE_MODEL" ? "liveResponse" : "feedback"), "transcript-speaker"),
         node("p", text, "transcript-text"));
       box.appendChild(entry);
     }
@@ -428,18 +504,128 @@
     add(main, frozen, actions(button("replayTutorial", t("replay"), () => act("tutorial_replay")),
       button("realInterview", t("explore"), () => act("choose_real"), "primary")));
   }
+  function interruptButton(id, label, action) {
+    const control = button(id, label, () => act(action));
+    control.dataset.interrupt = "true";
+    return control;
+  }
+  function providerDetails() {
+    const activation = state.activation || {};
+    const detail = node("div", null, "provider-details");
+    detail.id = "providerDetails";
+    const limit = Number.isInteger(activation.request_limit) ? activation.request_limit : null;
+    add(detail, node("p", `${t("requests")}: ${requestCount()}${limit !== null ? ` / ${limit}` : ""}`));
+    if (typeof activation.model === "string" && activation.model) add(detail, node("p", `${t("model")}: ${activation.model}`));
+    if (Number.isInteger(activation.requests_total)) add(detail, node("p", `${t("requestsTotal")}: ${activation.requests_total}`));
+    if (Number.isInteger(activation.requests_without_measured_usage)) add(detail, node("p", `${t("unmeasuredRequests")}: ${activation.requests_without_measured_usage}`));
+    const usage = activation.usage;
+    const knownUsage = usage && ["input_tokens", "output_tokens", "total_tokens"].every(key => Number.isInteger(usage[key]) && usage[key] >= 0);
+    add(detail, node("p", `${t("tokenUsage")}: ${knownUsage ? `${usage.input_tokens} input · ${usage.output_tokens} output · ${usage.total_tokens} total` : t("usageUnknown")}`),
+      node("p", t("usageScope"), "field-help"));
+    if (activation.error_code) add(detail, node("p", errorText(activation.error_code), "notice"));
+    return detail;
+  }
+  function previewStartCard() {
+    const card = node("section", null, "preview-start-card");
+    const mechanism = state.setup_config?.interviewer_mechanism || "STRICT_CHALLENGING";
+    add(card, node("h2", t("livePreview")), node("p", t("livePreviewNote")),
+      node("p", `${t("previewSelected")}: ${t(mechanism === "STRICT_CHALLENGING" ? "strict" : "supportive")}`, "notice"),
+      node("p", t("previewSource"), "field-help"));
+    const verify = button("verifyPreview", t("verifyPreview"), () => act("preview_verify"), "primary full-width");
+    const enabled = state.activation?.live_enabled === true;
+    verify.dataset.unavailable = String(!enabled);
+    verify.disabled = !enabled;
+    add(card, verify);
+    if (state.live_preview && !state.live_preview.closed) {
+      add(card, button("closeExistingPreview", t("closePreview"), () => act("preview_close")));
+    }
+    if (!enabled) add(card, node("p", t("providerConsentRequired"), "field-help"));
+    return card;
+  }
   function apiPortal(main) {
     add(main, badge(t("portalStep")), heading(t("api")), node("p", t("apiBody"), "lead"));
     const card = node("section", null, "portal-card");
-    add(card, node("h2", "OpenAI"), badge(modelLabel()), node("p", t("apiGate"), "notice"),
-      node("p", `${t("requests")}: ${requestCount()}`, "muted"),
+    add(card, node("h2", "OpenAI"), badge(modelLabel()), node("p", t("apiGate"), "notice"), providerDetails(),
       actions(button("openPortal", t("portal"), () => act("api_portal"), "primary"),
-        button("disconnect", t("disconnected"), () => act("disconnect"))));
-    if (state.activation?.state === "activated-unverified") {
-      add(card, node("p", t("setupPending"), "notice"),
-        button("prepareSetup", t("prepareSetup"), () => act("setup_continue"), "primary full-width"));
-    }
+        interruptButton("disconnect", t("disconnected"), "disconnect")),
+      previewStartCard(), node("p", t("setupPending"), "notice"),
+      button("prepareSetup", t("prepareSetup"), () => act("setup_continue"), "secondary full-width"));
     add(main, card, nav());
+  }
+  function previewProvenance(profile) {
+    if (!profile) return null;
+    const detail = node("details", null, "question-review");
+    add(detail, node("summary", t("profileDigest")), node("code", profile.sha256 || "UNVERIFIED", "digest"),
+      node("p", profile.policy_version || "", "digest"));
+    const list = node("ul", null, "source-digests");
+    for (const [path, hash] of Object.entries(profile.source_sha256 || {})) {
+      add(list, add(node("li"), node("span", path), node("code", hash, "digest")));
+    }
+    add(detail, list);
+    return detail;
+  }
+  function livePreview(main) {
+    const preview = state.live_preview || {};
+    add(main, add(node("div", null, "title-row"), heading(t("livePreview")), badge(modelLabel(), "accent")),
+      node("p", t("livePreviewNote"), "lead"), providerDetails());
+    const columns = node("div", null, "room-grid");
+    add(columns, add(node("aside", null, "question-side"), questionCard(true, preview.question || {}),
+      node("p", t("noTests"), "notice")));
+    const work = node("section", null, "work-side");
+    add(work, node("h2", t("senior")),
+      node("p", t(preview.mechanism === "PROFESSIONAL_SUPPORTIVE" ? "supportive" : "strict"), "muted"));
+    if (preview.closed) {
+      add(work, node("h2", t("previewClosed")), node("p", t("previewFrozen")));
+    } else if (preview.can_send || preview.pending || preview.retry_input) {
+      const retry = preview.retry_input;
+      const kind = selectField("previewKind", t("kind"),
+        ["clarify", "plan", "help", "implement"].map(value => [value, t(value)]), retry?.kind || liveKind);
+      kind.select.addEventListener("change", () => { liveKind = kind.select.value; });
+      kind.select.dataset.unavailable = String(Boolean(retry));
+      const label = node("label", t("previewInput")); label.htmlFor = "previewResponse";
+      const input = node("textarea"); input.id = "previewResponse"; input.rows = 8;
+      input.maxLength = 4096; input.spellcheck = false; input.autocapitalize = "off";
+      input.value = retry?.text ?? liveDraft; input.placeholder = t("placeholder"); input.readOnly = Boolean(retry);
+      input.setAttribute("aria-describedby", "previewResponseHelp");
+      const helper = node("p", retry ? t("retryRecorded") : t("previewPrivacy"), "field-help"); helper.id = "previewResponseHelp";
+      const send = () => act("preview_send", {kind: kind.select.value, text: input.value});
+      const submit = button("sendPreview", t(retry ? "previewRetry" : "previewSend"), send, "primary full-width");
+      const inputSize = node("p", "", "field-help");
+      const validateInput = () => {
+        const size = new TextEncoder().encode(input.value).length;
+        inputSize.textContent = `${size} / 4096 ${t("bytes")}`;
+        input.setAttribute("aria-invalid", String(size > 4096));
+        const unavailable = !preview.can_send || state.activation?.live_enabled !== true || state.activation?.authenticated !== true || size > 4096 || !input.value.trim();
+        submit.dataset.unavailable = String(unavailable);
+        submit.disabled = busy || unavailable;
+      };
+      input.addEventListener("input", () => { liveDraft = input.value; validateInput(); });
+      validateInput();
+      input.addEventListener("keydown", event => {
+        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+          event.preventDefault(); if (!busy && submit.dataset.unavailable !== "true") send();
+        }
+      });
+      add(work, kind.field, label, input, inputSize, helper, submit);
+    } else add(work, node("p", t("previewComplete"), "notice"));
+    add(columns, work);
+    add(main, columns, conversation(preview.session, true), scores(), previewProvenance(preview.prompt_provenance));
+    if (preview.session?.receipt) {
+      const receipt = preview.session.receipt;
+      add(main, add(node("section", null, "receipt-card"), node("h2", t("receipt")), node("p", t("previewFrozen")),
+        node("span", t("digest"), "eyebrow"), node("code", receipt.sha256 || "", "digest"),
+        button("exportPreview", t("export"), () => act("export"))));
+    }
+    if (!preview.closed && state.activation?.authenticated !== true) {
+      const verify = button("verifyPreview", t("verifyPreview"), () => act("preview_verify"), "primary full-width");
+      verify.dataset.unavailable = String(state.activation?.live_enabled !== true);
+      add(main, verify);
+      if (state.activation?.live_enabled !== true) add(main, node("p", t("providerConsentRequired"), "notice"));
+    }
+    add(main, actions(button("openPortal", t("portal"), () => act("api_portal")),
+      interruptButton("disconnect", t("disconnected"), "disconnect")),
+      actions(preview.closed ? button("realInterview", t("portalStep"), () => act("choose_real")) :
+        button("closePreview", t("closePreview"), () => act("preview_close"), "primary")));
   }
   function configValues(overrides = {}) {
     const current = state.setup_config || {};
@@ -654,7 +840,8 @@
     add(blockers, node("h2", t("blockers")), issueList(state.setup_blockers || []),
       node("p", t("preflightNote"), "muted"));
     add(main, blockers, node("p", t("rubricNote"), "notice"), scores(true),
-      setupNav(button("launchPreflight", t("launchPreflight"), () => act("setup_launch"), "primary")));
+      setupNav(button("launchPreflight", t("launchPreflight"), () => act("setup_launch"), "primary")),
+      previewStartCard());
   }
   function requestCount() {
     const count = state.activation?.requests_used ?? state.api_requests;
@@ -683,17 +870,18 @@
     const step = Number.isInteger(state.tutorial_step) ? Math.min(5, Math.max(0, state.tutorial_step)) : 0;
     const setupStep = {CONFIG: 1, QUESTION_SOURCE: 2, MECHANISM: 3, REVIEW: 4}[state.screen];
     const label = setupStep ? `${t("setupStep")} ${setupStep} / 4` :
-      state.screen === "ENTRY" ? t("entryStep") : state.screen === "API_PORTAL" ? t("portalStep") : `${t("tutorialStep")} ${step} / 5`;
+      state.screen === "ENTRY" ? t("entryStep") : state.screen === "API_PORTAL" ? t("portalStep") :
+      state.screen === "LIVE_PREVIEW" ? t("livePreview") : `${t("tutorialStep")} ${step} / 5`;
     const meter = node("progress");
     meter.max = setupStep ? 4 : 5;
-    meter.value = setupStep || step;
+    meter.value = state.screen === "LIVE_PREVIEW" ? (state.live_preview?.closed ? 5 : 3) : setupStep || step;
     meter.setAttribute("aria-label", label);
     add(progress, add(node("div", null, "progress-label"), badge(label),
-      node("span", state.screen === "API_PORTAL" || setupStep ? modelLabel() : t("simulated"), "muted")), meter);
+      node("span", ["API_PORTAL", "LIVE_PREVIEW"].includes(state.screen) || setupStep ? modelLabel() : t("simulated"), "muted")), meter);
     const main = node("main"); main.id = "main";
     const screens = {
       ENTRY: entry, WELCOME: welcome, RULES: rules, QUESTION: question, ROOM: room, COMPLETE: complete,
-      API_PORTAL: apiPortal, CONFIG: configuration, QUESTION_SOURCE: questionSource, MECHANISM: mechanism, REVIEW: setupReview,
+      API_PORTAL: apiPortal, LIVE_PREVIEW: livePreview, CONFIG: configuration, QUESTION_SOURCE: questionSource, MECHANISM: mechanism, REVIEW: setupReview,
     };
     if (state.recovery_error) {
       const saveUnavailable = state.recovery_error === "SAVE_UNAVAILABLE" ||
@@ -704,10 +892,19 @@
           button("recoverReset", t("recoveryReset"), () => act("reset"), saveUnavailable ? "secondary" : "primary")));
     } else if (screens[state.screen]) screens[state.screen](main);
     else { add(main, heading(t("requestFailed"))); showError("UNKNOWN_HOST_SCREEN"); }
+    const livePending = node("section", null, "live-request-controls");
+    livePending.dataset.livePending = "true";
+    livePending.setAttribute("role", "status");
+    add(livePending, node("p", t("pendingRequest")), actions(
+      interruptButton("cancelPreview", t("cancelRequest"), "preview_cancel"),
+      interruptButton("disconnectPending", t("disconnected"), "disconnect")));
+    livePending.hidden = !hasLiveRequest();
     const footer = node("footer", null, "footer");
     add(footer, node("span", `${modelLabel()} · ${t("requests")}: ${requestCount()}`),
       node("span", state.saved_locally ? t("saved") : t("notSaved")));
-    add(shell, header, progress, main, footer);
+    add(shell, header);
+    if (state.transport_mode === "MOCK_HTTP") add(shell, node("p", "AUTOMATED TEST · MOCK HTTP · NO REAL PROVIDER CALLS", "setup-warning"));
+    add(shell, progress, livePending, main, footer);
     app.replaceChildren(shell);
     setBusy(pending.size > 0);
     if (previousScreen !== state.screen) {

@@ -22,7 +22,8 @@ for name, target in [("ui", "ui"), ("tia_runtime", "runtime/tia_runtime"),
         raise SystemExit("UNSAFE_BUNDLE_SOURCE")
     shutil.copytree(source, staged / target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 manifest = {"schema": "tia-app-build/v1", "version": "0.3.0",
-            "live_transport_enabled": False, "development_python": "/usr/bin/python3",
+            "live_transport_enabled": True, "paid_consent_required": True,
+            "live_api_uat": "NOT_RUN", "development_python": "/usr/bin/python3",
             "sources": {str(p.relative_to(staged)): hashlib.sha256(p.read_bytes()).hexdigest()
                         for p in staged.rglob("*") if p.is_file()}}
 (staged / "build-manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")

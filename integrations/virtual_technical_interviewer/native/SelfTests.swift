@@ -45,6 +45,12 @@ func runNativeTests() -> Int32 {
     check("Easy configuration rejected", BridgePolicy.validate(request("setup_config", ["config": invalid])) == nil)
     check("bounded question slots", BridgePolicy.validate(request("setup_questions", ["questions": Array(repeating: "x", count: 5)])) == nil)
     check("bounded pasted bytes", BridgePolicy.validate(request("setup_questions", ["questions": [String(repeating: "中", count: 1366)]])) == nil)
+    for action in ["native_prepare_preview", "native_commit_preview", "native_cancel_preview"] {
+        check("native-only handshake " + action, BridgePolicy.validate(request(action)) == nil)
+    }
+    check("bounded preview input", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "one row per customer"])) != nil)
+    check("preview cannot issue test execution", BridgePolicy.validate(request("preview_send", ["kind": "test", "text": "run"])) == nil)
+    check("preview cannot inject mechanism or authority", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "x", "mechanism": "STRICT_CHALLENGING"])) == nil)
     let portal = NativePortal()
     check("offline initially", portal.state == "offline")
     check("empty key not activated", !portal.configure("", consent: true) && portal.state == "offline")

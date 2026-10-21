@@ -25,7 +25,94 @@ final class TIAUISmoke {
     """
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
-    private var steps: [Step] { recovering ? [
+    private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
+    private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
+    private var failureTesting: Bool { CommandLine.arguments.contains("--ui-provider-failure-test") }
+    private var steps: [Step] { failureTesting ? [
+        Step(label: "failure journey opens synthetic native consent", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');await press('realInterview','API_PORTAL');return {ok:true};
+        """),
+        Step(label: "401 is visible and commits no false interviewer event", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');
+          try{await request('preview_verify');return {ok:false};}catch(e){if(e.message!=='INVALID_CREDENTIALS')return {ok:false};}
+          const s=await snap();return {ok:s.screen==='API_PORTAL'&&s.activation.state==='unavailable'&&!s.activation.authenticated&&s.activation.requests_total===1
+          &&s.live_preview.verified_response_count===0&&!s.live_preview.pending};
+        """),
+        Step(label: "failure journey reopens synthetic native consent", code: """
+          el('openPortal').click();await pause(100);return {ok:true};
+        """),
+        Step(label: "native timeout creates no response and never automatically retries", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');
+          try{await request('preview_verify');return {ok:false};}catch(e){if(e.message!=='PROVIDER_TIMEOUT')return {ok:false};}
+          await pause(200);const s=await snap();return {ok:s.activation.requests_total===2&&s.live_preview.verified_response_count===0&&!s.live_preview.pending};
+        """),
+        Step(label: "explicit retry can verify via actual mocked transport", code: """
+          await press('verifyPreview','LIVE_PREVIEW');const s=await snap();
+          return {ok:s.activation.authenticated===true&&s.activation.requests_total===3&&s.live_preview.verified_response_count===1};
+        """),
+        Step(label: "pending cancellation crosses native and controller without late commit", code: """
+          el('previewKind').value='help';el('previewResponse').value='Synthetic candidate diagnosis retained after cancellation.';
+          el('previewResponse').dispatchEvent(new Event('input',{bubbles:true}));el('sendPreview').click();
+          await until(()=>window.tiaState.activation.state==='connecting');
+          if(el('cancelPreview').disabled||el('cancelPreview').closest('[hidden]'))return {ok:false};
+          el('cancelPreview').click();await until(()=>!document.querySelector('[aria-busy="true"]'));await pause(1200);
+          const s=await snap();return {ok:s.activation.requests_total===4&&s.live_preview.verified_response_count===1&&!s.live_preview.pending
+          &&s.live_preview.session.events.filter(e=>e.actor==='candidate').length===1&&!!s.live_preview.retry_input};
+        """),
+        Step(label: "explicit retry reuses recorded candidate evidence then freezes receipt", code: """
+          await press('sendPreview');await until(()=>window.tiaState.live_preview.verified_response_count===2);await press('closePreview');
+          const s=await snap();return {ok:s.activation.requests_total===5&&s.live_preview.closed&&s.live_preview.session.events.filter(e=>e.actor==='candidate').length===1
+          &&s.live_preview.session.receipt.live_model_used===true};
+        """)
+    ] : liveRecovering ? [
+        Step(label: "live receipt reopens without credentials or automatic provider requests", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');const s=await snap();
+          return {ok:s.activation.state==='offline'&&s.activation.requests_used===0&&s.live_preview.closed===true&&s.live_preview.session.receipt.live_model_used===true};
+        """),
+        Step(label: "recovered live evidence and independent unscored fields remain intact", code: """
+          const s=await snap(),p=s.live_preview;
+          return {ok:p.session.receipt.sha256.length===64&&p.session.receipt.assessment.technical.status==='NOT_SCORED'&&p.session.receipt.assessment.communication.status==='NOT_SCORED'
+          &&p.session.events.some(e=>e.provenance==='LIVE_MODEL')&&p.execution_status==='NOT_RUN'&&!!p.session.review};
+        """)
+    ] : liveTesting ? [
+        Step(label: "mock live journey opens actual native paid-consent sheet", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');await press('realInterview','API_PORTAL');
+          return {ok:!!el('prepareSetup')&&window.tiaState.activation.requests_used===0&&document.querySelectorAll('input[type=password]').length===0};
+        """),
+        Step(label: "explicit activation alone remains unverified with zero requests", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');const s=await snap();
+          return {ok:s.activation.live_enabled===true&&s.activation.authenticated===false&&s.activation.requests_used===0&&!!el('verifyPreview')};
+        """),
+        Step(label: "native mock HTTP response crosses Python commit and verifies preview", code: """
+          await press('verifyPreview','LIVE_PREVIEW');const s=await snap(),p=s.live_preview;
+          return {ok:s.activation.state==='live-verified'&&s.activation.requests_used===1&&p.session.events.some(e=>e.actor==='interviewer'&&e.provenance==='LIVE_MODEL')
+          &&p.execution_status==='NOT_RUN'&&p.technical==='NOT_SCORED'&&p.communication==='NOT_SCORED'&&s.transport_mode==='MOCK_HTTP'};
+        """),
+        Step(label: "candidate help and real native transport keep model output unscored", code: """
+          el('previewKind').value='help';el('previewResponse').value='Synthetic: I identified timestamp ties. May I have a hint? <script>window.liveInjection=true</script>';
+          el('previewResponse').dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
+          await until(()=>window.tiaState.activation.requests_used===2&&window.tiaState.activation.state==='live-verified');const s=await snap(),p=s.live_preview;
+          return {ok:p.session.events.some(e=>e.actor==='candidate'&&e.payload.text.includes('<script>'))&&!window.liveInjection
+          &&p.session.events.filter(e=>e.provenance==='LIVE_MODEL').length===2&&p.execution_status==='NOT_RUN'&&s.activation.usage.total_tokens===312};
+        """),
+        Step(label: "preview uses compiled instruction provenance and compact accessible controls", code: """
+          await pause(200);const s=await snap();
+          return {ok:s.live_preview.prompt_provenance.sha256.length===64&&document.documentElement.scrollWidth<=innerWidth+1&&!!el('closePreview')&&!JSON.stringify(s).includes('synthetic-ui-fixture')};
+        """, compact: true),
+        Step(label: "host closure freezes LIVE_MODEL evidence with no SQL or scores", code: """
+          await press('closePreview');const s=await snap(),p=s.live_preview;window.liveFrozen=p.session.receipt.sha256;
+          return {ok:p.closed&&p.session.receipt.live_model_used===true&&p.session.receipt.sql_executed===false&&p.session.review
+          &&p.session.receipt.assessment.technical.status==='NOT_SCORED'&&p.session.receipt.assessment.communication.status==='NOT_SCORED'};
+        """),
+        Step(label: "closed preview rejects a late turn without new HTTP or receipt edits", code: """
+          try{await request('preview_send',{kind:'plan',text:'late attempt'});return {ok:false};}catch(e){}
+          const s=await snap();return {ok:s.activation.requests_used===2&&s.live_preview.session.receipt.sha256===window.liveFrozen};
+        """),
+        Step(label: "disconnect clears authentication and retains truthful usage history", code: """
+          await request('disconnect');const s=await snap();
+          return {ok:s.activation.state==='offline'&&s.activation.authenticated===false&&s.activation.requests_total===2&&s.live_preview.session.receipt.sha256===window.liveFrozen};
+        """)
+    ] : recovering ? [
         Step(label: "reopened native App restores saved screen and completed S02 session", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           const s=await snap();return {ok:s.screen==='API_PORTAL'&&s.language==='zh'&&s.session.phase==='COMPLETE'&&s.saved_locally===true&&s.activation.state==='offline'};
@@ -35,18 +122,31 @@ final class TIAUISmoke {
           &&s.session.receipt.sha256.length===64&&s.session.review&&s.trainer_preview.evidence_ids.length===3&&s.api_requests===0};
         """)
     ] : setupTesting ? [
-        Step(label: "empty/offline activation cannot enter setup through native bridge", code: """
+        Step(label: "configuration still requires the API Portal entry step", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           try {await request('setup_continue');return {ok:false};}catch(e){}
           return {ok:window.tiaState.screen==='ENTRY'&&window.tiaState.activation.state==='offline'};
         """),
+        Step(label: "keyless setup can cancel the mandatory first API Portal", code: """
+          await press('realInterview','API_PORTAL');return {ok:!!el('prepareSetup')&&document.querySelectorAll('input[type=password]').length===0};
+        """),
+        Step(label: "keyless Wizard reaches review and full launch stays blocked with zero requests", code: """
+          await press('prepareSetup','CONFIG');await press('nextSetup','QUESTION_SOURCE');
+          await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,difficulty:'HARD',question_source:'RANDOM_GENERATED',interviewer_mechanism:'STRICT_CHALLENGING'}});
+          await press('reviewQuestions','MECHANISM');await press('reviewSetup','REVIEW');
+          try{await request('setup_launch');return {ok:false};}catch(e){if(e.message!=='LAUNCH_BLOCKED')return {ok:false};}
+          const s=await snap();if(s.activation.authenticated||s.activation.requests_used!==0||s.setup_config.question_count!==3)return {ok:false};
+          await request('setup_back');await request('setup_back');await request('setup_back');
+          await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,difficulty:'HARD',question_source:'BYOQ',interviewer_mechanism:'STRICT_CHALLENGING'}});
+          await request('setup_back');await request('setup_back');return {ok:window.tiaState.screen==='API_PORTAL'};
+        """),
         Step(label: "setup begins with actual native secure credential sheet", code: """
-          await press('realInterview','API_PORTAL');return {ok:!el('prepareSetup')&&document.querySelectorAll('input[type=password]').length===0};
+          el('openPortal').click();await pause(100);return {ok:document.querySelectorAll('input[type=password]').length===0};
         """),
         Step(label: "synthetic native credential is only locally configured and unverified", code: """
           await until(()=>window.tiaState.activation.state==='activated-unverified');
           await press('prepareSetup','CONFIG');const s=await snap();
-          return {ok:s.activation.authenticated===false&&s.activation.live_enabled===false&&s.activation.requests_used===0&&s.session===null};
+          return {ok:s.activation.authenticated===false&&s.activation.live_enabled===true&&s.activation.requests_used===0&&s.session===null};
         """),
         Step(label: "60 minutes derives four and 45 derives three Hard questions", code: """
           el('durationMinutes').value='60';el('durationMinutes').dispatchEvent(new Event('change'));
@@ -82,11 +182,12 @@ final class TIAUISmoke {
           await press('reviewSetup','REVIEW');const s=await snap();
           return {ok:s.setup_profiles.interviewer.sha256!==window.supportiveDigest&&s.setup_profiles.interviewer.forbidden_authorities.includes('scoring')};
         """),
-        Step(label: "disconnect clears credential and native gate reblocks draft commands", code: """
+        Step(label: "disconnect keeps full launch blocked while keyless draft remains usable", code: """
           await request('disconnect');
           try {await request('setup_launch');return {ok:false};}catch(e){}
+          await request('setup_back');
           const s=await snap();
-          return {ok:s.activation.state==='offline'&&s.activation.authenticated===false&&s.activation.requests_used===0&&!JSON.stringify(s).includes('synthetic-ui-fixture')};
+          return {ok:s.screen==='MECHANISM'&&s.activation.state==='offline'&&s.activation.authenticated===false&&s.activation.requests_used===0&&!JSON.stringify(s).includes('synthetic-ui-fixture')};
         """)
     ] : [
         Step(label: "entry offers exactly two experience choices and zero API requests", code: """
@@ -147,8 +248,9 @@ final class TIAUISmoke {
           return {ok:s.activation.state==='offline'&&s.activation.authenticated===false&&s.activation.requests_used===0&&s.session.receipt.sha256===window.frozenDigest};
         """),
         Step(label: "native human decision stays pending beyond twenty seconds without false timeout", code: """
-          el('openPortal').click();await pause(21000);
-          return {ok:el('error').hidden&&document.querySelector('[aria-busy="true"]')!==null&&window.tiaState.activation.requests_used===0};
+          const before={disabled:el('openPortal').disabled,busy:document.querySelector('[aria-busy="true"]')!==null};el('openPortal').click();await pause(21000);
+          return {ok:el('error').hidden&&document.querySelector('[aria-busy="true"]')!==null&&window.tiaState.activation.requests_used===0,
+            before,error:el('error').textContent,busy:document.querySelector('[aria-busy="true"]')!==null,requests:window.tiaState.activation.requests_used};
         """),
         Step(label: "delayed native cancel resolves the original request and keeps zero usage", code: """
           await until(()=>!document.querySelector('[aria-busy="true"]'));
@@ -170,21 +272,23 @@ final class TIAUISmoke {
     }
     private func step() {
         guard !done, let app = app else { return }
-        guard next < steps.count else { end(true, "\(steps.count) real UI checks; zero API requests"); return }
+        guard next < steps.count else { end(true, "\(steps.count) real UI checks; \(TIATestHTTPProtocol.calls) mocked HTTP requests; zero real provider requests"); return }
         let step = steps[next]
         if step.compact { app.window.setContentSize(NSSize(width: 720, height: 600)) }
         app.webView.callAsyncJavaScript(helper + "\n" + step.code, arguments: [:], in: nil, in: .page) { [weak self] result in
             guard let self = self, !self.done else { return }
             guard case .success(let value) = result, let object = value as? [String: Any], object["ok"] as? Bool == true else {
                 print("UI check detail: \(result)")
+                print("Native portal visible: \(app.portalIsVisible)")
                 self.end(false, step.label); return
             }
             if step.label == "real AI immediately enters native API Portal ahead of config" ||
+                step.label == "keyless setup can cancel the mandatory first API Portal" ||
                 step.label == "native human decision stays pending beyond twenty seconds without false timeout" {
                 guard app.portalIsVisible else { self.end(false, "Native API sheet not visible"); return }
                 app.cancelPortalForTest()
             }
-            if step.label == "setup begins with actual native secure credential sheet" {
+            if step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" {
                 guard app.enterSyntheticCredentialForTest() else { self.end(false, "Synthetic native input failed"); return }
             }
             self.receipts.append(["test": step.label, "status": "PASSED"])
@@ -198,7 +302,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.failureTesting ? "failure-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -218,9 +322,9 @@ final class TIAUISmoke {
         guard !done else { return }; done = true
         let receipt: [String: Any] = ["schema": "tia-native-ui-test/v1", "passed": receipts.count,
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
-            "api_requests": 0, "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting, "human_uat": "NOT_RUN"]
+            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting, "human_uat": "NOT_RUN"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(failureTesting ? "ui-provider-failure-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

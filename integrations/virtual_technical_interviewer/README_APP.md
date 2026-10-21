@@ -1,87 +1,101 @@
 # Technical Interview Lab — local macOS App
 
-Build and open from the repository root:
+From the repository root:
 
 ```sh
 bash integrations/virtual_technical_interviewer/scripts/build_app.sh
 open "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app"
 ```
 
-This unsigned development bundle requires macOS 12+, the installed Swift toolchain
-to build, and `/usr/bin/python3` to run. It downloads nothing and contains no
-network transport. It is a first playable development App, not a portable signed release.
+This unsigned development App requires macOS 12+, the installed Swift toolchain
+to build, and `/usr/bin/python3` to run. It downloads no dependencies. It is not a
+portable signed release.
 
-Choose **Guided Onboarding**. Five screens introduce the rules and one fixed
-Medium PostgreSQL question. In the room, select Clarification, Plan, SQL, Test
-intention or Help; type and record a response. The native bridge sends it to the
-existing S02 `InterviewController`. Finish freezes its receipt, performs the
-host's handoff-eligibility review, and lets the separate Trainer show a scripted
-drill and unfamiliar follow-up. SQL is **NOT_RUN** and both independent assessment
-dimensions are **NOT_SCORED**. Feedback is explicitly simulated.
+**Guided Onboarding** remains completely offline. Its five screens use one fixed
+Medium PostgreSQL question and the original S02 controller. Submitted text is
+recorded, feedback is **SIMULATED**, SQL is **NOT_RUN**, and Technical Capability
+and Communication remain separately **NOT_SCORED**. Host closure freezes the
+receipt before the separate Trainer receives its permitted scripted review.
 
-The interface supports English/Chinese, Tab/Enter navigation, Command+Enter to
-record, reduced motion, Back, Replay and Skip. Selecting Real AI or Skip opens the
-native API Portal immediately. A nonempty credential can only be kept in native
-session memory with consent; it remains **activated-unverified**, not authenticated.
-Empty credentials are rejected. Disconnect/quit drops the credential reference.
-No key enters Python, WebKit, exports or logs. **No paid requests are possible in
-this build.** Human live-provider approval remains outstanding.
+**Real AI Interview** immediately opens the native API Portal. Cancel it and use
+**Preview interview configuration** to explore the entire Wizard without a key
+or paid request. The exact 16 configurations remain PostgreSQL/Pandas, 45/60
+minutes with derived 3/4 Hard questions, BYOQ/random source, and Strict/Supportive.
+BYOQ accepts editable JSON or labeled fields, up to 4,096 UTF-8 bytes per question;
+structural validation never authorizes grading. The absent validated pool and
+execution adapters continue to block full interview launch.
 
-After choosing to retain a credential in native memory, **Prepare setup —
-verification pending** opens an explicitly unverified draft wizard: environment
-and duration → question source → Senior Interviewer mechanism → review/preflight.
-This preparation path is not native authentication. The provider has not accepted
-the credential and the App will not launch a live session from it. No credential
-is needed for Guided Onboarding.
+S03-C adds **Live Conversational Preview**. In the native sheet choose a model
+(default `gpt-4.1-mini`), a cap of 1/2/5/10/20 requests, and explicitly consent to
+paid usage. Activation stores the key only in native process memory and makes
+**zero requests**: status is `activated-unverified`. **Verify access & open
+preview** uses one authorized request. Only a successful, schema-valid response
+can produce `live-verified`. Then one candidate turn, at most 4,096 UTF-8 bytes,
+can receive a model-backed Senior Interviewer reply. Each explicit retry uses an
+additional request; it preserves the same already-recorded candidate evidence.
+Close the preview to freeze and review its receipt. This is an **unscored
+conversation**, not a full technical interview or SQL correctness test.
 
-Real-interview drafts accept only PostgreSQL/Pandas, 45/60 minutes (derived 3/4
-questions), HARD, BYOQ/random generation and the two specified Senior mechanisms.
-BYOQ accepts editable JSON or labeled text, up to 4,096 UTF-8 bytes per question.
-Required fields are `problem_statement`, `task`, `schema`, `example_input`,
-`expected_output`, `environment`, `source`; optional fields are `constraints` and
-`source_reference`. Sources are OWNER/LEETCODE/HACKERRANK. Structural review does
-not prove correctness, difficulty or fixture validity. Missing/duplicate slots
-block progress. Random generation is selectable as a draft; its absent approved
-pool blocks launch. No questions are silently supplied.
+Select Strict or Supportive through the configuration Wizard before verifying.
+Both compile the existing verified identity, soul, AGENTS and skills sources;
+effective instruction and policy hashes accompany each committed response.
+Strict help requests authorize a refusal; Supportive authorizes a diagnostic
+question without a solution. Unclear requirements follow corrected B05
+clarification/reassessment. These are engineering policies pending human UAT;
+60/40 remains provisional and no numerical score is assigned. The host protects
+authority and reference access; prompt compliance in natural language still
+requires live UAT. Live Trainer calls are not enabled in this slice.
 
-Both mechanisms compile their allowlisted, versioned source set into separate effective
-instructions, with source/policy/configuration digests visible in review.
-Human UAT of these engineering policy choices remains pending. Strict help
-refusal versus supportive diagnostic questioning is a host-policy fixture test;
-it is not evidence of a live model's personality. Preflight always refuses launch
-until authentication and independent execution are implemented and validated.
+Swift alone sends HTTPS to `https://api.openai.com/v1/responses`, using ephemeral
+URLSession, no redirects/retries, 30-second timeout, 600 output-token maximum,
+bounded bodies, strict JSON and a native request cap. The cap is not a currency
+budget. Actual token usage is shown only when supplied; missing/error/cancelled
+usage remains unknown. Totals cover measured responses in the current App
+process; per-activation and process-lifetime attempts are tracked separately.
+No real key enters Python, WebKit, subprocess arguments, saved data, exports or
+logs. Disconnect/quit clears the native credential reference. Provider retention
+policies still apply even with `store:false`.
 
-Progress and recorded input are stored privately in
+The Python Worker prepares approved prompts, Swift performs the asynchronous
+request, and Python validates/commits a bounded reply. Native-only IPC commands
+are not WebKit bridge actions. Request IDs, activation generations, session phase
+and event revision reject stale, duplicate or closed-session replies. Cancel or
+disconnect before commitment invalidates the pending response; an already-sent
+request may still be billed. Once native has submitted an atomic controller
+commit, cancellation cannot undo that saved turn; the App reports this boundary.
+Model text cannot issue commands, authorize hints, execute code or assign scores.
+
+Progress is saved privately at
 `~/Library/Application Support/Technical Interview Lab/tutorial-v1.json` (0600,
-directory 0700). Native restart restores the bounded deterministic command journal
-through S02 and verifies its state digest. Tutorial clock samples measure active
-process time, not interview performance. Unsubmitted editor drafts are not saved.
-These digests detect accidental changes; they are not signatures against a local
-file owner. An incompatible/corrupt save is preserved until explicit reset.
-Restart/Delete and Replay require native confirmation. Reset deletes the app's
-save and crash staging files; it cannot delete exports elsewhere. A save-write
-failure preserves current input for rescue export before reset.
+directory 0700). It includes submitted tutorial/preview text and model replies.
+Reopening replays a bounded command journal without network calls, invalidates
+unfinished native transactions and starts provider status offline. Previous
+offline receipts stay compatible. Up to eight closed previews can be archived
+before reset. An incompatible/corrupt save is preserved until explicit reset;
+save errors permit rescue export. Digests detect accidental changes and are not
+signatures against a local file owner. Unsubmitted editor drafts are not saved.
 
-Export uses a native Save panel and includes submitted text/code, transcript,
-frozen receipt, separate assessment fields and Trainer preview. It is local,
-explicit, and contains personal input if you entered it. There is no telemetry.
+Restart/Delete requires native confirmation and deletes the App save and crash
+staging files, including preview history. It does not delete previously exported
+files. Export uses a native Save panel, includes personal submitted text and
+frozen evidence, and does not transmit it. Failed-request totals cannot be
+reconstructed after restart; committed reply usage remains in the transcript.
+There is no telemetry. English/Chinese, keyboard controls and reduced motion are
+supported.
 
-Verify offline:
+Run all automated verification, with **mocked HTTP only**:
 
 ```sh
-python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --ui --regressions
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-C --ui --regressions
 ```
 
-`--ui` opens actual WKWebView windows using isolated synthetic storage, exercises
-native keyboard events and the controller, and reopens the App to verify recovery.
-It never reads your normal save or enters a real credential. Sanitized logs and
-receipts live under `engineering/s03_first_playable/verification/`; generated
-bundles and scratch test data remain ignored.
+The UI tests open actual native windows and use isolated synthetic storage.
+Allow them to operate their own credential sheets; never enter a real key in a
+test window. Every automated App mode installs a fail-closed URLProtocol mock.
+Receipts are in `engineering/s03c_live_byok/verification/`. Generated bundles and
+scratch data stay ignored. Historical S03-A/B receipts are preserved.
 
-Engineering references: Witness's native worker/navigation/provider boundaries,
-the existing S02 controller, and HAL's trusted-host pattern. TIA is **not registered
-with the shared Witness interactive HAL registry**; no shared registry authority
-was expanded. S03-B configuration, BYOQ and prompt-policy primitives are tested
-through the same native/controller wizard as well as unit tests. Real execution,
-live AI, calibrated scoring, full Atlas coverage and
-the expanded dataset/Pandas product remain future increments.
+[S03-C handoff and separately authorized live UAT](engineering/s03c_live_byok/HANDOFF.md)
+document measured verification and remaining gates. No paid live test has been
+performed by this implementation task. TIA has not been registered with the
+shared Witness HAL interactive registry; no shared authority was expanded.

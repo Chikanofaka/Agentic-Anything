@@ -22,9 +22,10 @@ import uuid
 
 from .controller import InterviewController, SessionConfig, SessionError
 from .persistence import SaveError, TutorialStore, strict_json
-from .prompt_profiles import ProfileError, compile_profile
+from .prompt_profiles import ProfileError, compile_profile, compile_live_profile, decide_interaction
 from .provider import ModelPortalError
 from .setup import SetupError, assess_allocation, review_question, validate_config
+from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, validate_commit
 
 
 PROTOCOL = "tia-native-tutorial/v1"
@@ -52,10 +53,14 @@ COMMAND_FIELDS = {
     "setup_continue": set(), "setup_config": {"config"},
     "setup_questions": {"questions"}, "setup_mechanism": {"mechanism"},
     "setup_back": set(), "setup_launch": set(),
+    # These native_* commands are private worker IPC. Bridge.swift explicitly
+    # rejects them as renderer actions. They contain no credentials or URLs.
+    "native_prepare_preview": PREPARE_FIELDS, "native_commit_preview": COMMIT_FIELDS,
+    "native_cancel_preview": set(), "preview_close": set(),
 }
 MUTATING_COMMANDS = frozenset(COMMAND_FIELDS) - {"snapshot", "export", "reset"}
 SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL",
-           "CONFIG", "QUESTION_SOURCE", "MECHANISM", "REVIEW")
+           "CONFIG", "QUESTION_SOURCE", "MECHANISM", "REVIEW", "LIVE_PREVIEW")
 CONFIG_FIELDS = {"technical_environment", "duration_minutes", "difficulty",
                  "question_source", "interviewer_mechanism"}
 SETUP_STATE_FIELDS = ("setup_config", "setup_questions", "setup_allocation",
@@ -118,10 +123,41 @@ class TutorialHost:
         self._effective_profiles = None
         self.setup_profiles = None
         self.setup_blockers = []
+        self._live_controller = None
+        self._live_profile = None
+        self._prepared_return = None
+        self._preview_history = []
+
+    def _preview_state(self):
+        if self._live_controller is None:
+            return None
+        session = self._live_controller.snapshot()
+        candidates = [e for e in session['events'] if e['actor'] == 'candidate']
+        replies = [e for e in session['events']
+                   if e['actor'] == 'interviewer' and e['provenance'] == 'LIVE_MODEL']
+        verified = any(e['payload']['operation'] == 'verify' for e in replies)
+        answered = any(e['payload']['operation'] == 'reply' for e in replies)
+        pending = self._live_controller.native_pending is not None
+        closed = self._live_controller.phase != 'INTERVIEWING'
+        return {
+            'question': copy.deepcopy(QUESTION), 'session': session,
+            'pending': pending, 'closed': closed,
+            'mechanism': self._live_profile['mechanism'],
+            'prompt_provenance': {key: copy.deepcopy(value)
+                                  for key, value in self._live_profile.items() if key != 'instructions'},
+            'execution_status': 'NOT_RUN', 'technical': 'NOT_SCORED',
+            'communication': 'NOT_SCORED', 'candidate_turn_limit': 1,
+            'candidate_turns_used': len(candidates),
+            'can_send': verified and not answered and not pending and not closed,
+            'retry_input': ({'kind': candidates[0]['kind'], 'text': candidates[0]['payload']['text']}
+                            if candidates and not answered else None),
+            'verified_response_count': len(replies),
+            'full_interview_authorized': False,
+        }
 
     def state(self):
         steps = {"WELCOME": 1, "RULES": 2, "QUESTION": 3, "ROOM": 4, "COMPLETE": 5}
-        return {
+        result = {
             "screen": self.screen, "language": self.language,
             "tutorial_step": steps.get(self.screen, 0),
             "session": self.controller.snapshot() if self.controller else None,
@@ -137,6 +173,13 @@ class TutorialHost:
             "setup_profiles": copy.deepcopy(self.setup_profiles),
             "setup_blockers": list(self.setup_blockers),
         }
+        if self._live_controller is not None:
+            result['live_preview'] = self._preview_state()
+            result['live_preview_history'] = copy.deepcopy(self._preview_history)
+            # Native memory owns provider authentication and charged attempts;
+            # committed responses cannot establish an actual paid request count.
+            result['api_requests'] = None
+        return result
 
     def _state_digest(self):
         public = self.state()
@@ -155,6 +198,10 @@ class TutorialHost:
         if (type(action) is not str or action not in COMMAND_FIELDS
                 or type(params) is not dict or set(params) != COMMAND_FIELDS[action]):
             raise HostError("INVALID_COMMAND")
+        if action == 'native_prepare_preview':
+            validate_prepare(params)
+        if action == 'native_commit_preview':
+            validate_commit(params)
         if action == "language" and (
                 type(params["language"]) is not str or params["language"] not in ("en", "zh")):
             raise HostError("INVALID_LANGUAGE")
@@ -220,6 +267,9 @@ class TutorialHost:
 
     async def _dispatch(self, action, params):
         self._validate_command(action, params)
+        if (self._live_controller is not None and self._live_controller.native_pending is not None
+                and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close')):
+            raise HostError('NATIVE_REQUEST_PENDING')
         if action == "language":
             self.language = params["language"]
         elif action in ("tutorial_start", "tutorial_replay"):
@@ -286,9 +336,8 @@ class TutorialHost:
         elif action == "setup_continue":
             if self.screen != "API_PORTAL":
                 raise HostError("INVALID_TRANSITION")
-            # The native bridge gates local credential preparation. No credential
-            # or authentication assertion enters Python; this is an unverified
-            # draft only and setup_launch below remains unconditionally blocked.
+            # S03-C permits this draft without a credential. No authentication
+            # assertion enters Python; full launch remains blocked independently.
             self.screen = "CONFIG"
         elif action == "setup_config":
             if self.screen not in ("CONFIG", "QUESTION_SOURCE"):
@@ -342,8 +391,120 @@ class TutorialHost:
             if self.screen != "REVIEW":
                 raise HostError("INVALID_TRANSITION")
             raise HostError("LAUNCH_BLOCKED")
+        elif action == 'native_prepare_preview':
+            self._prepare_preview(params)
+        elif action == 'native_commit_preview':
+            if self._live_controller is None:
+                raise HostError('STALE_NATIVE_REPLY')
+            self._live_controller.commit_native_reply(**params)
+            self.screen = 'LIVE_PREVIEW'
+        elif action == 'native_cancel_preview':
+            if self._live_controller is not None:
+                self._live_controller.cancel_native_reply()
+        elif action == 'preview_close':
+            if self._live_controller is None:
+                raise HostError('INVALID_TRANSITION')
+            if self._live_controller.phase == 'INTERVIEWING':
+                self._live_controller.close()
+                self._live_controller.review('preview-host-eligibility-check')
+            self.screen = 'LIVE_PREVIEW'
         else:
             raise HostError("INVALID_COMMAND")
+
+    def _prepare_preview(self, params):
+        root = Path(__file__).resolve().parents[1]
+        mechanism = (self._setup_config.interviewer_mechanism if self._setup_config
+                     else 'STRICT_CHALLENGING')
+        if params['mechanism'] != mechanism:
+            raise HostError('PREVIEW_MECHANISM_MISMATCH')
+        operation = params['operation']
+        if operation == 'verify':
+            if self.screen not in ('API_PORTAL', 'REVIEW', 'LIVE_PREVIEW'):
+                raise HostError('INVALID_TRANSITION')
+            profile = None
+            if self._live_controller is None or self._live_controller.phase != 'INTERVIEWING':
+                try:
+                    profile = compile_live_profile(root, mechanism)
+                except ProfileError as error:
+                    raise HostError(str(error)) from None
+            if self._live_controller is not None and self._live_controller.phase != 'INTERVIEWING':
+                if self.screen not in ('API_PORTAL', 'REVIEW'):
+                    raise HostError('PREVIEW_CLOSED')
+                if len(self._preview_history) >= 8:
+                    raise HostError('PREVIEW_HISTORY_LIMIT')
+                self._preview_history.append(self._preview_state())
+                self._live_controller = None
+                self._live_profile = None
+            if self._live_controller is None:
+                self._live_profile = profile
+                self._live_controller = InterviewController(
+                    SessionConfig(session_id='preview-' + self._instance_id + '-' + str(len(self._preview_history) + 1),
+                                  duration_seconds=86400, max_input_bytes=4096),
+                    clock=lambda: self._tick,
+                )
+                self._live_controller.start_native_preview(QUESTION['statement'], profile)
+            if self._live_profile['mechanism'] != mechanism:
+                raise HostError('PREVIEW_MECHANISM_MISMATCH')
+            if self._live_controller.phase != 'INTERVIEWING':
+                raise HostError('PREVIEW_CLOSED')
+            policy = {'rule_id': 'S03C_PUBLIC_TASK_ONLY', 'action': 'INTRODUCE_PUBLIC_TASK',
+                      'source': 'owner:TIA-S03-C-WITNESS-GRADE-LIVE-OPENAI-BYOK-INTEGRATION',
+                      'instructions': 'Introduce the public task and ask for a clarification or plan. '
+                                      'Do not solve it, offer hints, claim tests or assign a score.'}
+        else:
+            if self._live_controller is None or self.screen != 'LIVE_PREVIEW':
+                raise HostError('PREVIEW_VERIFICATION_REQUIRED')
+            if not self._preview_state()['can_send']:
+                raise HostError('PREVIEW_TURN_UNAVAILABLE')
+            if self._live_profile['mechanism'] != mechanism:
+                raise HostError('PREVIEW_MECHANISM_MISMATCH')
+            previous = [e for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
+            if previous:
+                event = previous[0]
+                if event['kind'] != params['kind'] or event['payload']['text'] != params['text']:
+                    raise HostError('RETRY_INPUT_MISMATCH')
+            else:
+                event = self._live_controller.candidate_action(params['kind'], params['text'])
+            if params['kind'] in ('clarify', 'help'):
+                try:
+                    policy = decide_interaction(root, mechanism,
+                        'HELP_REQUESTED' if params['kind'] == 'help' else 'REQUIREMENTS_CHECK',
+                        {'phase': self._live_controller.phase, 'candidate_event_id': event['id'],
+                         'requirements_unclear': True})
+                except ProfileError as error:
+                    raise HostError(str(error)) from None
+            else:
+                policy = {'rule_id': 'S03C_EVIDENCE_ONLY', 'action': 'ASK_FOR_EVIDENCE',
+                          'evidence': [event['id']], 'technical': 'NOT_SCORED',
+                          'communication': 'OBSERVATION_ONLY'}
+        # Policy is host-generated and placed in effective instructions. Candidate
+        # text and all problem content remain exclusively in the input data JSON.
+        profile = copy.deepcopy(self._live_profile)
+        profile['instructions'] += '\nHOST AUTHORIZATION FOR THIS RESPONSE:\n' + json.dumps(policy, sort_keys=True)
+        profile['instructions'] += ('\nFollow only this authorized action. DECLINE means politely refuse a hint; '
+                                    'DIAGNOSTIC_QUESTION means ask one question about the candidate\'s obstacle, '
+                                    'without supplying an answer or SQL technique. CLARIFY means restate '
+                                    'the public requirement and reassess understanding (B05).\n')
+        profile['sha256'] = hashlib.sha256(profile['instructions'].encode()).hexdigest()
+        candidate = [{'event_id': e['id'], 'kind': e['kind'], 'text': e['payload']['text']}
+                     for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
+        dialogue = [{'event_id': e['id'], 'text': e['payload']['text'], 'provenance': e['provenance']}
+                    for e in self._live_controller.snapshot()['events'] if e['actor'] == 'interviewer'][-1:]
+        input_text = json.dumps({'context_label': 'UNTRUSTED_PUBLIC_TASK_AND_CANDIDATE_DATA',
+                                 'question': QUESTION, 'candidate_events': candidate,
+                                 'prior_interviewer_dialogue': dialogue,
+                                 'interface_language': self.language}, ensure_ascii=False)
+        if len(input_text.encode()) > 16000 or len(profile['instructions'].encode()) > 32768:
+            raise HostError('NATIVE_INPUT_TOO_LARGE')
+        pending = self._live_controller.prepare_native_reply(
+            params['request_id'], params['generation'], operation, profile, policy)
+        self._prepared_return = {
+            'schema_version': 'tia-native-request/v1', 'transaction_id': pending['transaction_id'],
+            'request_id': params['request_id'], 'generation': params['generation'],
+            'role': 'interviewer', 'instructions': profile['instructions'], 'input': input_text,
+            'schema_name': 'tia_interviewer_reply', 'max_output_tokens': 600,
+            'prompt_sha256': profile['sha256'], 'source_sha256': profile['source_sha256'],
+        }
 
     async def _restore(self, document):
         if (type(document) is not dict
@@ -385,6 +546,14 @@ class TutorialHost:
         self._clock_offset = prior_tick
         self._origin = self._clock()
         self._saved = True
+        # Replaying preparation performs no network operation. A process restart
+        # invalidates any unfinished transaction before native can commit a reply.
+        # Journal the invalidation so subsequent recovery stays deterministic.
+        if self._live_controller and self._live_controller.native_pending is not None:
+            await self._dispatch('native_cancel_preview', {})
+            self._journal.append({'action': 'native_cancel_preview', 'params': {},
+                                  'tick_seconds': prior_tick, 'outcome': 'OK'})
+            self._persist()
 
     def _persist(self):
         document = {
@@ -398,7 +567,7 @@ class TutorialHost:
     def export(self):
         if self._recovery_error == "INVALID_SAVE":
             raise HostError("RECOVERY_REQUIRED")
-        return {
+        result = {
             "schema": "tia-tutorial-export/v1",
             "provenance": "SIMULATED_TUTORIAL",
             "clock_basis": "active_host_process_seconds; not performance evidence",
@@ -418,9 +587,20 @@ class TutorialHost:
                 "blockers": list(self.setup_blockers),
             },
         }
+        if self._live_controller is not None:
+            result.update(provenance='TUTORIAL_AND_LIVE_PREVIEW' if self.controller
+                          else 'LIVE_CONVERSATIONAL_PREVIEW',
+                          live_preview=self._preview_state(),
+                          live_preview_history=copy.deepcopy(self._preview_history), api_requests=None,
+                          provider_usage_source='Native session memory; failed request counts unavailable after restart',
+                          contains_personal_input=bool(result['contains_personal_input']
+                              or self._preview_state()['candidate_turns_used']
+                              or any(item['candidate_turns_used'] for item in self._preview_history)))
+        return result
 
     async def command(self, action, params):
         self._validate_command(action, params)
+        self._prepared_return = None
         if action == "snapshot":
             return self.state()
         if action == "reset":
@@ -439,6 +619,10 @@ class TutorialHost:
             raise HostError("RECOVERY_REQUIRED")
         if len(self._journal) >= MAX_JOURNAL_ENTRIES:
             raise HostError("HISTORY_LIMIT")
+        if action == 'native_prepare_preview' and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1:
+            # Keep one durable slot for a cancellation if the process exits while
+            # native HTTP is pending; recovery must never create an unreadable save.
+            raise HostError('HISTORY_LIMIT')
         self._tick = max(self._tick, self._clock_offset + self._clock() - self._origin)
         before = self._state_digest()
         outcome = "OK"
@@ -474,6 +658,9 @@ class TutorialHost:
             result = await self.command(request["action"], request["params"])
             if request["action"] == "export":
                 return {"id": request_id, "ok": True, "state": self.state(), "export": result}
+            if request['action'] == 'native_prepare_preview':
+                return {'id': request_id, 'ok': True, 'state': result,
+                        'prepared': copy.deepcopy(self._prepared_return)}
             return {"id": request_id, "ok": True, "state": result}
         except (HostError, SessionError, ModelPortalError, SaveError) as error:
             return {"id": request_id, "ok": False, "state": self.state(), "error": error.code}
