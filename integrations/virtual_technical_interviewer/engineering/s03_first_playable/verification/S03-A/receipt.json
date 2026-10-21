@@ -1,0 +1,71 @@
+{
+  "checks": [
+    {
+      "command": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "integrations/virtual_technical_interviewer/run_tests.py"
+      ],
+      "elapsed_seconds": 1.467,
+      "exit_code": 0,
+      "name": "python",
+      "status": "PASSED",
+      "unittest_count": 82
+    },
+    {
+      "command": [
+        "bash",
+        "integrations/virtual_technical_interviewer/scripts/build_app.sh"
+      ],
+      "elapsed_seconds": 2.544,
+      "exit_code": 0,
+      "name": "native-build",
+      "native_failed": 0,
+      "native_passed": 51,
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-self-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-ui-1792542959037831000"
+      ],
+      "elapsed_seconds": 26.921,
+      "exit_code": 0,
+      "name": "webkit",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-recovery-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-ui-1792542959037831000"
+      ],
+      "elapsed_seconds": 1.1,
+      "exit_code": 0,
+      "name": "app-recovery",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/verify_witness_local.sh"
+      ],
+      "elapsed_seconds": 45.845,
+      "exit_code": 0,
+      "name": "witness-hal",
+      "status": "PASSED",
+      "unittest_count": 287
+    }
+  ],
+  "completed_utc": "2026-10-21T00:37:12.907763+00:00",
+  "human_uat": "NOT_RUN",
+  "increment": "S03-A",
+  "live_api_uat": "NOT_RUN",
+  "real_provider_requests_attempted": 0,
+  "schema": "tia-verification/v1",
+  "source_parent": "aaad67a3b51a917eb8f23816b25a293c517372d3",
+  "started_utc": "2026-10-21T00:35:55.025994+00:00"
+}

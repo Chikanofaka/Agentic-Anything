@@ -1,0 +1,19 @@
+{
+  "api_requests" : 0,
+  "credentials_used" : false,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "passed" : 2,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "2 real UI checks; zero API requests",
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "reopened native App restores saved screen and completed S02 session"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "reopened App retains candidate SQL and immutable reviewed Trainer evidence"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "schema_version": "tia-mechanism-policy/v1",
+  "source": "owner:TIA-MASTER-ENGINEERING-DIRECTIVE-v0.3",
+  "coverage": "Executable subset: corrected 01/B05 and owner-specified mechanism assistance. Other Atlas 00–08 nodes remain unimplemented.",
+  "review_status": "ENGINEERING_IMPLEMENTATION_OWNER_UAT_PENDING",
+  "forbidden_authorities": ["state_mutation", "scoring", "test_execution", "answer_vault", "role_handoff", "provider_selection", "credentials"],
+  "reference_rubric": {
+    "version": "tia-reference-rubric/v1",
+    "status": "PROVISIONAL_NOT_CALIBRATED",
+    "technical": 60,
+    "communication": 40,
+    "numeric_scoring_enabled": false,
+    "bonus_enabled": false,
+    "source": "TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md#12"
+  },
+  "mechanisms": {
+    "STRICT_CHALLENGING": {
+      "version": "strict-challenging/v1",
+      "help_action": "DECLINE",
+      "help_rule_status": "CONFIGURABLE_ENGINEERING_PROPOSAL",
+      "evaluation_profile": {
+        "version": "strict-evaluation/v1",
+        "status": "PROVISIONAL_NOT_CALIBRATED",
+        "technical_emphasis": ["independent_execution", "independent_diagnosis"],
+        "communication_emphasis": ["clarification", "verified_progress", "bounded_help_request"],
+        "numeric_scoring_enabled": false
+      }
+    },
+    "PROFESSIONAL_SUPPORTIVE": {
+      "version": "professional-supportive/v1",
+      "help_action": "DIAGNOSTIC_QUESTION",
+      "help_rule_status": "CONFIGURABLE_ENGINEERING_PROPOSAL",
+      "evaluation_profile": {
+        "version": "supportive-evaluation/v1",
+        "status": "PROVISIONAL_NOT_CALIBRATED",
+        "technical_emphasis": ["verified_execution", "feedback_to_execution"],
+        "communication_emphasis": ["reasoning", "explicit_obstacle", "strategic_collaboration"],
+        "numeric_scoring_enabled": false
+      }
+    }
+  },
+  "rules": [
+    {
+      "node_id": "01/B05",
+      "rule_id": "F01-001",
+      "trigger": "REQUIREMENTS_CHECK",
+      "preconditions": ["phase == INTERVIEWING", "host supplies requirements_unclear", "candidate event exists"],
+      "authorized_branch": {
+        "true": "YES_CLARIFY_REASSESS",
+        "false": "NO_CAPABILITY_JUDGMENT",
+        "unknown": "UNKNOWN_REASSESS"
+      },
+      "state_transition": "INTERVIEWING -> INTERVIEWING; reassess after clarification",
+      "evidence": ["candidate_event_id", "host decision", "authorized branch"],
+      "assessment_linkage": {"technical": "no inferred failure", "communication": "clarification observation"},
+      "trainer_tag": "REQUIREMENTS_CLARIFICATION",
+      "source": "TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md:197",
+      "status": "OWNER_CORRECTED_RULE"
+    },
+    {
+      "node_id": "OWNER-4/assistance",
+      "rule_id": "MECHANISM_HELP_V1",
+      "trigger": "HELP_REQUESTED",
+      "preconditions": ["phase == INTERVIEWING", "candidate event exists", "selected mechanism is valid"],
+      "authorized_branch": {
+        "STRICT_CHALLENGING": "DECLINE",
+        "PROFESSIONAL_SUPPORTIVE": "DIAGNOSTIC_QUESTION"
+      },
+      "state_transition": "INTERVIEWING -> INTERVIEWING",
+      "evidence": ["candidate_event_id", "selected mechanism", "host-authorized assistance action"],
+      "assessment_linkage": {"technical": "independence/assistance context only", "communication": "bounded help-seeking observation"},
+      "trainer_tag": "BOUNDED_HELP_SEEKING",
+      "source": "owner:TIA-MASTER-ENGINEERING-DIRECTIVE-v0.3#4",
+      "status": "ENGINEERING_PROPOSAL_NODE_MAPPING_NOT_REVIEWED"
+    }
+  ]
+}
