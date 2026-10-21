@@ -27,6 +27,30 @@ Empty credentials are rejected. Disconnect/quit drops the credential reference.
 No key enters Python, WebKit, exports or logs. **No paid requests are possible in
 this build.** Human live-provider approval remains outstanding.
 
+After choosing to retain a credential in native memory, **Prepare setup —
+verification pending** opens an explicitly unverified draft wizard: environment
+and duration → question source → Senior Interviewer mechanism → review/preflight.
+This preparation path is not native authentication. The provider has not accepted
+the credential and the App will not launch a live session from it. No credential
+is needed for Guided Onboarding.
+
+Real-interview drafts accept only PostgreSQL/Pandas, 45/60 minutes (derived 3/4
+questions), HARD, BYOQ/random generation and the two specified Senior mechanisms.
+BYOQ accepts editable JSON or labeled text, up to 4,096 UTF-8 bytes per question.
+Required fields are `problem_statement`, `task`, `schema`, `example_input`,
+`expected_output`, `environment`, `source`; optional fields are `constraints` and
+`source_reference`. Sources are OWNER/LEETCODE/HACKERRANK. Structural review does
+not prove correctness, difficulty or fixture validity. Missing/duplicate slots
+block progress. Random generation is selectable as a draft; its absent approved
+pool blocks launch. No questions are silently supplied.
+
+Both mechanisms compile their allowlisted, versioned source set into separate effective
+instructions, with source/policy/configuration digests visible in review.
+Human UAT of these engineering policy choices remains pending. Strict help
+refusal versus supportive diagnostic questioning is a host-policy fixture test;
+it is not evidence of a live model's personality. Preflight always refuses launch
+until authentication and independent execution are implemented and validated.
+
 Progress and recorded input are stored privately in
 `~/Library/Application Support/Technical Interview Lab/tutorial-v1.json` (0600,
 directory 0700). Native restart restores the bounded deterministic command journal
@@ -58,5 +82,6 @@ Engineering references: Witness's native worker/navigation/provider boundaries,
 the existing S02 controller, and HAL's trusted-host pattern. TIA is **not registered
 with the shared Witness interactive HAL registry**; no shared registry authority
 was expanded. S03-B configuration, BYOQ and prompt-policy primitives are tested
-separately. Real execution, live AI, calibrated scoring, full Atlas coverage and
+through the same native/controller wizard as well as unit tests. Real execution,
+live AI, calibrated scoring, full Atlas coverage and
 the expanded dataset/Pandas product remain future increments.

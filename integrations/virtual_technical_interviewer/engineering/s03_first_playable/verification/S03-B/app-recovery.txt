@@ -1,0 +1,3 @@
+PASS reopened native App restores saved screen and completed S02 session
+PASS reopened App retains candidate SQL and immutable reviewed Trainer evidence
+Native UI smoke: PASS — 2 real UI checks; zero API requests

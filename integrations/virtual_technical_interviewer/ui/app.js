@@ -12,6 +12,7 @@
   let busy = false;
   let draft = "";
   let draftKind = "clarify";
+  let questionDrafts = [];
   let previousScreen = null;
   const strings = {
     en: {
@@ -41,6 +42,7 @@
       emptyHistory: "Your submitted responses will appear here.", candidate: "You", feedback: "Simulated interviewer",
       technical: "Technical Capability", communication: "Communication", notScored: "NOT_SCORED",
       execution: "SQL execution", notRun: "NOT_RUN", noTests: "No SQL evaluator has run. A recorded response is not a passing test.",
+      technicalExecution: "Technical execution", unverifiedStatus: "UNVERIFIED",
       complete: "Tutorial complete", completeBody: "You have practised the flow. Technical Capability and Communication remain independently NOT_SCORED.",
       trainer: "Trainer preview", trainerNote: "Scripted coaching illustration based on the permitted frozen record; not an assessed performance result.",
       drill: "Targeted drill", followUp: "Unfamiliar follow-up", evidence: "Linked evidence",
@@ -48,7 +50,7 @@
       digest: "Receipt SHA-256", replay: "Replay tutorial", explore: "Explore Real AI →", export: "Export receipt…",
       api: "Activate Real AI", apiBody: "Credentials are entered in a native secure sheet. They are never sent to this webpage or the Python controller.",
       portal: "Open native API Portal…", disconnected: "Disconnect", apiGate: "Live AI is disabled in this increment. Entering a key does not verify it or authorize a paid request. Real interview launch stays blocked.",
-      requests: "API requests", offline: "Offline", unverified: "Activated · unverified", unavailable: "Unavailable",
+      requests: "API requests", offline: "Offline", unverified: "Configured locally · unverified", unavailable: "Unavailable",
       connecting: "Connecting", verified: "Live · verified", saved: "Saved locally", notSaved: "Not saved locally",
       tutorialStep: "Tutorial", entryStep: "Choose experience", portalStep: "API Portal",
       hostUnavailable: "The native host is unavailable. Open the built macOS app to continue.",
@@ -62,6 +64,31 @@
       recoveryReset: "Delete saved session and restart…",
       saveRecoveryBody: "The latest changes are still in memory but could not be saved. Export a recovery copy before deleting or closing this session.",
       recoveryExport: "Export a recovery copy…",
+      prepareSetup: "Prepare setup · verification pending",
+      setupPending: "Local setup only. Provider authentication is pending; no live interview or paid request is authorized.",
+      configuration: "Interview configuration", environment: "Technical environment",
+      duration: "Session duration", minutes: "minutes", questionCount: "Questions · derived from duration",
+      hardOnly: "Hard · fixed for real interviews", configNote: "45 minutes requires 3 questions; 60 minutes requires 4. The host validates this contract.",
+      continueSetup: "Next →", sourceTitle: "Select question source", sourceLabel: "Question source",
+      byoq: "Bring your own question · LeetCode / HackerRank", randomized: "Randomized · approved dataset pool",
+      sourceInstructions: "Provide each question as JSON or explicit English headings. Required: problem statement, task, schema / DataFrame definitions, example input, expected output, environment and source. Constraints and source reference are optional.",
+      sourceSafety: "Structural review is not SQL execution or hidden-test validation. Missing or conflicting information blocks progression; remaining slots are never silently filled.",
+      questionNumber: "Question", emptyTemplate: "Insert empty template", bytes: "UTF-8 bytes",
+      importTooLarge: "This question exceeds the 4096-byte interface limit. Shorten it before review.",
+      reviewQuestions: "Review questions →", structureReview: "Parsed fields and review issues",
+      issues: "Issues", structure: "Structure", executionUnverified: "Execution · UNVERIFIED",
+      randomBlocked: "The approved generated-question pool is not available yet. You can review the setup, but question generation, grading and launch remain blocked.",
+      mechanismTitle: "Choose interview mechanism", mechanismLabel: "Senior Interviewer mechanism",
+      strict: "Strict & Challenging", supportive: "Professional & Supportive",
+      strictDetail: "Independent problem-solving first. More restrained intervention, with observed clarification, verified progress and bounded help-seeking.",
+      supportiveDetail: "More opportunity to explain reasoning, discuss obstacles and respond to feedback. Correct execution remains mandatory.",
+      mechanismGuard: "Both are Senior Technical Interviewers. Neither may reveal protected answers, override the host, manufacture test results or assign final scores.",
+      rubricNote: "Technical 60 / Communication 40 is a provisional reference. Evidence remains separate; no numerical score is approved or assigned here.",
+      reviewSetup: "Review setup →", reviewTitle: "Review your interview",
+      configDigest: "Configuration digest", profileDigest: "Effective instruction provenance",
+      blockers: "Launch blockers", launchPreflight: "Check launch requirements",
+      questionReviewStatus: "Question review", policyProposal: "Versioned policy · scoring remains provisional",
+      setupStep: "Real AI setup", preflightNote: "This check cannot make a paid call. Authentication, independently validated questions and a supported execution adapter are still required.",
     },
     zh: {
       title: "TECHNICAL INTERVIEW LAB", subtitle: "认真练习，让下一次面试更从容。",
@@ -90,6 +117,7 @@
       emptyHistory: "提交后的回答将显示在这里。", candidate: "你", feedback: "模拟面试官",
       technical: "Technical Capability · 技术能力", communication: "Communication · 沟通",
       notScored: "NOT_SCORED · 未评分", execution: "SQL 执行", notRun: "NOT_RUN · 未运行",
+      technicalExecution: "技术执行", unverifiedStatus: "UNVERIFIED · 未验证",
       noTests: "SQL 评估器尚未运行。回答被记录不代表测试通过。",
       complete: "教程已完成", completeBody: "你已体验面试流程。技术能力与沟通仍分别保持 NOT_SCORED。",
       trainer: "Trainer 预览", trainerNote: "基于允许读取的冻结记录展示预设辅导，不代表已完成独立能力评估。",
@@ -111,6 +139,31 @@
       recoveryReset: "删除已保存会话并重新开始…",
       saveRecoveryBody: "最新变更仍保留在内存中，但尚未成功保存。请先导出恢复副本，再删除或关闭此会话。",
       recoveryExport: "导出恢复副本…",
+      prepareSetup: "准备配置 · 待验证",
+      setupPending: "仅准备本地配置。服务商身份验证仍待完成；尚未授权真实面试或付费请求。",
+      configuration: "面试配置", environment: "技术环境", duration: "会话时长", minutes: "分钟",
+      questionCount: "题目数量 · 根据时长推导", hardOnly: "Hard · 真实面试固定难度",
+      configNote: "45 分钟必须为 3 题，60 分钟必须为 4 题。此约束由宿主验证。",
+      continueSetup: "下一步 →", sourceTitle: "选择题目来源", sourceLabel: "题目来源",
+      byoq: "自带题目 · LeetCode / HackerRank", randomized: "随机面试 · 已批准的数据集题库",
+      sourceInstructions: "每题使用 JSON 或明确的英文标题字段。必填：problem statement、task、schema / DataFrame definitions、example input、expected output、environment、source。constraints 与 source reference 可选。",
+      sourceSafety: "结构审查不代表 SQL 执行或隐藏测试验证。缺失或冲突的信息会阻止继续；剩余题目不会被静默补齐。",
+      questionNumber: "题目", emptyTemplate: "插入空白模板", bytes: "UTF-8 字节",
+      importTooLarge: "此题超过界面的 4096 字节上限，请精简后再审查。",
+      reviewQuestions: "审查题目 →", structureReview: "已解析字段与审查问题",
+      issues: "问题", structure: "结构", executionUnverified: "执行 · UNVERIFIED",
+      randomBlocked: "已批准的生成题库尚不可用。可以继续审阅配置，但生成题目、评分与启动仍被阻止。",
+      mechanismTitle: "选择面试机制", mechanismLabel: "资深面试官机制",
+      strict: "Strict & Challenging · 严格挑战型", supportive: "Professional & Supportive · 专业支持型",
+      strictDetail: "优先独立解决问题，面试官更克制地介入；同时观察澄清需求、已验证进展与有边界的求助。",
+      supportiveDetail: "提供更多解释推理、讨论障碍并根据反馈采取行动的机会，但正确执行仍是必要条件。",
+      mechanismGuard: "两种机制均为资深技术面试官，均不得泄露受保护答案、覆盖宿主决定、捏造测试结果或赋予最终分数。",
+      rubricNote: "Technical 60 / Communication 40 仅为暂定参考。证据分别记录；此处不批准或生成数值评分。",
+      reviewSetup: "审阅配置 →", reviewTitle: "审阅你的面试",
+      configDigest: "配置摘要", profileDigest: "有效指令来源",
+      blockers: "启动阻碍", launchPreflight: "检查启动条件",
+      questionReviewStatus: "题目审查", policyProposal: "版本化策略 · 评分仍为暂定",
+      setupStep: "真实 AI 配置", preflightNote: "此检查不会调用付费 API。仍需完成服务商验证、独立题目验证，并提供受支持的执行适配器。",
     },
   };
   const t = key => (strings[state?.language === "zh" ? "zh" : "en"][key] || key);
@@ -183,7 +236,10 @@
     }
     const hasState = response.state && typeof response.state === "object" && !Array.isArray(response.state);
     if (hasState) {
-      if (response.ok === true && (item?.action === "tutorial_replay" || item?.action === "reset")) draft = "";
+      if (response.ok === true && (item?.action === "tutorial_replay" || item?.action === "reset")) {
+        draft = "";
+        if (item.action === "reset") questionDrafts = [];
+      }
       state = response.state;
       // Read-only diagnostic copy for native UI tests. It is never submitted as authority.
       window.tiaState = JSON.parse(JSON.stringify(state));
@@ -277,9 +333,10 @@
   function candidateEvents() {
     return (state.session?.events || []).filter(event => event.actor === "candidate");
   }
-  function scores() {
+  function scores(forSetup = false) {
     const grid = node("div", null, "evidence-grid");
-    for (const [name, status] of [["technical", "notScored"], ["communication", "notScored"], ["execution", "notRun"]]) {
+    for (const [name, status] of [["technical", "notScored"], ["communication", "notScored"],
+      forSetup ? ["technicalExecution", "unverifiedStatus"] : ["execution", "notRun"]]) {
       add(grid, add(node("div", null, "evidence-item"), node("span", t(name), "muted"), node("strong", t(status))));
     }
     return grid;
@@ -378,7 +435,226 @@
       node("p", `${t("requests")}: ${requestCount()}`, "muted"),
       actions(button("openPortal", t("portal"), () => act("api_portal"), "primary"),
         button("disconnect", t("disconnected"), () => act("disconnect"))));
+    if (state.activation?.state === "activated-unverified") {
+      add(card, node("p", t("setupPending"), "notice"),
+        button("prepareSetup", t("prepareSetup"), () => act("setup_continue"), "primary full-width"));
+    }
     add(main, card, nav());
+  }
+  function configValues(overrides = {}) {
+    const current = state.setup_config || {};
+    return {
+      technical_environment: current.technical_environment || "POSTGRESQL",
+      duration_minutes: current.duration_minutes || 45,
+      difficulty: "HARD",
+      question_source: current.question_source || "BYOQ",
+      interviewer_mechanism: current.interviewer_mechanism || "STRICT_CHALLENGING",
+      ...overrides,
+    };
+  }
+  function setupNotice(main) {
+    add(main, node("p", t("setupPending"), "setup-warning"));
+  }
+  function selectField(id, labelText, values, value) {
+    const field = node("div", null, "setup-field");
+    const label = node("label", labelText); label.htmlFor = id;
+    const select = node("select"); select.id = id;
+    values.forEach(([key, text]) => {
+      const option = node("option", text);
+      option.value = String(key);
+      select.appendChild(option);
+    });
+    select.value = String(value);
+    add(field, label, select);
+    return {field, select};
+  }
+  function setupNav(nextButton) {
+    return actions(button("setupBack", t("back"), () => act("setup_back")), nextButton);
+  }
+  function configuration(main) {
+    const config = configValues();
+    add(main, heading(t("configuration")));
+    setupNotice(main);
+    const grid = node("div", null, "setup-grid");
+    const environment = selectField("technicalEnvironment", t("environment"),
+      [["POSTGRESQL", "PostgreSQL"], ["PANDAS", "Python / Pandas"]], config.technical_environment);
+    const duration = selectField("durationMinutes", t("duration"),
+      [[45, `45 ${t("minutes")}`], [60, `60 ${t("minutes")}`]], config.duration_minutes);
+    const count = node("strong", config.duration_minutes === 60 ? "4" : "3", "derived-count");
+    count.id = "derivedQuestionCount";
+    count.setAttribute("aria-live", "polite");
+    duration.select.addEventListener("change", () => { count.textContent = duration.select.value === "60" ? "4" : "3"; });
+    add(grid, environment.field, duration.field,
+      add(node("div", null, "setup-stat"), node("span", t("questionCount"), "muted"), count),
+      add(node("div", null, "setup-stat"), node("span", t("hardOnly"), "muted"), node("strong", "HARD", "derived-count")));
+    add(main, grid, node("p", t("configNote"), "notice"),
+      setupNav(button("nextSetup", t("continueSetup"), () => act("setup_config", {config: configValues({
+        technical_environment: environment.select.value, duration_minutes: Number(duration.select.value),
+      })}), "primary")));
+  }
+  function questionReview(review, index) {
+    if (!review) return null;
+    const detail = node("details", null, "question-review");
+    add(detail, node("summary", `${t("structureReview")} · ${index + 1}`),
+      node("p", `${t("structure")}: ${review.structure_status || "NEEDS_REVIEW"} · ${t("executionUnverified")}`, "muted"));
+    const fields = node("dl", null, "review-fields");
+    for (const [key, value] of Object.entries(review.fields || {})) {
+      add(fields, node("dt", key), node("dd", typeof value === "string" ? value : JSON.stringify(value)));
+    }
+    add(detail, fields);
+    if (Array.isArray(review.issues) && review.issues.length) {
+      const issues = node("ul", null, "issues-list");
+      review.issues.forEach(issue => add(issues, node("li", typeof issue === "string" ? issue : `${issue.field}: ${issue.code}`)));
+      add(detail, node("h3", t("issues")), issues);
+      detail.open = true;
+    }
+    if (review.provenance) {
+      add(detail, node("p", `${review.provenance.kind || "USER_PASTED"} · ${review.provenance.source || "UNSPECIFIED"}`, "digest"));
+    }
+    return detail;
+  }
+  function questionSource(main) {
+    const config = configValues();
+    const count = state.setup_config?.question_count || (config.duration_minutes === 60 ? 4 : 3);
+    add(main, heading(t("sourceTitle")));
+    setupNotice(main);
+    const source = selectField("questionSource", t("sourceLabel"),
+      [["BYOQ", t("byoq")], ["RANDOM_GENERATED", t("randomized")]], config.question_source);
+    source.select.addEventListener("change", () => act("setup_config", {config: configValues({question_source: source.select.value})}));
+    add(main, source.field);
+    const nextButton = button("reviewQuestions", t("reviewQuestions"), () => {
+      act("setup_questions", {questions: config.question_source === "BYOQ" ?
+        Array.from({length: count}, (_, index) => questionDrafts[index] || "") : []});
+    }, "primary");
+    if (config.question_source === "BYOQ") {
+      add(main, node("p", t("sourceInstructions"), "notice"), node("p", t("sourceSafety"), "notice"));
+      const utf8 = value => new TextEncoder().encode(value).length;
+      const validateSizes = () => {
+        const tooLarge = Array.from({length: count}, (_, index) => utf8(questionDrafts[index] || "")).some(size => size > 4096);
+        nextButton.dataset.unavailable = String(tooLarge);
+        nextButton.disabled = busy || tooLarge;
+      };
+      for (let index = 0; index < count; index++) {
+        const review = state.setup_questions?.[index];
+        if (questionDrafts[index] === undefined) {
+          questionDrafts[index] = typeof review?.raw_input === "string" ? review.raw_input :
+            review?.fields ? JSON.stringify(review.fields, null, 2) : "";
+        }
+        const section = node("section", null, "byoq-card");
+        const label = node("label", `${t("questionNumber")} ${index + 1} / ${count} · HARD`);
+        label.htmlFor = `byoqQuestion${index}`;
+        const input = node("textarea");
+        input.id = `byoqQuestion${index}`;
+        input.rows = 10;
+        input.spellcheck = false;
+        input.autocapitalize = "off";
+        input.value = questionDrafts[index];
+        const size = node("p", null, "field-help");
+        size.id = `byoqSize${index}`;
+        input.setAttribute("aria-describedby", size.id);
+        const updateSize = () => {
+          const length = utf8(input.value);
+          size.textContent = `${length} / 4096 ${t("bytes")}${length > 4096 ? ` · ${t("importTooLarge")}` : ""}`;
+          input.setAttribute("aria-invalid", String(length > 4096));
+          validateSizes();
+        };
+        input.addEventListener("input", () => { questionDrafts[index] = input.value; updateSize(); });
+        const template = button(`questionTemplate${index}`, t("emptyTemplate"), () => {
+          if (busy) return;
+          input.value = JSON.stringify({
+            problem_statement: "", task: "", schema: "", example_input: "", expected_output: "",
+            environment: config.technical_environment, source: "OWNER", constraints: "", source_reference: "",
+          }, null, 2);
+          questionDrafts[index] = input.value;
+          template.dataset.unavailable = "true";
+          template.disabled = true;
+          updateSize();
+          input.focus();
+        }, "text");
+        template.disabled = Boolean(input.value.trim());
+        template.dataset.unavailable = String(Boolean(input.value.trim()));
+        input.addEventListener("input", () => {
+          template.dataset.unavailable = String(Boolean(input.value.trim()));
+          template.disabled = busy || Boolean(input.value.trim());
+        });
+        add(section, label, input, size, template, questionReview(review, index));
+        add(main, section);
+        updateSize();
+      }
+      validateSizes();
+    } else {
+      add(main, node("p", t("randomBlocked"), "setup-warning"));
+    }
+    if (state.setup_allocation) {
+      const detail = node("p", `${state.setup_allocation.provided_count} / ${state.setup_allocation.required_count} · ${t("executionUnverified")}`, "notice");
+      detail.id = "questionAllocation";
+      add(main, detail);
+      if (state.setup_allocation.issues?.length) add(main, issueList(state.setup_allocation.issues));
+    }
+    add(main, setupNav(nextButton));
+  }
+  function mechanism(main) {
+    const config = configValues();
+    add(main, heading(t("mechanismTitle")));
+    setupNotice(main);
+    const field = selectField("interviewerMechanism", t("mechanismLabel"),
+      [["STRICT_CHALLENGING", t("strict")], ["PROFESSIONAL_SUPPORTIVE", t("supportive")]], config.interviewer_mechanism);
+    const choices = node("div", null, "choice-grid mechanism-cards");
+    add(choices,
+      add(node("section", null, "choice-card"), node("h2", t("strict")), node("p", t("strictDetail"))),
+      add(node("section", null, "choice-card"), node("h2", t("supportive")), node("p", t("supportiveDetail"))));
+    add(main, field.field, choices, node("p", t("mechanismGuard"), "notice"),
+      node("p", t("rubricNote"), "notice"),
+      setupNav(button("reviewSetup", t("reviewSetup"), () => act("setup_mechanism", {mechanism: field.select.value}), "primary")));
+  }
+  function issueList(issues) {
+    const list = node("ul", null, "issues-list");
+    for (const issue of issues) add(list, node("li", typeof issue === "string" ? issue : JSON.stringify(issue)));
+    return list;
+  }
+  function setupReview(main) {
+    const config = state.setup_config || configValues();
+    add(main, heading(t("reviewTitle")));
+    setupNotice(main);
+    const table = node("table", null, "review-table");
+    const body = node("tbody");
+    const rows = [
+      [t("environment"), config.technical_environment], [t("duration"), `${config.duration_minutes} ${t("minutes")}`],
+      [t("questionCount"), `${config.question_count} × HARD`],
+      [t("sourceLabel"), config.question_source === "BYOQ" ? t("byoq") : t("randomized")],
+      [t("mechanismLabel"), config.interviewer_mechanism === "STRICT_CHALLENGING" ? t("strict") : t("supportive")],
+      [t("configDigest"), config.sha256 || "UNVERIFIED"],
+    ];
+    rows.forEach(([label, value]) => {
+      const th = node("th", label); th.scope = "row";
+      add(body, add(node("tr"), th, node("td", value)));
+    });
+    add(table, body); add(main, table);
+    if (state.setup_profiles) {
+      const section = node("details", null, "question-review");
+      add(section, node("summary", t("profileDigest")), node("p", t("policyProposal"), "notice"));
+      for (const [role, profile] of Object.entries(state.setup_profiles)) {
+        add(section, node("h3", role), node("code", profile.sha256 || "UNVERIFIED", "digest"),
+          node("p", `${profile.policy_version || ""} · ${profile.review_status || ""}`, "digest"));
+        if (profile.source_sha256) {
+          const list = node("ul", null, "source-digests");
+          Object.entries(profile.source_sha256).forEach(([path, hash]) => {
+            add(list, add(node("li"), node("span", path), node("code", hash, "digest")));
+          });
+          add(section, list);
+        }
+      }
+      add(main, section);
+    }
+    if (state.setup_questions?.length) {
+      add(main, node("h2", t("questionReviewStatus"), "section-title"));
+      state.setup_questions.forEach((review, index) => add(main, questionReview(review, index)));
+    }
+    const blockers = node("section", null, "launch-blockers");
+    add(blockers, node("h2", t("blockers")), issueList(state.setup_blockers || []),
+      node("p", t("preflightNote"), "muted"));
+    add(main, blockers, node("p", t("rubricNote"), "notice"), scores(true),
+      setupNav(button("launchPreflight", t("launchPreflight"), () => act("setup_launch"), "primary")));
   }
   function requestCount() {
     const count = state.activation?.requests_used ?? state.api_requests;
@@ -405,15 +681,20 @@
     add(header, brand, tools);
     const progress = node("div", null, "progress-area");
     const step = Number.isInteger(state.tutorial_step) ? Math.min(5, Math.max(0, state.tutorial_step)) : 0;
-    const label = state.screen === "ENTRY" ? t("entryStep") : state.screen === "API_PORTAL" ? t("portalStep") : `${t("tutorialStep")} ${step} / 5`;
+    const setupStep = {CONFIG: 1, QUESTION_SOURCE: 2, MECHANISM: 3, REVIEW: 4}[state.screen];
+    const label = setupStep ? `${t("setupStep")} ${setupStep} / 4` :
+      state.screen === "ENTRY" ? t("entryStep") : state.screen === "API_PORTAL" ? t("portalStep") : `${t("tutorialStep")} ${step} / 5`;
     const meter = node("progress");
-    meter.max = 5;
-    meter.value = step;
+    meter.max = setupStep ? 4 : 5;
+    meter.value = setupStep || step;
     meter.setAttribute("aria-label", label);
     add(progress, add(node("div", null, "progress-label"), badge(label),
-      node("span", state.screen === "API_PORTAL" ? modelLabel() : t("simulated"), "muted")), meter);
+      node("span", state.screen === "API_PORTAL" || setupStep ? modelLabel() : t("simulated"), "muted")), meter);
     const main = node("main"); main.id = "main";
-    const screens = {ENTRY: entry, WELCOME: welcome, RULES: rules, QUESTION: question, ROOM: room, COMPLETE: complete, API_PORTAL: apiPortal};
+    const screens = {
+      ENTRY: entry, WELCOME: welcome, RULES: rules, QUESTION: question, ROOM: room, COMPLETE: complete,
+      API_PORTAL: apiPortal, CONFIG: configuration, QUESTION_SOURCE: questionSource, MECHANISM: mechanism, REVIEW: setupReview,
+    };
     if (state.recovery_error) {
       const saveUnavailable = state.recovery_error === "SAVE_UNAVAILABLE" ||
         state.recovery_error?.code === "SAVE_UNAVAILABLE";

@@ -33,6 +33,18 @@ func runNativeTests() -> Int32 {
     check("empty candidate rejected", BridgePolicy.validate(request("tutorial_submit", ["kind": "plan", "text": " "])) == nil)
     check("UTF8 byte bound", BridgePolicy.validate(request("tutorial_submit", ["kind": "plan", "text": String(repeating: "中", count: 2731)])) == nil)
     check("no score command", BridgePolicy.validate(request("tutorial_submit", ["kind": "score", "text": "100"])) == nil)
+    let config: [String: Any] = ["technical_environment": "POSTGRESQL", "duration_minutes": 45,
+                                "difficulty": "HARD", "question_source": "BYOQ",
+                                "interviewer_mechanism": "STRICT_CHALLENGING"]
+    check("typed setup accepted", BridgePolicy.validate(request("setup_config", ["config": config])) != nil)
+    var invalid = config; invalid["duration_minutes"] = true
+    check("boolean duration rejected", BridgePolicy.validate(request("setup_config", ["config": invalid])) == nil)
+    invalid = config; invalid["question_count"] = 4
+    check("independent question count rejected", BridgePolicy.validate(request("setup_config", ["config": invalid])) == nil)
+    invalid = config; invalid["difficulty"] = "EASY"
+    check("Easy configuration rejected", BridgePolicy.validate(request("setup_config", ["config": invalid])) == nil)
+    check("bounded question slots", BridgePolicy.validate(request("setup_questions", ["questions": Array(repeating: "x", count: 5)])) == nil)
+    check("bounded pasted bytes", BridgePolicy.validate(request("setup_questions", ["questions": [String(repeating: "中", count: 1366)]])) == nil)
     let portal = NativePortal()
     check("offline initially", portal.state == "offline")
     check("empty key not activated", !portal.configure("", consent: true) && portal.state == "offline")
@@ -47,6 +59,24 @@ func runNativeTests() -> Int32 {
     check("live calls disabled", portal.publicState["live_enabled"] as? Bool == false && portal.requestsUsed == 0)
     portal.disconnect()
     check("disconnect clears activation", portal.state == "offline" && portal.requestsUsed == 0)
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tia-private-export-test-" + UUID().uuidString)
+    do {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let destination = folder.appendingPathComponent("receipt.json")
+        let data = Data("{\"synthetic\":true}".utf8)
+        try PrivateExport.write(data, to: destination)
+        let attrs = try FileManager.default.attributesOfItem(atPath: destination.path)
+        check("export private before publication", (attrs[.posixPermissions] as? NSNumber)?.intValue == 0o600)
+        let written = try Data(contentsOf: destination)
+        check("export exact contents", written == data)
+        let link = folder.appendingPathComponent("link.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: destination)
+        do { try PrivateExport.write(Data("unexpected".utf8), to: link); check("export refuses symlink", false) }
+        catch { check("export refuses symlink", true) }
+        let preserved = try Data(contentsOf: destination)
+        check("export symlink target unchanged", preserved == data)
+    } catch { check("private export fixture", false) }
     print("Native tests: \(checks - failures) passed, \(failures) failed; provider requests: 0")
     return failures == 0 ? 0 : 1
 }

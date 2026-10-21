@@ -1,0 +1,52 @@
+{
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "passed" : 10,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "10 real UI checks; zero API requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "empty\/offline activation cannot enter setup through native bridge"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "setup begins with actual native secure credential sheet"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "synthetic native credential is only locally configured and unverified"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "60 minutes derives four and 45 derives three Hard questions"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "incomplete BYOQ remains editable and never fabricates validated questions"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "three distinct structured synthetic questions cross the real bridge"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "supportive mechanism loads compiled source and configuration digests"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "launch remains blocked on authentication and independent execution"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "strict mechanism changes effective instructions without expanding authority"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "disconnect clears credential and native gate reblocks draft commands"
+    }
+  ]
+}

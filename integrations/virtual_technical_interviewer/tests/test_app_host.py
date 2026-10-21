@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import hashlib
+import itertools
 import json
 import os
 from pathlib import Path
@@ -304,6 +305,178 @@ class TutorialHostTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response["error"], "ACTION_LIMIT")
         await self.command("tutorial_complete")
         self.assertEqual(self.host.state()["session"]["phase"], "COMPLETE")
+
+    @staticmethod
+    def setup_config(environment="POSTGRESQL", duration=45, source="BYOQ",
+                     mechanism="STRICT_CHALLENGING"):
+        return {
+            "technical_environment": environment, "duration_minutes": duration,
+            "difficulty": "HARD", "question_source": source,
+            "interviewer_mechanism": mechanism,
+        }
+
+    @staticmethod
+    def setup_question(index=0, environment="POSTGRESQL"):
+        return json.dumps({
+            "problem_statement": "Synthetic customer case {}".format(index),
+            "task": "Return one item per customer.",
+            "schema": "orders(order_id integer, customer_id integer)",
+            "example_input": "[(1, 1)]", "expected_output": "[(1,)]",
+            "environment": environment, "source": "OWNER",
+        })
+
+    async def enter_setup(self, config=None):
+        await self.command("choose_real")
+        await self.command("setup_continue")
+        await self.command("setup_config", config=config or self.setup_config())
+
+    async def test_source_selection_changes_from_question_step_and_keeps_launch_blocked(self):
+        await self.enter_setup()
+        state = await self.command("setup_config", config=self.setup_config(source="RANDOM_GENERATED"))
+        self.assertEqual(state["screen"], "QUESTION_SOURCE")
+        self.assertEqual(state["setup_config"]["question_source"], "RANDOM_GENERATED")
+        self.assertIn("APPROVED_GENERATED_POOL_UNAVAILABLE", state["setup_allocation"]["issues"])
+        await self.command("setup_questions", questions=[])
+        await self.command("setup_back")
+        state = await self.command("setup_config", config=self.setup_config())
+        self.assertEqual(state["setup_config"]["question_source"], "BYOQ")
+        self.assertFalse(state["setup_allocation"]["launch_authorized"])
+
+    async def test_setup_all_sixteen_combinations_keep_derived_count_and_block_live_launch(self):
+        digests = set()
+        for environment, duration, source, mechanism in itertools.product(
+                ("POSTGRESQL", "PANDAS"), (45, 60), ("BYOQ", "RANDOM_GENERATED"),
+                ("STRICT_CHALLENGING", "PROFESSIONAL_SUPPORTIVE")):
+            await self.command("reset")
+            config = self.setup_config(environment, duration, source, mechanism)
+            await self.enter_setup(config)
+            count = {45: 3, 60: 4}[duration]
+            self.assertEqual(self.host.state()["setup_config"]["question_count"], count)
+            questions = ([self.setup_question(index, environment) for index in range(count)]
+                         if source == "BYOQ" else [])
+            await self.command("setup_questions", questions=questions)
+            state = await self.command("setup_mechanism", mechanism=mechanism)
+            self.assertEqual(state["screen"], "REVIEW")
+            self.assertEqual(state["setup_config"]["status"], "DRAFT")
+            self.assertIsNone(state["session"])
+            self.assertEqual(state["model_state"], "offline")
+            self.assertEqual(state["api_requests"], 0)
+            self.assertIn("PROVIDER_AUTHENTICATION_REQUIRED", state["setup_blockers"])
+            self.assertIn("INDEPENDENT_EXECUTION_VALIDATION_REQUIRED", state["setup_blockers"])
+            self.assertFalse(state["setup_allocation"]["launch_authorized"])
+            self.assertEqual(state["setup_profiles"]["interviewer"]["mechanism"], mechanism)
+            digests.add(state["setup_config"]["sha256"])
+            blocked = await self.host.handle({"id": "blocked-live", "action": "setup_launch", "params": {}})
+            self.assertFalse(blocked["ok"])
+            self.assertEqual(blocked["error"], "LAUNCH_BLOCKED")
+            self.assertEqual(self.host.state(), state)
+        self.assertEqual(len(digests), 16)
+
+    async def test_setup_navigation_requires_portal_and_disallows_count_or_authority_fields(self):
+        before = self.host.state()
+        for action, params in (
+                ("setup_continue", {}), ("setup_config", {"config": self.setup_config()}),
+                ("setup_questions", {"questions": []}),
+                ("setup_mechanism", {"mechanism": "STRICT_CHALLENGING"}),
+                ("setup_launch", {})):
+            result = await self.host.handle({"id": "too-early", "action": action, "params": params})
+            self.assertFalse(result["ok"])
+            self.assertEqual(self.host.state(), before)
+        await self.command("choose_real")
+        await self.command("setup_continue")
+        for changes in ({"question_count": 3}, {"difficulty": "EASY"}, {"duration_minutes": True},
+                        {"credential": "synthetic-forbidden"}, {"duration_minutes": 30}):
+            config = self.setup_config()
+            config.update(changes)
+            response = await self.host.handle({"id": "invalid-config", "action": "setup_config",
+                                               "params": {"config": config}})
+            self.assertFalse(response["ok"])
+            self.assertEqual(self.host.state()["screen"], "CONFIG")
+            self.assertIsNone(self.host.state()["setup_config"])
+        await self.command("setup_back")
+        self.assertEqual(self.host.state()["screen"], "API_PORTAL")
+
+    async def test_incomplete_byoq_persisted_for_editing_and_exact_allocation_enforced(self):
+        await self.enter_setup()
+        raw = "A problem without schema or input/output examples."
+        result = await self.host.handle({"id": "incomplete", "action": "setup_questions",
+                                         "params": {"questions": [raw]}})
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"], "QUESTION_REVIEW_REQUIRED")
+        state = self.host.state()
+        self.assertEqual(state["screen"], "QUESTION_SOURCE")
+        self.assertEqual(state["setup_questions"][0]["raw_input"], raw)
+        self.assertEqual(state["setup_questions"][0]["fields"], {})
+        self.assertIn("QUESTION_COUNT_MISMATCH", state["setup_allocation"]["issues"])
+        self.assertFalse(state["setup_allocation"]["silent_fill_permitted"])
+        await self.restart()
+        self.assertEqual(self.host.state(), state)
+        duplicate = self.setup_question()
+        result = await self.host.handle({"id": "duplicate", "action": "setup_questions",
+                                         "params": {"questions": [duplicate] * 3}})
+        self.assertFalse(result["ok"])
+        self.assertIn("DUPLICATE_QUESTIONS", result["state"]["setup_allocation"]["issues"])
+        await self.command("setup_questions", questions=[self.setup_question(i) for i in range(3)])
+        self.assertEqual(self.host.state()["screen"], "MECHANISM")
+
+    async def test_setup_profile_digests_survive_restart_without_exposing_instructions(self):
+        await self.enter_setup()
+        await self.command("setup_questions", questions=[self.setup_question(i) for i in range(3)])
+        await self.command("setup_mechanism", mechanism="PROFESSIONAL_SUPPORTIVE")
+        before = self.host.state()
+        for profile in before["setup_profiles"].values():
+            self.assertNotIn("instructions", profile)
+            self.assertTrue(profile["source_sha256"])
+            self.assertEqual(len(profile["sha256"]), 64)
+            self.assertFalse(profile["evaluation_profile"]["numeric_scoring_enabled"])
+        self.assertIn("instructions", self.host._effective_profiles["interviewer"])
+        await self.restart()
+        self.assertEqual(self.host.state(), before)
+        self.assertIn("instructions", self.host._effective_profiles["interviewer"])
+        for expected in ("MECHANISM", "QUESTION_SOURCE", "CONFIG", "API_PORTAL"):
+            await self.command("setup_back")
+            self.assertEqual(self.host.state()["screen"], expected)
+        self.assertEqual(self.host.state()["setup_profiles"], before["setup_profiles"])
+
+    async def test_setup_question_bounds_and_credential_injection_fail_without_mutation(self):
+        await self.enter_setup()
+        before = self.host.state()
+        for questions in ([self.setup_question()] * 5, ["界" * 1400], [{}], ["\ud800"]):
+            result = await self.host.handle({"id": "bad-import", "action": "setup_questions",
+                                             "params": {"questions": questions}})
+            self.assertFalse(result["ok"])
+            self.assertEqual(self.host.state(), before)
+        result = await self.host.handle({"id": "key-injection", "action": "setup_continue",
+                                         "params": {"key": "synthetic-key-not-accepted"}})
+        self.assertFalse(result["ok"])
+        self.assertNotIn("synthetic-key-not-accepted", json.dumps(self.host.state()))
+
+    async def test_tutorial_receipt_unchanged_through_setup_and_export_labels_draft(self):
+        await self.complete()
+        frozen = self.host.state()["session"]["receipt"]
+        await self.enter_setup()
+        await self.command("setup_questions", questions=[self.setup_question(i) for i in range(3)])
+        await self.command("setup_mechanism", mechanism="STRICT_CHALLENGING")
+        self.assertEqual(self.host.state()["session"]["receipt"], frozen)
+        response = await self.host.handle({"id": "setup-export", "action": "export", "params": {}})
+        self.assertEqual(response["export"]["setup"]["configuration"]["status"], "DRAFT")
+        self.assertEqual(response["export"]["session"]["receipt"], frozen)
+        self.assertTrue(response["export"]["contains_personal_input"])
+        self.assertNotIn("instructions", response["export"]["setup"]["profiles"]["interviewer"])
+
+    async def test_s03a_v1_digest_remains_compatible_with_additive_setup_fields(self):
+        await self.complete()
+        state = self.host.state()
+        original = {key: value for key, value in state.items()
+                    if key not in ("saved_locally", "recovery_error",
+                                   "setup_config", "setup_questions", "setup_allocation",
+                                   "setup_profiles", "setup_blockers")}
+        expected = hashlib.sha256(json.dumps(original, sort_keys=True, separators=(",", ":"),
+                                             ensure_ascii=True).encode()).hexdigest()
+        path = Path(self.temporary.name) / TutorialStore.filename
+        self.assertEqual(json.loads(path.read_text())["state_sha256"], expected)
+        await self.restart()
+        self.assertEqual(self.host.state(), state)
 
 
 class WorkerProtocolTests(unittest.TestCase):

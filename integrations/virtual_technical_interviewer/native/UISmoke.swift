@@ -24,6 +24,7 @@ final class TIAUISmoke {
       async function snap(){return await window.request('snapshot');}
     """
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
+    private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
     private var steps: [Step] { recovering ? [
         Step(label: "reopened native App restores saved screen and completed S02 session", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
@@ -32,6 +33,60 @@ final class TIAUISmoke {
         Step(label: "reopened App retains candidate SQL and immutable reviewed Trainer evidence", code: """
           const s=await snap();return {ok:s.session.events.some(e=>e.kind==='implement'&&e.payload.text==='SELECT * FROM Orders;')
           &&s.session.receipt.sha256.length===64&&s.session.review&&s.trainer_preview.evidence_ids.length===3&&s.api_requests===0};
+        """)
+    ] : setupTesting ? [
+        Step(label: "empty/offline activation cannot enter setup through native bridge", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');
+          try {await request('setup_continue');return {ok:false};}catch(e){}
+          return {ok:window.tiaState.screen==='ENTRY'&&window.tiaState.activation.state==='offline'};
+        """),
+        Step(label: "setup begins with actual native secure credential sheet", code: """
+          await press('realInterview','API_PORTAL');return {ok:!el('prepareSetup')&&document.querySelectorAll('input[type=password]').length===0};
+        """),
+        Step(label: "synthetic native credential is only locally configured and unverified", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');
+          await press('prepareSetup','CONFIG');const s=await snap();
+          return {ok:s.activation.authenticated===false&&s.activation.live_enabled===false&&s.activation.requests_used===0&&s.session===null};
+        """),
+        Step(label: "60 minutes derives four and 45 derives three Hard questions", code: """
+          el('durationMinutes').value='60';el('durationMinutes').dispatchEvent(new Event('change'));
+          if(el('derivedQuestionCount').textContent!=='4')return {ok:false};
+          el('durationMinutes').value='45';el('durationMinutes').dispatchEvent(new Event('change'));
+          if(el('derivedQuestionCount').textContent!=='3')return {ok:false};
+          await press('nextSetup','QUESTION_SOURCE');const s=await snap();
+          return {ok:s.setup_config.question_count===3&&s.setup_config.difficulty==='HARD'&&s.setup_config.status==='DRAFT'&&!!el('byoqQuestion2')&&!el('byoqQuestion3')};
+        """),
+        Step(label: "incomplete BYOQ remains editable and never fabricates validated questions", code: """
+          await press('reviewQuestions');const s=await snap();
+          return {ok:s.screen==='QUESTION_SOURCE'&&s.setup_questions.length===3&&s.setup_questions.every(q=>q.structure_status==='NEEDS_REVIEW')&&s.setup_allocation.launch_authorized===false};
+        """),
+        Step(label: "three distinct structured synthetic questions cross the real bridge", code: """
+          for(let i=0;i<3;i++){
+            const q={problem_statement:'Synthetic question '+i,task:'Return id for task '+i,schema:'Items(id INT)',example_input:'[{"id":1}]',expected_output:'[{"id":1}]',environment:'POSTGRESQL',source:'OWNER'};
+            const box=el('byoqQuestion'+i);box.value=JSON.stringify(q);box.dispatchEvent(new Event('input',{bubbles:true}));
+          }
+          await press('reviewQuestions','MECHANISM');const s=await snap();
+          return {ok:s.setup_questions.every(q=>q.structure_status==='STRUCTURALLY_COMPLETE'&&q.execution_status==='UNVERIFIED')&&s.setup_allocation.grading_authorized===false};
+        """),
+        Step(label: "supportive mechanism loads compiled source and configuration digests", code: """
+          el('interviewerMechanism').value='PROFESSIONAL_SUPPORTIVE';
+          await press('reviewSetup','REVIEW');const s=await snap();window.supportiveDigest=s.setup_profiles.interviewer.sha256;
+          return {ok:s.setup_config.interviewer_mechanism==='PROFESSIONAL_SUPPORTIVE'&&window.supportiveDigest.length===64&&!JSON.stringify(s.setup_profiles).includes('TIA effective role instructions')};
+        """),
+        Step(label: "launch remains blocked on authentication and independent execution", code: """
+          await press('launchPreflight');const s=await snap();
+          return {ok:s.screen==='REVIEW'&&s.session===null&&s.setup_blockers.includes('PROVIDER_AUTHENTICATION_REQUIRED')&&s.setup_allocation.launch_authorized===false&&s.activation.requests_used===0};
+        """),
+        Step(label: "strict mechanism changes effective instructions without expanding authority", code: """
+          await press('setupBack','MECHANISM');el('interviewerMechanism').value='STRICT_CHALLENGING';
+          await press('reviewSetup','REVIEW');const s=await snap();
+          return {ok:s.setup_profiles.interviewer.sha256!==window.supportiveDigest&&s.setup_profiles.interviewer.forbidden_authorities.includes('scoring')};
+        """),
+        Step(label: "disconnect clears credential and native gate reblocks draft commands", code: """
+          await request('disconnect');
+          try {await request('setup_launch');return {ok:false};}catch(e){}
+          const s=await snap();
+          return {ok:s.activation.state==='offline'&&s.activation.authenticated===false&&s.activation.requests_used===0&&!JSON.stringify(s).includes('synthetic-ui-fixture')};
         """)
     ] : [
         Step(label: "entry offers exactly two experience choices and zero API requests", code: """
@@ -129,6 +184,9 @@ final class TIAUISmoke {
                 guard app.portalIsVisible else { self.end(false, "Native API sheet not visible"); return }
                 app.cancelPortalForTest()
             }
+            if step.label == "setup begins with actual native secure credential sheet" {
+                guard app.enterSyntheticCredentialForTest() else { self.end(false, "Synthetic native input failed"); return }
+            }
             self.receipts.append(["test": step.label, "status": "PASSED"])
             print("PASS \(step.label)")
             if step.label == "prepare real keyboard focus at Replay" { self.key("\t", code: 48) }
@@ -140,7 +198,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.recovering ? "recovery-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -160,9 +218,9 @@ final class TIAUISmoke {
         guard !done else { return }; done = true
         let receipt: [String: Any] = ["schema": "tia-native-ui-test/v1", "passed": receipts.count,
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
-            "api_requests": 0, "credentials_used": false, "human_uat": "NOT_RUN"]
+            "api_requests": 0, "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting, "human_uat": "NOT_RUN"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(recovering ? "ui-recovery-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

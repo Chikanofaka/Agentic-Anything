@@ -22,7 +22,9 @@ import uuid
 
 from .controller import InterviewController, SessionConfig, SessionError
 from .persistence import SaveError, TutorialStore, strict_json
+from .prompt_profiles import ProfileError, compile_profile
 from .provider import ModelPortalError
+from .setup import SetupError, assess_allocation, review_question, validate_config
 
 
 PROTOCOL = "tia-native-tutorial/v1"
@@ -47,9 +49,17 @@ COMMAND_FIELDS = {
     "tutorial_back": set(), "tutorial_submit": {"kind", "text"},
     "tutorial_complete": set(), "tutorial_replay": set(), "choose_real": set(),
     "language": {"language"}, "reset": set(), "export": set(),
+    "setup_continue": set(), "setup_config": {"config"},
+    "setup_questions": {"questions"}, "setup_mechanism": {"mechanism"},
+    "setup_back": set(), "setup_launch": set(),
 }
 MUTATING_COMMANDS = frozenset(COMMAND_FIELDS) - {"snapshot", "export", "reset"}
-SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL")
+SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL",
+           "CONFIG", "QUESTION_SOURCE", "MECHANISM", "REVIEW")
+CONFIG_FIELDS = {"technical_environment", "duration_minutes", "difficulty",
+                 "question_source", "interviewer_mechanism"}
+SETUP_STATE_FIELDS = ("setup_config", "setup_questions", "setup_allocation",
+                      "setup_profiles", "setup_blockers")
 
 
 class HostError(ValueError):
@@ -102,6 +112,12 @@ class TutorialHost:
         self.feedback = ""
         self.trainer_preview = None
         self._cycle = 0
+        self._setup_config = None
+        self.setup_questions = []
+        self.setup_allocation = None
+        self._effective_profiles = None
+        self.setup_profiles = None
+        self.setup_blockers = []
 
     def state(self):
         steps = {"WELCOME": 1, "RULES": 2, "QUESTION": 3, "ROOM": 4, "COMPLETE": 5}
@@ -114,6 +130,12 @@ class TutorialHost:
             "execution_status": "NOT_RUN", "model_state": "offline",
             "api_requests": 0, "saved_locally": self._saved,
             "recovery_error": self._recovery_error,
+            "setup_config": (dict(self._setup_config.snapshot(), status="DRAFT")
+                             if self._setup_config else None),
+            "setup_questions": copy.deepcopy(self.setup_questions),
+            "setup_allocation": copy.deepcopy(self.setup_allocation),
+            "setup_profiles": copy.deepcopy(self.setup_profiles),
+            "setup_blockers": list(self.setup_blockers),
         }
 
     def _state_digest(self):
@@ -121,6 +143,11 @@ class TutorialHost:
         # Storage availability is not interview authority or replayed evidence.
         public.pop("saved_locally")
         public.pop("recovery_error")
+        # Additive S03-B fields have no authority when no draft exists. Omitting
+        # their empty defaults preserves the digest of existing S03-A v1 saves.
+        if self._setup_config is None:
+            for name in SETUP_STATE_FIELDS:
+                public.pop(name)
         return digest(public)
 
     @staticmethod
@@ -142,6 +169,48 @@ class TutorialHost:
                     raise HostError("INPUT_TOO_LARGE")
             except UnicodeError:
                 raise HostError("INVALID_INPUT") from None
+        if action == "setup_config":
+            if type(params["config"]) is not dict or set(params["config"]) != CONFIG_FIELDS:
+                raise HostError("INVALID_CONFIGURATION_FIELDS")
+            try:
+                validate_config(params["config"])
+            except SetupError as error:
+                raise HostError(str(error)) from None
+        if action == "setup_questions":
+            questions = params["questions"]
+            if type(questions) is not list or len(questions) > 4:
+                raise HostError("INVALID_QUESTION_ALLOCATION")
+            for text in questions:
+                if type(text) is not str:
+                    raise HostError("INVALID_IMPORT_TYPE")
+                try:
+                    if len(text.encode("utf-8")) > 4096:
+                        raise HostError("IMPORT_TOO_LARGE")
+                except UnicodeError:
+                    raise HostError("INVALID_IMPORT_ENCODING") from None
+        if action == "setup_mechanism" and (
+                type(params["mechanism"]) is not str
+                or params["mechanism"] not in ("STRICT_CHALLENGING", "PROFESSIONAL_SUPPORTIVE")):
+            raise HostError("UNKNOWN_MECHANISM")
+
+    def _refresh_allocation(self):
+        self.setup_allocation = assess_allocation(self._setup_config, self.setup_questions)
+        self.setup_blockers = list(dict.fromkeys([
+            "PROVIDER_AUTHENTICATION_REQUIRED",
+            *self.setup_allocation["issues"],
+            "LIVE_INTERVIEW_NOT_IMPLEMENTED",
+        ]))
+
+    def _review_paste(self, text):
+        try:
+            review = review_question(text, self._setup_config.technical_environment)
+        except SetupError as error:
+            # Preserve the editable paste and report parser failure, rather than
+            # guessing missing schema, examples, dialect, or third-party tests.
+            review = review_question({}, self._setup_config.technical_environment)
+            review["issues"].append({"field": "import", "code": str(error)})
+        review["raw_input"] = text
+        return review
 
     def _candidate_events(self):
         if not self.controller:
@@ -214,6 +283,65 @@ class TutorialHost:
             self.screen = "COMPLETE"
         elif action == "choose_real":
             self.screen = "API_PORTAL"
+        elif action == "setup_continue":
+            if self.screen != "API_PORTAL":
+                raise HostError("INVALID_TRANSITION")
+            # The native bridge gates local credential preparation. No credential
+            # or authentication assertion enters Python; this is an unverified
+            # draft only and setup_launch below remains unconditionally blocked.
+            self.screen = "CONFIG"
+        elif action == "setup_config":
+            if self.screen not in ("CONFIG", "QUESTION_SOURCE"):
+                raise HostError("INVALID_TRANSITION")
+            config = validate_config(params["config"])
+            previous_source = self._setup_config.question_source if self._setup_config else None
+            self._setup_config = config
+            self._effective_profiles = self.setup_profiles = None
+            old_text = ([review["raw_input"] for review in self.setup_questions]
+                        if previous_source == config.question_source else [])
+            self.setup_questions = [self._review_paste(text) for text in old_text]
+            self._refresh_allocation()
+            self.screen = "QUESTION_SOURCE"
+        elif action == "setup_questions":
+            if self.screen != "QUESTION_SOURCE" or self._setup_config is None:
+                raise HostError("INVALID_TRANSITION")
+            self.setup_questions = [self._review_paste(text) for text in params["questions"]]
+            self._effective_profiles = self.setup_profiles = None
+            self._refresh_allocation()
+            if (self._setup_config.question_source == "BYOQ"
+                    and not self.setup_allocation["ready_for_content_review"]):
+                raise HostError("QUESTION_REVIEW_REQUIRED")
+            self.screen = "MECHANISM"
+        elif action == "setup_mechanism":
+            if self.screen != "MECHANISM" or self._setup_config is None:
+                raise HostError("INVALID_TRANSITION")
+            values = {key: getattr(self._setup_config, key) for key in CONFIG_FIELDS}
+            values["interviewer_mechanism"] = params["mechanism"]
+            config = validate_config(values)
+            try:
+                profiles = {role: compile_profile(
+                    Path(__file__).resolve().parents[1], params["mechanism"], role
+                ) for role in ("interviewer", "trainer")}
+            except ProfileError as error:
+                raise HostError(str(error)) from None
+            self._setup_config = config
+            self._effective_profiles = profiles
+            self.setup_profiles = {
+                role: {key: copy.deepcopy(value) for key, value in profile.items()
+                       if key != "instructions"} for role, profile in profiles.items()
+            }
+            self._refresh_allocation()
+            self.screen = "REVIEW"
+        elif action == "setup_back":
+            previous = {"REVIEW": "MECHANISM", "MECHANISM": "QUESTION_SOURCE",
+                        "QUESTION_SOURCE": "CONFIG", "CONFIG": "API_PORTAL"}
+            if self.screen not in previous:
+                raise HostError("INVALID_TRANSITION")
+            self.screen = previous[self.screen]
+        elif action == "setup_launch":
+            if self.screen != "REVIEW":
+                raise HostError("INVALID_TRANSITION")
+            raise HostError("LAUNCH_BLOCKED")
         else:
             raise HostError("INVALID_COMMAND")
 
@@ -279,8 +407,16 @@ class TutorialHost:
             "trainer_preview": copy.deepcopy(self.trainer_preview),
             "execution_status": "NOT_RUN", "api_requests": 0,
             "save_status": "UNAVAILABLE" if self._recovery_error else "AVAILABLE",
-            "contains_personal_input": bool(self._candidate_events()),
+            "contains_personal_input": bool(self._candidate_events() or self.setup_questions),
             "privacy": "Explicit local export; includes your submitted text and code. No credentials.",
+            "setup": {
+                "configuration": (dict(self._setup_config.snapshot(), status="DRAFT")
+                                  if self._setup_config else None),
+                "questions": copy.deepcopy(self.setup_questions),
+                "allocation": copy.deepcopy(self.setup_allocation),
+                "profiles": copy.deepcopy(self.setup_profiles),
+                "blockers": list(self.setup_blockers),
+            },
         }
 
     async def command(self, action, params):

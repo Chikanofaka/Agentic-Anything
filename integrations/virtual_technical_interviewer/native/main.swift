@@ -13,7 +13,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test")
     private var loaded = false
     private var dataDirectory: URL!
     private var smokeDirectory: URL!
@@ -126,6 +126,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             emit(["id": id, "ok": false, "error": "DUPLICATE_OR_EXHAUSTED_REQUEST"]); return
         }
         guard !busy, portalSheet == nil else { emit(["id": id, "ok": false, "error": "NATIVE_BUSY"]); return }
+        if action.hasPrefix("setup_"), action != "setup_back", portal.state != "activated-unverified" {
+            emit(["id": id, "ok": false, "state": lastState, "error": "NATIVE_CREDENTIAL_CONFIGURATION_REQUIRED"]); return
+        }
         if action == "api_portal" {
             guard lastState["screen"] as? String == "API_PORTAL" else { emit(["id": id, "ok": false, "error": "INVALID_TRANSITION"]); return }
             openPortal { self.respondWithState(id) }; return
@@ -151,8 +154,11 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             if result["ok"] as? Bool == true, action == "export" {
                 // Export is initiated by the user in a native Save panel. The renderer
                 // never supplies filesystem paths, and personal transcripts aren't logged.
-                self.exportReceipt(result) { exported in
-                    var response = result; response["exported"] = exported; self.emit(response)
+                self.exportReceipt(result) { status in
+                    var response = result
+                    response["exported"] = status == "EXPORTED"
+                    if status == "FAILED" { response["ok"] = false; response["error"] = "EXPORT_FAILED" }
+                    self.emit(response)
                 }
                 return
             }
@@ -230,25 +236,32 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         guard uiTesting, let alert = portalSheet else { return }
         window.endSheet(alert.window, returnCode: .alertSecondButtonReturn)
     }
-    private func exportReceipt(_ result: [String: Any], completion: @escaping (Bool) -> Void) {
+    func enterSyntheticCredentialForTest() -> Bool {
+        guard uiTesting, let alert = portalSheet, portalIsVisible,
+              let field = alert.accessoryView?.subviews.compactMap({ $0 as? NSSecureTextField }).first,
+              let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first,
+              let delegate = field.delegate as? CredentialFieldDelegate else { return false }
+        field.stringValue = "synthetic-ui-fixture-not-a-real-key"
+        consent.state = .on; delegate.changed()
+        guard alert.buttons[0].isEnabled else { return false }
+        window.endSheet(alert.window, returnCode: .alertFirstButtonReturn)
+        return true
+    }
+    private func exportReceipt(_ result: [String: Any], completion: @escaping (String) -> Void) {
         guard let exported = result["export"] ?? result["record"],
               JSONSerialization.isValidJSONObject(exported),
               let data = try? JSONSerialization.data(withJSONObject: exported, options: [.prettyPrinted, .sortedKeys]) else {
-            completion(false); return
+            completion("FAILED"); return
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "tia-tutorial-receipt.json"
         panel.message = "Includes your submitted text. Choose where to keep this private export."
         panel.beginSheetModal(for: window) { result in
-            guard result == .OK, let url = panel.url else { completion(false); return }
+            guard result == .OK, let url = panel.url else { completion("CANCELLED"); return }
             do {
-                guard !url.hasDirectoryPath,
-                      !((try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) ?? false)
-                else { throw CocoaError(.fileWriteNoPermission) }
-                try data.write(to: url, options: .atomic)
-                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-                completion(true)
-            } catch { completion(false) }
+                try PrivateExport.write(data, to: url)
+                completion("EXPORTED")
+            } catch { completion("FAILED") }
         }
     }
 }

@@ -1,6 +1,7 @@
 """Run offline executable checks and retain sanitized, reproducible receipts."""
 import argparse
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,7 @@ repo = root.parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--ui", action="store_true", help="Open actual native windows with isolated synthetic data.")
 parser.add_argument("--regressions", action="store_true", help="Build/test Witness and shared HAL.")
-parser.add_argument("--increment", choices=["S03-A", "S03-B"], default="S03-A")
+parser.add_argument("--increment", choices=["S03-A", "S03-B"], default="S03-B")
 args = parser.parse_args()
 out = root / "engineering/s03_first_playable/verification" / args.increment
 out.mkdir(parents=True, exist_ok=True)
@@ -24,6 +25,12 @@ receipt = {"schema": "tia-verification/v1", "increment": args.increment,
            "source_parent": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
            "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
            "human_uat": "NOT_RUN", "live_api_uat": "NOT_RUN", "checks": []}
+receipt["source_sha256"] = {
+    str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+    for directory in ("native", "ui", "tia_runtime", "agents", "policy", "scripts", "tests")
+    for path in sorted((root / directory).rglob("*"))
+    if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+}
 
 def run(label, command, timeout=180):
     started = time.monotonic()
@@ -60,6 +67,11 @@ if args.ui:
         shutil.copyfile(test_dir / name, out / name)
     for source, target in (("00.png", "entry.png"), ("05.png", "interview-room.png"), ("07.png", "completion.png")):
         shutil.copyfile(test_dir / source, out / target)
+    if args.increment == "S03-B":
+        setup_dir = root / ".build-cache" / ("verified-setup-" + str(time.time_ns()))
+        run("setup-webkit", [str(app), "--ui-setup-test", "--test-output", str(setup_dir)])
+        shutil.copyfile(setup_dir / "ui-setup-receipt.json", out / "ui-setup-receipt.json")
+        shutil.copyfile(setup_dir / "setup-06.png", out / "setup-review.png")
 if args.regressions:
     run("witness-hal", ["bash", str(repo / "scripts/verify_witness_local.sh")], timeout=240)
 receipt["completed_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()

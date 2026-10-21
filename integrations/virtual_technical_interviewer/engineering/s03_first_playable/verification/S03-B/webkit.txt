@@ -1,0 +1,17 @@
+PASS entry offers exactly two experience choices and zero API requests
+PASS keyboard focus reaches tutorial and real Next reaches rules
+PASS rules acknowledged before fixed Medium PostgreSQL question
+PASS interactive room starts original S02 controller
+PASS clarification crosses WebKit native Python and stays literal
+PASS plan and SQL are separate unexecuted candidate evidence
+PASS compact interview room has no horizontal clipping
+PASS completion freezes receipt and authorizes separate Trainer
+PASS language preference is host-owned and receipt immutable
+PASS prepare real keyboard focus at Replay
+PASS native Tab reaches Real AI choice
+PASS real AI immediately enters native API Portal ahead of config
+PASS cancelled native credential entry cannot activate real AI
+PASS native human decision stays pending beyond twenty seconds without false timeout
+PASS delayed native cancel resolves the original request and keeps zero usage
+PASS local resource isolation and no renderer network privileges
+Native UI smoke: PASS — 16 real UI checks; zero API requests

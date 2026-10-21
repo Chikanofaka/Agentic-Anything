@@ -1,0 +1,11 @@
+PASS empty/offline activation cannot enter setup through native bridge
+PASS setup begins with actual native secure credential sheet
+PASS synthetic native credential is only locally configured and unverified
+PASS 60 minutes derives four and 45 derives three Hard questions
+PASS incomplete BYOQ remains editable and never fabricates validated questions
+PASS three distinct structured synthetic questions cross the real bridge
+PASS supportive mechanism loads compiled source and configuration digests
+PASS launch remains blocked on authentication and independent execution
+PASS strict mechanism changes effective instructions without expanding authority
+PASS disconnect clears credential and native gate reblocks draft commands
+Native UI smoke: PASS — 10 real UI checks; zero API requests

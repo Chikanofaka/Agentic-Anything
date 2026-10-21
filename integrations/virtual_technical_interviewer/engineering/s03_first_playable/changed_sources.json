@@ -1,0 +1,53 @@
+{
+  "S03-A": {
+    "commit": "2f8d26226228218310379f8b39aed66515147f50",
+    "files": [
+      "integrations/virtual_technical_interviewer/.gitignore",
+      "integrations/virtual_technical_interviewer/README_APP.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/professional_supportive/AGENTS.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/professional_supportive/identity.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/professional_supportive/skills.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/professional_supportive/soul.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/strict_challenging/AGENTS.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/strict_challenging/identity.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/strict_challenging/skills.md",
+      "integrations/virtual_technical_interviewer/agents/mechanisms/strict_challenging/soul.md",
+      "integrations/virtual_technical_interviewer/agents/trainer/skills.md",
+      "integrations/virtual_technical_interviewer/native/Bridge.swift",
+      "integrations/virtual_technical_interviewer/native/SelfTests.swift",
+      "integrations/virtual_technical_interviewer/native/UISmoke.swift",
+      "integrations/virtual_technical_interviewer/native/Worker.swift",
+      "integrations/virtual_technical_interviewer/native/main.swift",
+      "integrations/virtual_technical_interviewer/policy/interview_mechanisms_v1.json",
+      "integrations/virtual_technical_interviewer/policy/prompt_manifest_v1.json",
+      "integrations/virtual_technical_interviewer/scripts/build_app.sh",
+      "integrations/virtual_technical_interviewer/scripts/check_build_paths.py",
+      "integrations/virtual_technical_interviewer/scripts/package_app.py",
+      "integrations/virtual_technical_interviewer/scripts/verify_app.py",
+      "integrations/virtual_technical_interviewer/tests/test_app_host.py",
+      "integrations/virtual_technical_interviewer/tests/test_prompt_profiles.py",
+      "integrations/virtual_technical_interviewer/tests/test_setup.py",
+      "integrations/virtual_technical_interviewer/tia_runtime/app_host.py",
+      "integrations/virtual_technical_interviewer/tia_runtime/persistence.py",
+      "integrations/virtual_technical_interviewer/tia_runtime/prompt_profiles.py",
+      "integrations/virtual_technical_interviewer/tia_runtime/setup.py",
+      "integrations/virtual_technical_interviewer/ui/app.js",
+      "integrations/virtual_technical_interviewer/ui/index.html",
+      "integrations/virtual_technical_interviewer/ui/style.css"
+    ]
+  },
+  "S03-B": {
+    "files": [
+      "integrations/virtual_technical_interviewer/README_APP.md",
+      "integrations/virtual_technical_interviewer/native/Bridge.swift",
+      "integrations/virtual_technical_interviewer/native/SelfTests.swift",
+      "integrations/virtual_technical_interviewer/native/UISmoke.swift",
+      "integrations/virtual_technical_interviewer/native/main.swift",
+      "integrations/virtual_technical_interviewer/scripts/verify_app.py",
+      "integrations/virtual_technical_interviewer/tests/test_app_host.py",
+      "integrations/virtual_technical_interviewer/tia_runtime/app_host.py",
+      "integrations/virtual_technical_interviewer/ui/app.js",
+      "integrations/virtual_technical_interviewer/ui/style.css"
+    ]
+  }
+}

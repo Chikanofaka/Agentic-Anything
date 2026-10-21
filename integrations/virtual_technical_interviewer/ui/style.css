@@ -108,6 +108,39 @@ textarea::placeholder { font-family: -apple-system, BlinkMacSystemFont, sans-ser
 .receipt-card .eyebrow { margin-bottom: 7px; }
 .receipt-card .muted { font-size: .87rem; }
 .portal-card { max-width: 900px; }
+.portal-card > .full-width { margin-top: 20px; }
+.setup-warning { padding: 15px 18px; background: #fff5df; border: 1px solid #e3d4ae; border-radius: 10px; color: #62502c; font-size: .9rem; margin-bottom: 24px; }
+.setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; }
+.setup-field { min-width: 0; }
+.setup-stat { border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.setup-stat span { display: block; font-size: .85rem; }
+.derived-count { display: block; font-size: 2rem; margin-top: 10px; font-weight: 650; }
+.byoq-card { margin-top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.byoq-card > label { margin-top: 0; }
+.byoq-card textarea { min-height: 210px; }
+.byoq-card textarea[aria-invalid="true"] { border-color: #b55d48; }
+.question-review { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: #f6f8f2; }
+.question-review summary { font-weight: 600; cursor: pointer; padding: 2px 0; overflow-wrap: anywhere; }
+.question-review > p { margin-top: 14px; }
+.review-fields { display: grid; grid-template-columns: minmax(120px, .35fr) minmax(0, 1fr); gap: 9px 15px; font-size: .84rem; }
+.review-fields dt { color: var(--muted); overflow-wrap: anywhere; }
+.review-fields dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.issues-list { color: #715438; font-size: .83rem; padding-left: 23px; overflow-wrap: anywhere; }
+.issues-list li { margin-bottom: 8px; }
+.mechanism-cards { margin-top: 24px; }
+.mechanism-cards .choice-card h2 { font-size: 1.1rem; }
+.mechanism-cards .choice-card p { font-size: .92rem; margin-bottom: 0; }
+.review-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 22px; font-size: .93rem; }
+.review-table th, .review-table td { text-align: left; vertical-align: top; padding: 14px 16px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.review-table th { width: 37%; color: var(--muted); font-weight: 500; }
+.review-table td { white-space: pre-wrap; }
+.source-digests { list-style: none; margin: 12px 0; padding: 0; }
+.source-digests li { font-size: .76rem; overflow-wrap: anywhere; }
+.source-digests .digest { margin-top: 3px; font-size: .7rem; }
+.launch-blockers { margin-top: 24px; padding: 20px; border: 1px solid #e3d4ae; border-radius: 12px; }
+.launch-blockers h2 { font-size: 1.1rem; }
+.launch-blockers > p:last-child { margin-bottom: 0; font-size: .85rem; }
+.section-title { margin-top: 26px; }
 .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 22px; margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: .75rem; letter-spacing: .02em; }
 .error-banner { position: fixed; bottom: 18px; left: 24px; right: 24px; z-index: 10; padding: 15px 20px; color: #6e271d; background: #fff2ee; border: 1px solid #c87c6c; border-radius: 12px; box-shadow: 0 4px 20px #0002; overflow-wrap: anywhere; }
 .loading { text-align: center; padding: 48px; }
@@ -139,6 +172,11 @@ textarea::placeholder { font-family: -apple-system, BlinkMacSystemFont, sans-ser
   .choice-card { padding: 20px; }
   .choice-card .muted { margin-bottom: 16px; }
   .evidence-grid { grid-template-columns: 1fr; }
+  .setup-grid { grid-template-columns: 1fr; }
+  .review-fields { grid-template-columns: 1fr; }
+  .review-fields dd { margin-bottom: 8px; }
+  .byoq-card { padding: 14px; }
+  .review-table th, .review-table td { padding: 12px 8px; }
   .title-row { align-items: flex-start; }
   .actions { flex-wrap: wrap; }
   .actions .button.primary { flex: 1; }
