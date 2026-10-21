@@ -156,6 +156,19 @@ final class TIAUISmoke {
           await press('nextSetup','QUESTION_SOURCE');const s=await snap();
           return {ok:s.setup_config.question_count===3&&s.setup_config.difficulty==='HARD'&&s.setup_config.status==='DRAFT'&&!!el('byoqQuestion2')&&!el('byoqQuestion3')};
         """),
+        Step(label: "S03-D freeform LeetCode original can extract, review and confirm through real bridge", code: """
+          const raw='3521. Synthetic Product Pairs\\nMedium\\nTable: Purchases\\n|user_id|product_id|\\n|1|101|\\nWrite a solution to count the pairs bought together.\\nExample:\\nInput:\\n|1|101|\\nOutput:\\n|101|102|3|';
+          const box=el('byoqQuestion0');box.value=raw;box.dispatchEvent(new Event('input',{bubbles:true}));
+          el('byoqSource0').value='LEETCODE';await press('extractQuestion0');
+          await until(()=>window.tiaState.setup_questions?.length===1);
+          let s=await snap();const r=s.setup_questions[0];
+          if(!r.extraction||r.extraction.title.id!=='3521'||!r.fields.schema.includes('Purchases')||!el('confirmQuestion0'))return {ok:false};
+          await press('confirmQuestion0');s=await snap();
+          if(!s.setup_questions[0].practice_eligible||!el('practiceQuestion0')||s.setup_allocation.launch_authorized)return {ok:false};
+          try{await request('setup_questions',{questions:[]});}catch(e){if(e.message!=='QUESTION_REVIEW_REQUIRED')return {ok:false};}
+          const remaining=el('byoqQuestion0');remaining.value='';remaining.dispatchEvent(new Event('input',{bubbles:true}));
+          s=await snap();return {ok:s.screen==='QUESTION_SOURCE'&&s.setup_questions.length===0};
+        """),
         Step(label: "incomplete BYOQ remains editable and never fabricates validated questions", code: """
           await press('reviewQuestions');const s=await snap();
           return {ok:s.screen==='QUESTION_SOURCE'&&s.setup_questions.length===3&&s.setup_questions.every(q=>q.structure_status==='NEEDS_REVIEW')&&s.setup_allocation.launch_authorized===false};

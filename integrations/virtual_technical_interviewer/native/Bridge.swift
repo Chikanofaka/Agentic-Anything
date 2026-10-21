@@ -69,6 +69,35 @@ enum BridgePolicy {
         } else if action == "setup_questions" {
             guard Set(params.keys) == ["questions"], let questions = params["questions"] as? [String],
                   questions.count <= 4, questions.allSatisfy({ $0.utf8.count <= 4096 }) else { return nil }
+        } else if action == "setup_question_set" {
+            guard Set(params.keys) == ["index", "raw_text", "source"],
+                  let index = params["index"] as? NSNumber,
+                  CFGetTypeID(index) != CFBooleanGetTypeID(), index.intValue >= 0, index.intValue < 4,
+                  index.doubleValue == Double(index.intValue),
+                  let raw = params["raw_text"] as? String, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  raw.utf8.count <= 8192,
+                  let source = params["source"] as? String,
+                  ["LEETCODE", "HACKERRANK", "OWNER"].contains(source) else { return nil }
+        } else if action == "setup_question_confirm" {
+            guard Set(params.keys) == ["index", "fields", "raw_sha256"],
+                  let index = params["index"] as? NSNumber,
+                  CFGetTypeID(index) != CFBooleanGetTypeID(), index.intValue >= 0, index.intValue < 4,
+                  index.doubleValue == Double(index.intValue),
+                  let fields = params["fields"] as? [String: Any],
+                  Set(fields.keys) == ["problem_statement", "task", "schema", "example_input", "expected_output",
+                                       "environment", "source", "constraints", "source_reference"],
+                  fields.values.allSatisfy({ value in guard let text = value as? String else { return false }; return text.utf8.count <= 8192 }),
+                  let digest = params["raw_sha256"] as? String,
+                  digest.range(of: "\\A[0-9a-f]{64}\\z", options: .regularExpression) != nil else { return nil }
+        } else if action == "practice_start" {
+            guard Set(params.keys) == ["index", "content_sha256"],
+                  let index = params["index"] as? NSNumber,
+                  CFGetTypeID(index) != CFBooleanGetTypeID(), index.intValue >= 0, index.intValue < 4,
+                  index.doubleValue == Double(index.intValue),
+                  let digest = params["content_sha256"] as? String,
+                  digest.range(of: "\\A[0-9a-f]{64}\\z", options: .regularExpression) != nil else { return nil }
+        } else if action == "setup_questions_finish" {
+            guard params.isEmpty else { return nil }
         } else if action == "setup_mechanism" {
             guard Set(params.keys) == ["mechanism"], let mechanism = params["mechanism"] as? String,
                   ["STRICT_CHALLENGING", "PROFESSIONAL_SUPPORTIVE"].contains(mechanism) else { return nil }

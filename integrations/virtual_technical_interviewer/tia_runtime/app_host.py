@@ -25,6 +25,7 @@ from .persistence import SaveError, TutorialStore, strict_json
 from .prompt_profiles import ProfileError, compile_profile, compile_live_profile, decide_interaction
 from .provider import ModelPortalError
 from .setup import SetupError, assess_allocation, review_question, validate_config
+from .freeform_import import extract_freeform, ImportIssue, MAX_RAW_QUESTION_BYTES
 from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, validate_commit
 
 
@@ -52,6 +53,10 @@ COMMAND_FIELDS = {
     "language": {"language"}, "reset": set(), "export": set(),
     "setup_continue": set(), "setup_config": {"config"},
     "setup_questions": {"questions"}, "setup_mechanism": {"mechanism"},
+    "setup_question_set": {"index", "raw_text", "source"},
+    "setup_question_confirm": {"index", "fields", "raw_sha256"},
+    "setup_questions_finish": set(),
+    "practice_start": {"index", "content_sha256"},
     "setup_back": set(), "setup_launch": set(),
     # These native_* commands are private worker IPC. Bridge.swift explicitly
     # rejects them as renderer actions. They contain no credentials or URLs.
@@ -125,8 +130,19 @@ class TutorialHost:
         self.setup_blockers = []
         self._live_controller = None
         self._live_profile = None
+        self._live_question = None
         self._prepared_return = None
         self._preview_history = []
+        self._practice_question = None
+
+    def _selected_preview_question(self):
+        # Freeze source binding for each preview; later edits cannot relabel a
+        # prior session's model input or evidence on reopening.
+        return copy.deepcopy(self._live_question if self._live_controller is not None else
+                             (self._practice_question or QUESTION))
+
+    def _practice_snapshot(self):
+        return copy.deepcopy(self._practice_question) if self._practice_question else None
 
     def _preview_state(self):
         if self._live_controller is None:
@@ -140,7 +156,7 @@ class TutorialHost:
         pending = self._live_controller.native_pending is not None
         closed = self._live_controller.phase != 'INTERVIEWING'
         return {
-            'question': copy.deepcopy(QUESTION), 'session': session,
+            'question': self._selected_preview_question(), 'session': session,
             'pending': pending, 'closed': closed,
             'mechanism': self._live_profile['mechanism'],
             'prompt_provenance': {key: copy.deepcopy(value)
@@ -173,6 +189,8 @@ class TutorialHost:
             "setup_profiles": copy.deepcopy(self.setup_profiles),
             "setup_blockers": list(self.setup_blockers),
         }
+        if self._practice_question is not None:
+            result['practice_question'] = self._practice_snapshot()
         if self._live_controller is not None:
             result['live_preview'] = self._preview_state()
             result['live_preview_history'] = copy.deepcopy(self._preview_history)
@@ -235,6 +253,41 @@ class TutorialHost:
                         raise HostError("IMPORT_TOO_LARGE")
                 except UnicodeError:
                     raise HostError("INVALID_IMPORT_ENCODING") from None
+        if action == "setup_question_set":
+            if type(params["index"]) is not int or not 0 <= params["index"] < 4:
+                raise HostError("INVALID_QUESTION_SLOT")
+            if type(params["source"]) is not str or params["source"] not in ("LEETCODE", "HACKERRANK", "OWNER"):
+                raise HostError("INVALID_QUESTION_SOURCE")
+            raw = params["raw_text"]
+            if type(raw) is not str or not raw.strip():
+                raise HostError("EMPTY_QUESTION")
+            try:
+                if len(raw.encode("utf-8")) > MAX_RAW_QUESTION_BYTES:
+                    raise HostError("IMPORT_TOO_LARGE")
+            except UnicodeError:
+                raise HostError("INVALID_IMPORT_ENCODING") from None
+        if action == "setup_question_confirm":
+            if type(params["index"]) is not int or not 0 <= params["index"] < 4:
+                raise HostError("INVALID_QUESTION_SLOT")
+            fields = params["fields"]
+            if (type(fields) is not dict or set(fields) != {
+                    "problem_statement", "task", "schema", "example_input", "expected_output",
+                    "environment", "source", "constraints", "source_reference"}):
+                raise HostError("INVALID_CONFIRMATION_FIELDS")
+            if any(type(item) is not str for item in fields.values()):
+                raise HostError("INVALID_CONFIRMATION_FIELDS")
+            try:
+                if len(json.dumps(fields, ensure_ascii=True).encode("utf-8")) > 24000:
+                    raise HostError("CONFIRMATION_TOO_LARGE")
+            except UnicodeError:
+                raise HostError("INVALID_IMPORT_ENCODING") from None
+            if type(params["raw_sha256"]) is not str or not re.fullmatch(r"[0-9a-f]{64}", params["raw_sha256"]):
+                raise HostError("INVALID_QUESTION_DIGEST")
+        if action == "practice_start":
+            if type(params["index"]) is not int or not 0 <= params["index"] < 4:
+                raise HostError("INVALID_QUESTION_SLOT")
+            if type(params["content_sha256"]) is not str or not re.fullmatch(r"[0-9a-f]{64}", params["content_sha256"]):
+                raise HostError("INVALID_QUESTION_DIGEST")
         if action == "setup_mechanism" and (
                 type(params["mechanism"]) is not str
                 or params["mechanism"] not in ("STRICT_CHALLENGING", "PROFESSIONAL_SUPPORTIVE")):
@@ -242,21 +295,43 @@ class TutorialHost:
 
     def _refresh_allocation(self):
         self.setup_allocation = assess_allocation(self._setup_config, self.setup_questions)
+        wrong_difficulty = any(
+            (review.get("extraction") or {}).get("declared_difficulty") in ("EASY", "MEDIUM")
+            for review in self.setup_questions
+        )
         self.setup_blockers = list(dict.fromkeys([
             "PROVIDER_AUTHENTICATION_REQUIRED",
             *self.setup_allocation["issues"],
+            *(["QUESTION_DIFFICULTY_NOT_HARD"] if wrong_difficulty else []),
             "LIVE_INTERVIEW_NOT_IMPLEMENTED",
         ]))
 
-    def _review_paste(self, text):
+    def _review_paste(self, text, source="OWNER"):
+        extracted = None
         try:
             review = review_question(text, self._setup_config.technical_environment)
         except SetupError as error:
-            # Preserve the editable paste and report parser failure, rather than
-            # guessing missing schema, examples, dialect, or third-party tests.
-            review = review_question({}, self._setup_config.technical_environment)
-            review["issues"].append({"field": "import", "code": str(error)})
+            # JSON/labeled failures remain errors; never reinterpret malformed JSON
+            # as a successful freeform import.
+            if (str(error) == "LABELED_IMPORT_REQUIRED" and not text.lstrip().startswith("{")
+                    and re.search(r"(?:\bTable\s*:|\bSQL Schema\b|\bPandas Schema\b|\bInput\s*:|\bOutput\s*:|\bWrite a solution\b|\bQuery a list\b)", text, re.I)):
+                try:
+                    extracted = extract_freeform(text, environment=self._setup_config.technical_environment,
+                                                 source=source)
+                    review = review_question(extracted["fields"], self._setup_config.technical_environment)
+                except (ImportIssue, SetupError) as failure:
+                    review = review_question({}, self._setup_config.technical_environment)
+                    review["issues"].append({"field": "import", "code": str(failure)})
+            else:
+                review = review_question({}, self._setup_config.technical_environment)
+                review["issues"].append({"field": "import", "code": str(error)})
         review["raw_input"] = text
+        review["raw_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if extracted:
+            review["extraction"] = extracted["metadata"]
+            review["extraction_issues"] = extracted["issues"]
+        review["human_confirmed"] = False
+        review["practice_eligible"] = False
         return review
 
     def _candidate_events(self):
@@ -345,6 +420,7 @@ class TutorialHost:
             config = validate_config(params["config"])
             previous_source = self._setup_config.question_source if self._setup_config else None
             self._setup_config = config
+            self._practice_question = None
             self._effective_profiles = self.setup_profiles = None
             old_text = ([review["raw_input"] for review in self.setup_questions]
                         if previous_source == config.question_source else [])
@@ -352,6 +428,7 @@ class TutorialHost:
             self._refresh_allocation()
             self.screen = "QUESTION_SOURCE"
         elif action == "setup_questions":
+            # Legacy batch behavior is retained for existing saves and S03-B tests.
             if self.screen != "QUESTION_SOURCE" or self._setup_config is None:
                 raise HostError("INVALID_TRANSITION")
             self.setup_questions = [self._review_paste(text) for text in params["questions"]]
@@ -361,6 +438,90 @@ class TutorialHost:
                     and not self.setup_allocation["ready_for_content_review"]):
                 raise HostError("QUESTION_REVIEW_REQUIRED")
             self.screen = "MECHANISM"
+        elif action == "setup_question_set":
+            if (self.screen != "QUESTION_SOURCE" or self._setup_config is None
+                    or self._setup_config.question_source != "BYOQ"):
+                raise HostError("INVALID_TRANSITION")
+            index = params["index"]
+            if index >= self._setup_config.question_count or index > len(self.setup_questions):
+                raise HostError("QUESTION_SLOT_ORDER")
+            reviewed = self._review_paste(params["raw_text"], params["source"])
+            if index == len(self.setup_questions):
+                self.setup_questions.append(reviewed)
+            else:
+                self.setup_questions[index] = reviewed
+            self._practice_question = None
+            self._effective_profiles = self.setup_profiles = None
+            self._refresh_allocation()
+        elif action == "setup_question_confirm":
+            if (self.screen != "QUESTION_SOURCE" or self._setup_config is None
+                    or self._setup_config.question_source != "BYOQ"):
+                raise HostError("INVALID_TRANSITION")
+            index = params["index"]
+            if index >= len(self.setup_questions):
+                raise HostError("QUESTION_SLOT_NOT_FOUND")
+            original = self.setup_questions[index]
+            if original["raw_sha256"] != params["raw_sha256"]:
+                raise HostError("STALE_QUESTION_REVIEW")
+            try:
+                reviewed = review_question(params["fields"], self._setup_config.technical_environment)
+            except SetupError as error:
+                raise HostError(str(error)) from None
+            # A live conversation needs a real task and reviewed schema, not
+            # necessarily official executable examples. Formal launch is unchanged.
+            required = ("problem_statement", "task", "schema", "environment", "source")
+            if any(not reviewed["fields"].get(key, "").strip() for key in required):
+                raise HostError("PRACTICE_REQUIRED_FIELDS_MISSING")
+            if any(issue["field"] in required or issue["code"] in
+                   ("FIELD_TOO_LARGE", "INVALID_CONTROL_CHARACTER") for issue in reviewed["issues"]):
+                raise HostError("PRACTICE_REVIEW_REQUIRED")
+            reviewed.update(raw_input=original["raw_input"], raw_sha256=original["raw_sha256"],
+                            human_confirmed=True, practice_eligible=True)
+            if "extraction" in original:
+                reviewed["extraction"] = original["extraction"]
+                reviewed["extraction_issues"] = original.get("extraction_issues", [])
+            self.setup_questions[index] = reviewed
+            self._practice_question = None
+            self._refresh_allocation()
+        elif action == "setup_questions_finish":
+            if self.screen != "QUESTION_SOURCE" or self._setup_config is None:
+                raise HostError("INVALID_TRANSITION")
+            self._refresh_allocation()
+            if (self._setup_config.question_source == "BYOQ"
+                    and not self.setup_allocation["ready_for_content_review"]):
+                raise HostError("QUESTION_REVIEW_REQUIRED")
+            if "QUESTION_DIFFICULTY_NOT_HARD" in self.setup_blockers:
+                raise HostError("QUESTION_DIFFICULTY_NOT_HARD")
+            self.screen = "MECHANISM"
+        elif action == "practice_start":
+            if (self.screen != "QUESTION_SOURCE" or self._setup_config is None
+                    or self._setup_config.question_source != "BYOQ"):
+                raise HostError("INVALID_TRANSITION")
+            index = params["index"]
+            if index >= len(self.setup_questions):
+                raise HostError("QUESTION_SLOT_NOT_FOUND")
+            review = self.setup_questions[index]
+            if (not review.get("human_confirmed") or not review.get("practice_eligible")
+                    or review["content_sha256"] != params["content_sha256"]):
+                raise HostError("PRACTICE_REVIEW_REQUIRED")
+            fields = review["fields"]
+            if self._live_controller is not None and self._live_controller.phase == 'INTERVIEWING':
+                raise HostError('PREVIEW_ACTIVE')
+            self._practice_question = {
+                "id": review["question_id"],
+                "title": ((review.get("extraction") or {}).get("title") or {}).get("text") or "User-submitted question",
+                "statement": fields["problem_statement"] + "\n\nTask: " + fields["task"],
+                "schema": fields["schema"],
+                "example_input": fields.get("example_input", ""),
+                "expected_output": fields.get("expected_output", ""),
+                "constraints": fields.get("constraints", ""),
+                "difficulty": (review.get("extraction") or {}).get("declared_difficulty") or "UNVERIFIED",
+                "environment": fields["environment"],
+                "source": fields["source"],
+                "content_sha256": review["content_sha256"],
+                "practice_only": True,
+            }
+            self.screen = "API_PORTAL"
         elif action == "setup_mechanism":
             if self.screen != "MECHANISM" or self._setup_config is None:
                 raise HostError("INVALID_TRANSITION")
@@ -435,14 +596,16 @@ class TutorialHost:
                 self._preview_history.append(self._preview_state())
                 self._live_controller = None
                 self._live_profile = None
+                self._live_question = None
             if self._live_controller is None:
                 self._live_profile = profile
+                self._live_question = copy.deepcopy(self._practice_question or QUESTION)
                 self._live_controller = InterviewController(
                     SessionConfig(session_id='preview-' + self._instance_id + '-' + str(len(self._preview_history) + 1),
                                   duration_seconds=86400, max_input_bytes=4096),
                     clock=lambda: self._tick,
                 )
-                self._live_controller.start_native_preview(QUESTION['statement'], profile)
+                self._live_controller.start_native_preview(self._live_question['statement'], profile)
             if self._live_profile['mechanism'] != mechanism:
                 raise HostError('PREVIEW_MECHANISM_MISMATCH')
             if self._live_controller.phase != 'INTERVIEWING':
@@ -491,7 +654,7 @@ class TutorialHost:
         dialogue = [{'event_id': e['id'], 'text': e['payload']['text'], 'provenance': e['provenance']}
                     for e in self._live_controller.snapshot()['events'] if e['actor'] == 'interviewer'][-1:]
         input_text = json.dumps({'context_label': 'UNTRUSTED_PUBLIC_TASK_AND_CANDIDATE_DATA',
-                                 'question': QUESTION, 'candidate_events': candidate,
+                                 'question': self._selected_preview_question(), 'candidate_events': candidate,
                                  'prior_interviewer_dialogue': dialogue,
                                  'interface_language': self.language}, ensure_ascii=False)
         if len(input_text.encode()) > 16000 or len(profile['instructions'].encode()) > 32768:
@@ -582,6 +745,7 @@ class TutorialHost:
                 "configuration": (dict(self._setup_config.snapshot(), status="DRAFT")
                                   if self._setup_config else None),
                 "questions": copy.deepcopy(self.setup_questions),
+                "practice_question": self._practice_snapshot(),
                 "allocation": copy.deepcopy(self.setup_allocation),
                 "profiles": copy.deepcopy(self.setup_profiles),
                 "blockers": list(self.setup_blockers),

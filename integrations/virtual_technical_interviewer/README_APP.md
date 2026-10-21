@@ -21,9 +21,26 @@ receipt before the separate Trainer receives its permitted scripted review.
 **Preview interview configuration** to explore the entire Wizard without a key
 or paid request. The exact 16 configurations remain PostgreSQL/Pandas, 45/60
 minutes with derived 3/4 Hard questions, BYOQ/random source, and Strict/Supportive.
-BYOQ accepts editable JSON or labeled fields, up to 4,096 UTF-8 bytes per question;
-structural validation never authorizes grading. The absent validated pool and
+BYOQ accepts pasted LeetCode/HackerRank natural-format questions (plus legacy
+JSON/labeled fields). S03-D accepts up to 8,192 UTF-8 bytes per question,
+imported one slot at a time under the existing 32KB Worker request limit.
+The candidate selects a source, clicks **Extract question**, edits detected
+fields (especially Schema and Example Output), and explicitly confirms.
+Original text and review stay in the private App save. Structural extraction
+never authorizes execution or grading. Image-only HackerRank schemas are
+flagged `IMAGE_SCHEMA_NOT_IMPORTED`; the current version requires manual schema
+entry and does not claim screenshot decoding. The absent validated pool and
 execution adapters continue to block full interview launch.
+
+**S03-D single-question BYOQ rehearsal:** after confirming the extracted fields,
+select **Practise this question with Live AI (unscored)**. This binds the actual
+confirmed task, schema and examples to the existing native OpenAI model request,
+then opens the API Portal for explicitly authorized, bounded paid usage. The
+45→3/60→4 Hard formal examination policy remains unchanged. An imported Medium
+problem may be used for practice but is not approved as a Hard exam item.
+Live rehearsal has no SQL/Pandas execution or numerical grades, and still limits
+the candidate to a single submitted turn. The original built-in preview
+continues to work without an imported question.
 
 S03-C adds **Live Conversational Preview**. In the native sheet choose a model
 (default `gpt-4.1-mini`), a cap of 1/2/5/10/20 requests, and explicitly consent to
@@ -99,3 +116,20 @@ scratch data stay ignored. Historical S03-A/B receipts are preserved.
 document measured verification and remaining gates. No paid live test has been
 performed by this implementation task. TIA has not been registered with the
 shared Witness HAL interactive registry; no shared authority was expanded.
+
+### S03-D Patch candidate verification
+
+Run from repository root with no real API key:
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/run_tests.py
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --ui --regressions
+```
+
+The new Python tests verify source-shaped raw import, per-slot bounds, human
+confirmation, immutable live question binding, journal restart and the formal
+launch gate. Native/WebKit tests require macOS; their tests use synthetic data
+and mock HTTP. Only after both test suites pass should the S03-D branch enter
+human UAT, followed by an explicit approval to merge/push. No live requests
+are made by automated tests. Image upload, SQL execution, grading, multimodal
+vision and multi-turn voice remain separate later milestones.

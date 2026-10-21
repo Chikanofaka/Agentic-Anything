@@ -100,7 +100,13 @@ class InterviewController:
         self._available()
         if self.phase != 'NEW' or profile.get('role') != 'interviewer':
             raise SessionError('INVALID_TRANSITION')
-        question = self._text(question)
+        if type(question) is not str or not question.strip():
+            raise SessionError('INVALID_INPUT')
+        try:
+            if len(question.encode('utf-8')) > 16384:
+                raise SessionError('QUESTION_TOO_LARGE')
+        except UnicodeError:
+            raise SessionError('INVALID_INPUT') from None
         self._native_preview = True
         self._started = self._clock()
         self._question = question

@@ -45,6 +45,23 @@ func runNativeTests() -> Int32 {
     check("Easy configuration rejected", BridgePolicy.validate(request("setup_config", ["config": invalid])) == nil)
     check("bounded question slots", BridgePolicy.validate(request("setup_questions", ["questions": Array(repeating: "x", count: 5)])) == nil)
     check("bounded pasted bytes", BridgePolicy.validate(request("setup_questions", ["questions": [String(repeating: "中", count: 1366)]])) == nil)
+    let syntheticRaw = "Write a solution.\nTable: Scores\n| id | int |"
+    check("S03D raw question accepted", BridgePolicy.validate(request("setup_question_set", ["index": 0, "raw_text": syntheticRaw, "source": "LEETCODE"])) != nil)
+    check("S03D source must be approved", BridgePolicy.validate(request("setup_question_set", ["index": 0, "raw_text": syntheticRaw, "source": "SCRAPE_URL"])) == nil)
+    check("S03D boolean index rejected", BridgePolicy.validate(request("setup_question_set", ["index": true, "raw_text": syntheticRaw, "source": "LEETCODE"])) == nil)
+    check("S03D exact 8192-byte source accepted", BridgePolicy.validate(request("setup_question_set", ["index": 0, "raw_text": String(repeating: "中", count: 2730), "source": "OWNER"])) != nil)
+    check("S03D excessive UTF8 source rejected", BridgePolicy.validate(request("setup_question_set", ["index": 0, "raw_text": String(repeating: "中", count: 2731), "source": "OWNER"])) == nil)
+    check("S03D no extra authority in import", BridgePolicy.validate(request("setup_question_set", ["index": 0, "raw_text": syntheticRaw, "source": "OWNER", "grant": "SCORE"])) == nil)
+    let digest = String(repeating: "a", count: 64)
+    let edited: [String: Any] = ["problem_statement": "Find a solution", "task": "Return ids", "schema": "Scores(id INT)",
+                                 "example_input": "", "expected_output": "", "environment": "POSTGRESQL", "source": "OWNER",
+                                 "constraints": "", "source_reference": ""]
+    check("S03D human-reviewed fields accepted", BridgePolicy.validate(request("setup_question_confirm", ["index": 0, "fields": edited, "raw_sha256": digest])) != nil)
+    check("S03D fields cannot grant scores", BridgePolicy.validate(request("setup_question_confirm", ["index": 0, "fields": edited.merging(["scoring_authorized": true]) { _, extra in extra }, "raw_sha256": digest])) == nil)
+    check("S03D practice digest accepted", BridgePolicy.validate(request("practice_start", ["index": 0, "content_sha256": digest])) != nil)
+    check("S03D practice cannot override role", BridgePolicy.validate(request("practice_start", ["index": 0, "content_sha256": digest, "role": "admin"])) == nil)
+    check("S03D exact finish command", BridgePolicy.validate(request("setup_questions_finish")) != nil)
+    check("S03D finish rejects extra fields", BridgePolicy.validate(request("setup_questions_finish", ["bypass": true])) == nil)
     for action in ["native_prepare_preview", "native_commit_preview", "native_cancel_preview"] {
         check("native-only handshake " + action, BridgePolicy.validate(request(action)) == nil)
     }

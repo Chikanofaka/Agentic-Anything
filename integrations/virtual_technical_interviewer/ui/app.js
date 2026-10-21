@@ -15,6 +15,8 @@
   let liveDraft = "";
   let liveKind = "clarify";
   let questionDrafts = [];
+  let questionSources = [];
+  let questionFieldDrafts = [];
   let previousScreen = null;
   const strings = {
     en: {
@@ -95,10 +97,14 @@
       hardOnly: "Hard · fixed for real interviews", configNote: "45 minutes requires 3 questions; 60 minutes requires 4. The host validates this contract.",
       continueSetup: "Next →", sourceTitle: "Select question source", sourceLabel: "Question source",
       byoq: "Bring your own question · LeetCode / HackerRank", randomized: "Randomized · approved dataset pool",
-      sourceInstructions: "Provide each question as JSON or explicit English headings. Required: problem statement, task, schema / DataFrame definitions, example input, expected output, environment and source. Constraints and source reference are optional.",
+      sourceInstructions: "Paste the original LeetCode/HackerRank question without rewriting it into JSON. Choose its source, then Extract → Review/Edit → Confirm. JSON import remains available in Advanced mode.",
       sourceSafety: "Structural review is not SQL execution or hidden-test validation. Missing or conflicting information blocks progression; remaining slots are never silently filled.",
-      questionNumber: "Question", emptyTemplate: "Insert empty template", bytes: "UTF-8 bytes",
-      importTooLarge: "This question exceeds the 4096-byte interface limit. Shorten it before review.",
+      questionNumber: "Question", emptyTemplate: "Advanced: insert JSON template", bytes: "UTF-8 bytes",
+      extractQuestion: "Extract question", confirmQuestion: "Confirm reviewed fields",
+      practiceQuestion: "Practise this question with Live AI (unscored)",
+      sourceChoice: "Source", reviewGuidance: "Review and edit extracted fields. Image-only schemas must be entered manually until image import is implemented.",
+      reviewIncomplete: "Missing or uncertain fields remain unverified. Final SQL scoring is unavailable.",
+      importTooLarge: "This question exceeds the 8192 UTF-8-byte cap. Shorten it before importing.",
       reviewQuestions: "Review questions →", structureReview: "Parsed fields and review issues",
       issues: "Issues", structure: "Structure", executionUnverified: "Execution · UNVERIFIED",
       randomBlocked: "The approved generated-question pool is not available yet. You can review the setup, but question generation, grading and launch remain blocked.",
@@ -192,10 +198,14 @@
       configNote: "45 分钟必须为 3 题，60 分钟必须为 4 题。此约束由宿主验证。",
       continueSetup: "下一步 →", sourceTitle: "选择题目来源", sourceLabel: "题目来源",
       byoq: "自带题目 · LeetCode / HackerRank", randomized: "随机面试 · 已批准的数据集题库",
-      sourceInstructions: "每题使用 JSON 或明确的英文标题字段。必填：problem statement、task、schema / DataFrame definitions、example input、expected output、environment、source。constraints 与 source reference 可选。",
+      sourceInstructions: "直接粘贴 LeetCode/HackerRank 原始题目，无需改写 JSON。选择来源后点击提取 → 审阅/编辑 → 确认。高级用户仍可使用 JSON。",
       sourceSafety: "结构审查不代表 SQL 执行或隐藏测试验证。缺失或冲突的信息会阻止继续；剩余题目不会被静默补齐。",
-      questionNumber: "题目", emptyTemplate: "插入空白模板", bytes: "UTF-8 字节",
-      importTooLarge: "此题超过界面的 4096 字节上限，请精简后再审查。",
+      questionNumber: "题目", emptyTemplate: "高级：插入 JSON 模板", bytes: "UTF-8 字节",
+      extractQuestion: "提取题目", confirmQuestion: "确认已审阅字段",
+      practiceQuestion: "用真实 AI 练习此题（不评分）",
+      sourceChoice: "来源", reviewGuidance: "请核对并修改提取字段。纯图片表结构在图片导入上线前需手动填写。",
+      reviewIncomplete: "缺失或不确定字段仍未验证。正式 SQL 评分尚不可用。",
+      importTooLarge: "此题超过 8192 UTF-8 字节上限，请缩短后再导入。",
       reviewQuestions: "审查题目 →", structureReview: "已解析字段与审查问题",
       issues: "问题", structure: "结构", executionUnverified: "执行 · UNVERIFIED",
       randomBlocked: "已批准的生成题库尚不可用。可以继续审阅配置，但生成题目、评分与启动仍被阻止。",
@@ -260,6 +270,8 @@
       PROVIDER_REDIRECT_REJECTED: "invalidProviderResponse", PROVIDER_NETWORK_ERROR: "networkFailure",
       PROVIDER_CANCELLED: "providerCancelled", PAID_CONSENT_REQUIRED: "providerConsentRequired",
       LOCAL_CONTROLLER_UNAVAILABLE: "requestTimeout",
+      PRACTICE_REQUIRED_FIELDS_MISSING: "reviewGuidance", PRACTICE_REVIEW_REQUIRED: "reviewGuidance",
+      QUESTION_REVIEW_REQUIRED: "reviewIncomplete", QUESTION_SLOT_ORDER: "reviewGuidance",
     };
     return t(mapping[code] || "requestFailed");
   }
@@ -311,7 +323,7 @@
     if (hasState) {
       if (response.ok === true && (item?.action === "tutorial_replay" || item?.action === "reset")) {
         draft = "";
-        if (item.action === "reset") { questionDrafts = []; liveDraft = ""; liveKind = "clarify"; }
+        if (item.action === "reset") { questionDrafts = []; questionSources = []; questionFieldDrafts = []; liveDraft = ""; liveKind = "clarify"; }
       }
       if (response.ok === true && item?.action === "preview_verify" && state?.screen !== "LIVE_PREVIEW") { liveDraft = ""; liveKind = "clarify"; }
       state = response.state;
@@ -529,6 +541,7 @@
     const card = node("section", null, "preview-start-card");
     const mechanism = state.setup_config?.interviewer_mechanism || "STRICT_CHALLENGING";
     add(card, node("h2", t("livePreview")), node("p", t("livePreviewNote")),
+      state.practice_question ? node("p", `${state.practice_question.title} · ${state.practice_question.source} · ${state.practice_question.environment}`, "notice") : null,
       node("p", `${t("previewSelected")}: ${t(mechanism === "STRICT_CHALLENGING" ? "strict" : "supportive")}`, "notice"),
       node("p", t("previewSource"), "field-help"));
     const verify = button("verifyPreview", t("verifyPreview"), () => act("preview_verify"), "primary full-width");
@@ -699,6 +712,34 @@
     }
     return detail;
   }
+  const REVIEW_FIELDS = ["problem_statement", "task", "schema", "example_input", "expected_output",
+    "environment", "source", "constraints", "source_reference"];
+  function editableQuestion(section, review, index) {
+    if (!review) return;
+    const sha = review.raw_sha256;
+    if (!questionFieldDrafts[index] || questionFieldDrafts[index].raw_sha256 !== sha) {
+      questionFieldDrafts[index] = {raw_sha256: sha, fields: {...review.fields}};
+    }
+    const edit = questionFieldDrafts[index].fields;
+    const form = node("div", null, "review-editor");
+    add(form, node("p", t("reviewGuidance"), "field-help"));
+    for (const key of REVIEW_FIELDS) {
+      const label = node("label", key); label.htmlFor = `reviewField${index}_${key}`;
+      const input = node("textarea"); input.id = label.htmlFor;
+      input.rows = key === "problem_statement" || key === "schema" ? 5 : 2;
+      input.value = edit[key] || ""; input.spellcheck = false;
+      input.addEventListener("input", () => { edit[key] = input.value; });
+      add(form, label, input);
+    }
+    const confirm = button(`confirmQuestion${index}`, t("confirmQuestion"), () =>
+      act("setup_question_confirm", {index, fields: {...edit}, raw_sha256: sha}), "primary");
+    const buttons = actions(confirm);
+    if (review.practice_eligible && review.human_confirmed) {
+      add(buttons, button(`practiceQuestion${index}`, t("practiceQuestion"), () =>
+        act("practice_start", {index, content_sha256: review.content_sha256}), "secondary"));
+    }
+    add(section, form, buttons);
+  }
   function questionSource(main) {
     const config = configValues();
     const count = state.setup_config?.question_count || (config.duration_minutes === 60 ? 4 : 3);
@@ -709,14 +750,24 @@
     source.select.addEventListener("change", () => act("setup_config", {config: configValues({question_source: source.select.value})}));
     add(main, source.field);
     const nextButton = button("reviewQuestions", t("reviewQuestions"), () => {
-      act("setup_questions", {questions: config.question_source === "BYOQ" ?
-        Array.from({length: count}, (_, index) => questionDrafts[index] || "") : []});
+      if (config.question_source !== "BYOQ") {
+        act("setup_questions_finish"); return;
+      }
+      // Preserve the original batch path for already-valid legacy fixtures.
+      const all = Array.from({length: count}, (_, index) => questionDrafts[index] || "");
+      const legacy = all.every(text => !text.trim() || (new TextEncoder().encode(text).length <= 4096 &&
+        (text.trim().startsWith("{") || /^Problem Statement:/i.test(text.trim()))));
+      if (legacy && !(state.setup_questions || []).some(review => review.human_confirmed)) {
+        act("setup_questions", {questions: all});
+      } else {
+        act("setup_questions_finish");
+      }
     }, "primary");
     if (config.question_source === "BYOQ") {
       add(main, node("p", t("sourceInstructions"), "notice"), node("p", t("sourceSafety"), "notice"));
       const utf8 = value => new TextEncoder().encode(value).length;
       const validateSizes = () => {
-        const tooLarge = Array.from({length: count}, (_, index) => utf8(questionDrafts[index] || "")).some(size => size > 4096);
+        const tooLarge = Array.from({length: count}, (_, index) => utf8(questionDrafts[index] || "")).some(size => size > 8192);
         nextButton.dataset.unavailable = String(tooLarge);
         nextButton.disabled = busy || tooLarge;
       };
@@ -727,7 +778,7 @@
             review?.fields ? JSON.stringify(review.fields, null, 2) : "";
         }
         const section = node("section", null, "byoq-card");
-        const label = node("label", `${t("questionNumber")} ${index + 1} / ${count} · HARD`);
+        const label = node("label", `${t("questionNumber")} ${index + 1} / ${count} · HARD (formal session)`);
         label.htmlFor = `byoqQuestion${index}`;
         const input = node("textarea");
         input.id = `byoqQuestion${index}`;
@@ -735,16 +786,32 @@
         input.spellcheck = false;
         input.autocapitalize = "off";
         input.value = questionDrafts[index];
+        const src = selectField(`byoqSource${index}`, t("sourceChoice"),
+          [["LEETCODE", "LeetCode"], ["HACKERRANK", "HackerRank"], ["OWNER", "Other / own question"]],
+          questionSources[index] || review?.fields?.source || "LEETCODE");
+        src.select.addEventListener("change", () => { questionSources[index] = src.select.value; });
         const size = node("p", null, "field-help");
         size.id = `byoqSize${index}`;
         input.setAttribute("aria-describedby", size.id);
         const updateSize = () => {
           const length = utf8(input.value);
-          size.textContent = `${length} / 4096 ${t("bytes")}${length > 4096 ? ` · ${t("importTooLarge")}` : ""}`;
-          input.setAttribute("aria-invalid", String(length > 4096));
+          size.textContent = `${length} / 8192 ${t("bytes")}${length > 8192 ? ` · ${t("importTooLarge")}` : ""}`;
+          input.setAttribute("aria-invalid", String(length > 8192));
           validateSizes();
+          if (typeof extract !== "undefined") extract.disabled = busy || !input.value.trim() || length > 8192;
+          if (review && typeof review.raw_input === "string") {
+            const changed = review.raw_input !== input.value;
+            const confirmation = section.querySelector(`#confirmQuestion${index}`);
+            const practice = section.querySelector(`#practiceQuestion${index}`);
+            if (confirmation) confirmation.disabled = changed;
+            if (practice) practice.disabled = changed;
+          }
         };
         input.addEventListener("input", () => { questionDrafts[index] = input.value; updateSize(); });
+        const extract = button(`extractQuestion${index}`, t("extractQuestion"), () => {
+          questionFieldDrafts[index] = null;
+          act("setup_question_set", {index, raw_text: input.value, source: src.select.value});
+        }, "primary");
         const template = button(`questionTemplate${index}`, t("emptyTemplate"), () => {
           if (busy) return;
           input.value = JSON.stringify({
@@ -752,20 +819,16 @@
             environment: config.technical_environment, source: "OWNER", constraints: "", source_reference: "",
           }, null, 2);
           questionDrafts[index] = input.value;
-          template.dataset.unavailable = "true";
-          template.disabled = true;
+          src.select.value = "OWNER";
+          questionSources[index] = "OWNER";
           updateSize();
           input.focus();
         }, "text");
-        template.disabled = Boolean(input.value.trim());
-        template.dataset.unavailable = String(Boolean(input.value.trim()));
-        input.addEventListener("input", () => {
-          template.dataset.unavailable = String(Boolean(input.value.trim()));
-          template.disabled = busy || Boolean(input.value.trim());
-        });
-        add(section, label, input, size, template, questionReview(review, index));
+        add(section, label, src.field, input, size, actions(extract, template), questionReview(review, index));
+        editableQuestion(section, review, index);
         add(main, section);
         updateSize();
+        extract.disabled = busy || !input.value.trim() || utf8(input.value) > 8192;
       }
       validateSizes();
     } else {
