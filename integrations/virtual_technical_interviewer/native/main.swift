@@ -333,8 +333,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         Native secure input · 原生安全输入
         Your key stays in native memory until Disconnect or Quit. Activation makes no request and is UNVERIFIED until a valid response.
         Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. No retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
-        Only the approved role, public preview question and your submitted text are sent. No SQL execution or scores. Cancelled requests may still be billed.
-        密钥仅留在原生内存；授权不发送请求。验证或发送每次最多调用一次，可能收费；取消后仍可能计费。预览不执行 SQL，也不评分。
+        Requests send the approved role instructions, your selected tutorial or imported question (statement, schema, input/output examples and constraints), and conversation context including your submitted text to OpenAI. Review private BYOQ content before authorizing. No SQL execution or scores. Cancelled requests may still be billed.
+        密钥仅留在原生内存；授权不发送请求。请求会发送所选题目（含自带题目的题干、表结构、输入输出示例及约束）和对话内容；授权前请检查私有内容。验证或发送每次最多调用一次，可能收费；取消后仍可能计费。预览不执行 SQL，也不评分。
         """
         alert.addButton(withTitle: "Allow bounded requests / 授权有限请求")
         alert.addButton(withTitle: "Cancel / 取消")
