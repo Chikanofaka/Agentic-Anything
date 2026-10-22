@@ -4,7 +4,7 @@ Python 3.12.4
 {
   "contract_schema": "hal-domain/v1",
   "domain_id": "research-diagnostics",
-  "elapsed_ms": 0.53,
+  "elapsed_ms": 0.54,
   "events": [
     {
       "code": "PACKAGE_INSPECTED"
@@ -36,14 +36,14 @@ Python 3.12.4
     "rule": "margin-v1",
     "unit": "user_supplied_units"
   },
-  "run_id": "b3e3061f-7118-4dc9-a562-0c1186e6c617",
+  "run_id": "39f5334d-b057-49d0-9792-62b71432ecfc",
   "status": "SUCCESS",
   "tool_id": "calculate-margin"
 }
 {
   "contract_schema": "hal-domain/v1",
   "domain_id": "returns-operations",
-  "elapsed_ms": 0.51,
+  "elapsed_ms": 0.56,
   "events": [
     {
       "code": "PACKAGE_INSPECTED"
@@ -74,7 +74,7 @@ Python 3.12.4
     "not_a_real_business_policy": true,
     "rule": "fictional-returns-v1"
   },
-  "run_id": "067b61af-21e4-4d4a-8330-c8a19c04efe8",
+  "run_id": "be965b6d-7992-4432-a68c-67cab107ad42",
   "status": "SUCCESS",
   "tool_id": "triage-return"
 }
@@ -461,6 +461,6 @@ test_v1_migration_preserves_save_semantics_without_claiming_inspection (test_wit
 test_wrong_language_is_replaced_with_selected_language (test_witness_v2.WitnessV2Tests.test_wrong_language_is_replaced_with_selected_language) ... ok
 
 ----------------------------------------------------------------------
-Ran 287 tests in 9.464s
+Ran 287 tests in 9.263s
 
 OK

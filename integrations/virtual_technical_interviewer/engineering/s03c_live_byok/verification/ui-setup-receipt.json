@@ -3,10 +3,10 @@
   "failed" : 0,
   "human_uat" : "NOT_RUN",
   "mock_http_requests" : 0,
-  "passed" : 12,
+  "passed" : 13,
   "real_credentials_used" : false,
   "schema" : "tia-native-ui-test\/v1",
-  "summary" : "12 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "summary" : "13 real UI checks; 0 mocked HTTP requests; zero real provider requests",
   "synthetic_credential_fixture_used" : true,
   "tests" : [
     {
@@ -32,6 +32,10 @@
     {
       "status" : "PASSED",
       "test" : "60 minutes derives four and 45 derives three Hard questions"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "S03-D freeform LeetCode original can extract, review and confirm through real bridge"
     },
     {
       "status" : "PASSED",

@@ -2,40 +2,40 @@ PASS accessibility fragment retains bridge
 PASS query cannot change document origin
 PASS external page rejected
 PASS neighbor file rejected
-PASS allow exact command setup_continue
-PASS reject extra params setup_continue
-PASS allow exact command preview_cancel
-PASS reject extra params preview_cancel
-PASS allow exact command preview_close
-PASS reject extra params preview_close
+PASS allow exact command tutorial_start
+PASS reject extra params tutorial_start
+PASS allow exact command tutorial_back
+PASS reject extra params tutorial_back
+PASS allow exact command tutorial_replay
+PASS reject extra params tutorial_replay
 PASS allow exact command choose_real
 PASS reject extra params choose_real
+PASS allow exact command tutorial_next
+PASS reject extra params tutorial_next
 PASS allow exact command disconnect
 PASS reject extra params disconnect
-PASS allow exact command reset
-PASS reject extra params reset
+PASS allow exact command setup_continue
+PASS reject extra params setup_continue
+PASS allow exact command snapshot
+PASS reject extra params snapshot
 PASS allow exact command setup_back
 PASS reject extra params setup_back
+PASS allow exact command preview_close
+PASS reject extra params preview_close
+PASS allow exact command preview_verify
+PASS reject extra params preview_verify
+PASS allow exact command reset
+PASS reject extra params reset
+PASS allow exact command api_portal
+PASS reject extra params api_portal
 PASS allow exact command export
 PASS reject extra params export
 PASS allow exact command setup_launch
 PASS reject extra params setup_launch
-PASS allow exact command tutorial_replay
-PASS reject extra params tutorial_replay
-PASS allow exact command tutorial_back
-PASS reject extra params tutorial_back
-PASS allow exact command snapshot
-PASS reject extra params snapshot
-PASS allow exact command tutorial_start
-PASS reject extra params tutorial_start
-PASS allow exact command tutorial_next
-PASS reject extra params tutorial_next
-PASS allow exact command api_portal
-PASS reject extra params api_portal
-PASS allow exact command preview_verify
-PASS reject extra params preview_verify
 PASS allow exact command tutorial_complete
 PASS reject extra params tutorial_complete
+PASS allow exact command preview_cancel
+PASS reject extra params preview_cancel
 PASS no arbitrary process execution
 PASS no host phase mutation
 PASS no renderer credentials
@@ -57,6 +57,18 @@ PASS independent question count rejected
 PASS Easy configuration rejected
 PASS bounded question slots
 PASS bounded pasted bytes
+PASS S03D raw question accepted
+PASS S03D source must be approved
+PASS S03D boolean index rejected
+PASS S03D exact 8192-byte source accepted
+PASS S03D excessive UTF8 source rejected
+PASS S03D no extra authority in import
+PASS S03D human-reviewed fields accepted
+PASS S03D fields cannot grant scores
+PASS S03D practice digest accepted
+PASS S03D practice cannot override role
+PASS S03D exact finish command
+PASS S03D finish rejects extra fields
 PASS native-only handshake native_prepare_preview
 PASS native-only handshake native_commit_preview
 PASS native-only handshake native_cancel_preview
@@ -77,7 +89,7 @@ PASS export private before publication
 PASS export exact contents
 PASS export refuses symlink
 PASS export symlink target unchanged
-Native tests: 79 passed, 0 failed; provider requests: 0
+Native tests: 91 passed, 0 failed; provider requests: 0
 PASS provider fixed HTTPS endpoint
 PASS provider bounded timeout
 PASS provider key only native Authorization header

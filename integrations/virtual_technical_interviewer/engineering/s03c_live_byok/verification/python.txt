@@ -1,4 +1,4 @@
-test_action_limit_preserves_room_for_completion (test_app_host.TutorialHostTests.test_action_limit_preserves_room_for_completion) ... Executing <Task finished name='Task-2' coro=<TutorialHostTests.test_action_limit_preserves_room_for_completion() done, defined at <repo>/integrations/virtual_technical_interviewer/tests/test_app_host.py:297> result=None created at /opt/anaconda3/lib/python3.12/asyncio/runners.py:100> took 0.115 seconds
+test_action_limit_preserves_room_for_completion (test_app_host.TutorialHostTests.test_action_limit_preserves_room_for_completion) ... Executing <Task finished name='Task-2' coro=<TutorialHostTests.test_action_limit_preserves_room_for_completion() done, defined at <repo>/integrations/virtual_technical_interviewer/tests/test_app_host.py:297> result=None created at /opt/anaconda3/lib/python3.12/asyncio/runners.py:100> took 0.152 seconds
 ok
 test_back_from_room_does_not_restart_session_or_discard_input (test_app_host.TutorialHostTests.test_back_from_room_does_not_restart_session_or_discard_input) ... ok
 test_cannot_skip_steps_or_complete_without_candidate_input (test_app_host.TutorialHostTests.test_cannot_skip_steps_or_complete_without_candidate_input) ... ok
@@ -57,6 +57,14 @@ test_sealed_receipt_digest_matches_canonical_contents (test_controller.Controlle
 test_session_expiry_closes_before_accepting_late_candidate_action (test_controller.ControllerTests.test_session_expiry_closes_before_accepting_late_candidate_action) ... ok
 test_session_expiry_prevents_provider_request (test_controller.ControllerTests.test_session_expiry_prevents_provider_request) ... ok
 test_snapshot_and_receipt_mutations_do_not_modify_session (test_controller.ControllerTests.test_snapshot_and_receipt_mutations_do_not_modify_session) ... ok
+test_byte_count_unicode (test_freeform_import.FreeformTests.test_byte_count_unicode) ... ok
+test_dialect_preserved_and_warned (test_freeform_import.FreeformTests.test_dialect_preserved_and_warned) ... ok
+test_examples_are_never_marked_verified (test_freeform_import.FreeformTests.test_examples_are_never_marked_verified) ... ok
+test_hackerrank_image_schema_not_fabricated (test_freeform_import.FreeformTests.test_hackerrank_image_schema_not_fabricated) ... ok
+test_invalid_types_control_characters (test_freeform_import.FreeformTests.test_invalid_types_control_characters) ... ok
+test_leetcode_raw_fields (test_freeform_import.FreeformTests.test_leetcode_raw_fields) ... ok
+test_literal_injection_untrusted (test_freeform_import.FreeformTests.test_literal_injection_untrusted) ... ok
+test_source_environment_enforced (test_freeform_import.FreeformTests.test_source_environment_enforced) ... ok
 test_deadline_and_state_revision_rechecked_at_commit (test_native_preview.NativeControllerTests.test_deadline_and_state_revision_rechecked_at_commit) ... ok
 test_live_compiler_rejects_source_changed_after_initial_verification (test_native_preview.NativeControllerTests.test_live_compiler_rejects_source_changed_after_initial_verification) ... ok
 test_v1_compilation_stable_and_live_sources_traceable (test_native_preview.NativeControllerTests.test_v1_compilation_stable_and_live_sources_traceable) ... ok
@@ -100,6 +108,14 @@ test_provider_error_does_not_echo_exception_contents (test_provider.ProviderTest
 test_timeout_is_real_and_cancels_pending_generation (test_provider.ProviderTests.test_timeout_is_real_and_cancels_pending_generation) ... ok
 test_unknown_operation_and_role_operation_mismatch_rejected (test_provider.ProviderTests.test_unknown_operation_and_role_operation_mismatch_rejected) ... ok
 test_valid_output_text_stays_text_even_if_it_requests_a_score (test_provider.ProviderTests.test_valid_output_text_stays_text_even_if_it_requests_a_score) ... ok
+test_attempt_to_forge_formal_authority_rejected (test_s03d_integration.SmartBYOQTests.test_attempt_to_forge_formal_authority_rejected) ... ok
+test_confirmed_question_used_by_real_model_prepare_and_frozen_on_restart (test_s03d_integration.SmartBYOQTests.test_confirmed_question_used_by_real_model_prepare_and_frozen_on_restart) ... ok
+test_image_only_text_blocks_practice_until_manual_schema (test_s03d_integration.SmartBYOQTests.test_image_only_text_blocks_practice_until_manual_schema) ... ok
+test_import_and_confirm_preserves_drafts_and_does_not_unlock_formal (test_s03d_integration.SmartBYOQTests.test_import_and_confirm_preserves_drafts_and_does_not_unlock_formal) ... ok
+test_per_slot_sequence_and_restore (test_s03d_integration.SmartBYOQTests.test_per_slot_sequence_and_restore) ... ok
+test_raw_8192_exact_bound_and_worker_safe (test_s03d_integration.SmartBYOQTests.test_raw_8192_exact_bound_and_worker_safe) ... ok
+test_stale_confirmation_rejected_without_state_change (test_s03d_integration.SmartBYOQTests.test_stale_confirmation_rejected_without_state_change) ... ok
+test_exact_8192_byte_raw_per_slot_fits_original_32768_ipc (test_s03d_integration.WorkerEnvelopeTests.test_exact_8192_byte_raw_per_slot_fits_original_32768_ipc) ... ok
 test_allocation_requires_exact_distinct_count_and_executor (test_setup.SetupTests.test_allocation_requires_exact_distinct_count_and_executor) ... ok
 test_allocation_revalidates_forged_review (test_setup.SetupTests.test_allocation_revalidates_forged_review) ... ok
 test_ambiguous_and_duplicate_imports_are_rejected (test_setup.SetupTests.test_ambiguous_and_duplicate_imports_are_rejected) ... ok
@@ -117,6 +133,6 @@ test_snapshot_is_versioned_and_deterministic_detached (test_setup.SetupTests.tes
 test_structural_review_never_authorizes_execution (test_setup.SetupTests.test_structural_review_never_authorizes_execution) ... ok
 
 ----------------------------------------------------------------------
-Ran 116 tests in 1.200s
+Ran 132 tests in 1.371s
 
 OK
