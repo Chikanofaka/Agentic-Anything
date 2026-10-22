@@ -71,6 +71,7 @@ def public_plan(plan):
             for i, q in enumerate(plan['questions'])
         ],
         'results': copy.deepcopy(plan['results']),
+        **({'timing': copy.deepcopy(plan['timing'])} if plan.get('timing') else {}),
         'technical': 'NOT_SCORED', 'communication': 'NOT_SCORED', 'execution': 'NOT_RUN',
         'formal_exam_authorized': False,
     }

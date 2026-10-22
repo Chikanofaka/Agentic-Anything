@@ -4,8 +4,8 @@ The S02 InterviewController remains the interview state machine. Wizard state
 belongs here, never to JavaScript. Recovery replays a bounded journal through
 the same controller with saved clock samples and the deterministic offline
 adapter, then verifies the complete result digest. No model or SQL engine runs
-during recovery. The clock measures active host-process time, excluding app
-downtime; tutorial times are not performance evidence.
+during recovery. The older tutorial clock excludes downtime. The E2 rehearsal
+clock is separate: journalled wall + monotonic samples include offline time.
 """
 
 import argparse
@@ -28,6 +28,7 @@ from .setup import SetupError, assess_allocation, review_question, validate_conf
 from .freeform_import import extract_freeform, ImportIssue, MAX_RAW_QUESTION_BYTES
 from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, validate_commit
 from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEARSAL_TURNS, RehearsalError
+from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
 
 PROTOCOL = "tia-native-tutorial/v1"
@@ -64,6 +65,7 @@ COMMAND_FIELDS = {
     "native_prepare_preview": PREPARE_FIELDS, "native_commit_preview": COMMIT_FIELDS,
     "native_cancel_preview": set(), "preview_close": set(),
     "rehearsal_start": set(), "rehearsal_submit": set(), "rehearsal_skip": set(),
+    "rehearsal_tick": set(),
 }
 MUTATING_COMMANDS = frozenset(COMMAND_FIELDS) - {"snapshot", "export", "reset"}
 SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL",
@@ -87,7 +89,9 @@ def digest(value):
 
 
 class TutorialHost:
-    def __init__(self, data_dir, clock=None):
+    def __init__(self, data_dir, clock=None, wall_clock=None):
+        self._wall_clock = wall_clock or time.time
+        self._wall_sample = None
         self.store = TutorialStore(data_dir)
         self._clock = clock or time.monotonic
         self._origin = self._clock()
@@ -100,8 +104,8 @@ class TutorialHost:
         self._recovery_error = None
 
     @classmethod
-    async def open(cls, data_dir, clock=None):
-        host = cls(data_dir, clock=clock)
+    async def open(cls, data_dir, clock=None, wall_clock=None):
+        host = cls(data_dir, clock=clock, wall_clock=wall_clock)
         try:
             document = host.store.read()
             if document is not None:
@@ -350,17 +354,65 @@ class TutorialHost:
         return [event for event in self.controller.snapshot()["events"]
                 if event["actor"] == "candidate"]
 
+    def _end_rehearsal_due_to_time(self, integrity_hold=False):
+        """Host-only, irreversible timeout/clock-hold transition; no model call."""
+        plan = self._rehearsal
+        if plan is None or plan['status'] != 'ACTIVE':
+            return
+        code = 'CLOCK_INTEGRITY_HOLD' if integrity_hold else 'TIMED_OUT'
+        if self._live_controller is not None:
+            if self._live_controller.phase == 'INTERVIEWING':
+                self._live_controller.close('cancelled' if integrity_hold else 'timeout')
+                self._live_controller.review('rehearsal-host-time-integrity')
+        request_finished(plan)
+        time_event(plan, 'CLOCK_INTEGRITY_HOLD' if integrity_hold else 'SESSION_TIMED_OUT')
+        if plan.get('timing'):
+            plan['timing']['questions'][plan['timing']['current_question']]['ended'] = True
+        for i in range(plan['current_index'], 3):
+            plan['results'].append({
+                'index': i, 'outcome': code if i == plan['current_index'] else 'NOT_REACHED',
+                'execution_status': 'NOT_RUN', 'technical': 'NOT_SCORED',
+                'communication': 'NOT_SCORED',
+                'question_sha256': plan['questions'][i]['content_sha256'],
+                'session': (self._live_controller.snapshot() if i == plan['current_index']
+                            and self._live_controller is not None else None),
+                'time_metrics': (copy.deepcopy(plan['timing']['questions'][i])
+                                 if plan.get('timing') else None),
+            })
+        plan['current_index'] = 3
+        plan['status'] = code
+        self._live_controller = self._live_profile = self._live_question = None
+        self.screen = 'REHEARSAL_COMPLETE'
+
+    def _advance_rehearsal_before_action(self, action):
+        if (self._rehearsal is None or self._rehearsal['status'] != 'ACTIVE'
+                or self._rehearsal.get('timing') is None or self._wall_sample is None):
+            return
+        try:
+            result = advance_rehearsal_time(self._rehearsal, self._wall_sample, self._tick)
+        except ValueError:
+            raise HostError('INVALID_CLOCK_SAMPLE') from None
+        if result in ('TIMEOUT', 'CLOCK_HOLD'):
+            self._end_rehearsal_due_to_time(result == 'CLOCK_HOLD')
+            if action != 'rehearsal_tick':
+                raise HostError('REHEARSAL_TIME_LIMIT' if result == 'TIMEOUT'
+                                else 'REHEARSAL_CLOCK_INTEGRITY_HOLD')
+
     async def _dispatch(self, action, params):
         self._validate_command(action, params)
+        self._advance_rehearsal_before_action(action)
+        if action == 'rehearsal_tick':
+            # Polls are Host-only time checkpoints. Nothing is charged.
+            return
         if (self._live_controller is not None and self._live_controller.native_pending is not None
-                and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close')):
+                and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close', 'rehearsal_tick')):
             raise HostError('NATIVE_REQUEST_PENDING')
         if (self._rehearsal is not None and self._rehearsal['status'] == 'ACTIVE'
                 and action not in ('language', 'snapshot', 'export', 'api_portal',
                                    'rehearsal_submit', 'rehearsal_skip',
                                    'preview_verify', 'preview_send', 'preview_close',
                                    'native_prepare_preview', 'native_commit_preview',
-                                   'native_cancel_preview')):
+                                   'native_cancel_preview', 'rehearsal_tick')):
             raise HostError('REHEARSAL_ACTIVE')
         if action == "language":
             self.language = params["language"]
@@ -576,6 +628,9 @@ class TutorialHost:
                 # Do not erase an already frozen S03-C/D record when a new
                 # three-question rehearsal begins from the same private save.
                 self._preview_history.append(self._preview_state())
+            # Old journals replay with no wall sample, preserving E1 snapshots.
+            if self._wall_sample is not None:
+                plan['timing'] = begin_rehearsal_time(self._wall_sample, self._tick)
             self._rehearsal = plan
             self._practice_question = None
             self._live_controller = self._live_profile = None
@@ -601,7 +656,18 @@ class TutorialHost:
                 'question_sha256': self._rehearsal['questions'][self._rehearsal['current_index']]['content_sha256'],
                 'session': None,
             }
+            if self._rehearsal.get('timing') is not None:
+                result['time_metrics'] = close_question(self._rehearsal, outcome=result['outcome'])
             if self._live_controller is not None:
+                candidate = [e for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
+                result['behavior_metrics'] = {
+                    'candidate_turn_count': len(candidate),
+                    'clarification_requests': sum(e['kind'] == 'clarify' for e in candidate),
+                    'help_requests': sum(e['kind'] == 'help' for e in candidate),
+                    'code_submissions': sum(e['kind'] == 'implement' for e in candidate),
+                    'evidence_event_ids': [e['id'] for e in candidate],
+                    'correctness': 'NOT_VERIFIED',
+                }
                 if self._live_controller.phase == 'INTERVIEWING':
                     self._live_controller.close('submitted' if action == 'rehearsal_submit' else 'cancelled')
                     self._live_controller.review('rehearsal-host-handoff-eligibility-only')
@@ -627,14 +693,25 @@ class TutorialHost:
             raise HostError("LAUNCH_BLOCKED")
         elif action == 'native_prepare_preview':
             self._prepare_preview(params)
+            if self._rehearsal is not None:
+                request_started(self._rehearsal)
         elif action == 'native_commit_preview':
             if self._live_controller is None:
                 raise HostError('STALE_NATIVE_REPLY')
             self._live_controller.commit_native_reply(**params)
+            if self._rehearsal is not None:
+                request_finished(self._rehearsal)
+                # The 45-minute clock starts when the first REAL question
+                # reaches the candidate, not during API Portal credential setup.
+                if self._wall_sample is not None and params.get('reply') is not None:
+                    start_on_question_presented(self._rehearsal, self._wall_sample, self._tick,
+                        evidence_id=self._live_controller.snapshot()['events'][-1]['id'])
             self.screen = 'LIVE_PREVIEW'
         elif action == 'native_cancel_preview':
             if self._live_controller is not None:
                 self._live_controller.cancel_native_reply()
+            if self._rehearsal is not None:
+                request_finished(self._rehearsal)
         elif action == 'preview_close':
             if self._live_controller is None:
                 raise HostError('INVALID_TRANSITION')
@@ -801,7 +878,10 @@ class TutorialHost:
         prior_tick = 0.0
         for item in document["journal"]:
             if (type(item) is not dict
-                    or set(item) != {"action", "params", "tick_seconds", "outcome"}
+                    or set(item) not in ({"action", "params", "tick_seconds", "outcome"},
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds"})
+                    or ("wall_seconds" in item and not (type(item["wall_seconds"]) in (int, float)
+                         and math.isfinite(item["wall_seconds"]) and 0 <= item["wall_seconds"] <= 10**12))
                     or item["action"] not in MUTATING_COMMANDS
                     or type(item["tick_seconds"]) not in (int, float)
                     or not math.isfinite(item["tick_seconds"])
@@ -809,6 +889,7 @@ class TutorialHost:
                     or type(item["outcome"]) is not str):
                 raise HostError("INVALID_SAVE")
             self._tick = item["tick_seconds"]
+            self._wall_sample = item.get('wall_seconds')
             prior_tick = self._tick
             outcome = "OK"
             try:
@@ -823,14 +904,16 @@ class TutorialHost:
         self._clock_offset = prior_tick
         self._origin = self._clock()
         self._saved = True
-        # Replaying preparation performs no network operation. A process restart
-        # invalidates any unfinished transaction before native can commit a reply.
-        # Journal the invalidation so subsequent recovery stays deterministic.
+        # E2 reconciles process downtime before accepting another candidate/model
+        # action. Within <1 second, avoid gratuitous save churn after restart.
+        if self._rehearsal is not None and self._rehearsal['status'] == 'ACTIVE' and self._rehearsal.get('timing'):
+            downtime = self._wall_clock() - self._rehearsal['timing']['last_wall_seconds']
+            if downtime >= 1.0 or downtime < -2.0:
+                await self.command('rehearsal_tick', {})
+        # Pending native work never survives restart. Cancellation is journalled;
+        # the time until restart remains in the per-question wait bucket.
         if self._live_controller and self._live_controller.native_pending is not None:
-            await self._dispatch('native_cancel_preview', {})
-            self._journal.append({'action': 'native_cancel_preview', 'params': {},
-                                  'tick_seconds': prior_tick, 'outcome': 'OK'})
-            self._persist()
+            await self.command('native_cancel_preview', {})
 
     def _persist(self):
         document = {
@@ -867,6 +950,7 @@ class TutorialHost:
         }
         if self._rehearsal is not None:
             result.update(rehearsal=public_plan(self._rehearsal),
+                          timing=final_metrics(self._rehearsal),
                           live_preview_history=copy.deepcopy(self._preview_history),
                           provenance='THREE_QUESTION_REHEARSAL_UNSCORED',
                           contains_personal_input=True)
@@ -907,6 +991,9 @@ class TutorialHost:
             # native HTTP is pending; recovery must never create an unreadable save.
             raise HostError('HISTORY_LIMIT')
         self._tick = max(self._tick, self._clock_offset + self._clock() - self._origin)
+        # The sample is written into the journal and used for deterministic
+        # replay. No renderer-provided clock or timestamp is accepted.
+        self._wall_sample = round(self._wall_clock(), 6)
         before = self._state_digest()
         outcome = "OK"
         caught = None
@@ -917,9 +1004,12 @@ class TutorialHost:
             outcome = error.code
         # Preserve already committed candidate evidence even if a bounded provider
         # response fails or the S02 host closes an expired session.
-        if caught is None or self._state_digest() != before:
+        changed = self._state_digest() != before
+        # Avoid filling the bounded journal with empty timer polls.
+        if (caught is None and action != 'rehearsal_tick') or changed:
             self._journal.append({"action": action, "params": copy.deepcopy(params),
-                                  "tick_seconds": self._tick, "outcome": outcome})
+                                  "tick_seconds": self._tick, "wall_seconds": self._wall_sample,
+                                  "outcome": outcome})
             try:
                 self._persist()
             except SaveError:

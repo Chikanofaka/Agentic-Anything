@@ -55,6 +55,14 @@ final class TIAUISmoke {
           await press('verifyPreview','LIVE_PREVIEW');s=await snap();
           return {ok:s.rehearsal.current_index===0&&s.activation.requests_used===1&&s.live_preview.candidate_turn_limit===4&&s.transport_mode==='MOCK_HTTP'};
         """),
+        Step(label: "E2 timer starts on first presented question, exposes local-only clock", code: """
+          const s=await snap();const t=s.rehearsal?.timing;
+          return {ok:!!t&&t.started===true&&t.limit_seconds===2700
+            &&document.getElementById('rehearsalClock')!==null
+            &&document.getElementById('hostClockElapsed')!==null
+            &&s.rehearsal.technical==='NOT_SCORED'
+            &&t.events.some(e=>e.kind==='FIRST_QUESTION_PRESENTED')};
+        """),
         Step(label: "E1 two successive turns use guarded mocked native requests", code: """
           for(let turn=0;turn<2;turn++){
             const box=el('previewResponse');box.value='Synthetic follow-up '+turn;
@@ -79,6 +87,14 @@ final class TIAUISmoke {
           const s=await snap();return {ok:s.rehearsal.status==='COMPLETE'&&s.rehearsal.results.length===3
             &&s.rehearsal.results[2].session.receipt.live_model_used===true&&s.rehearsal.execution==='NOT_RUN'
             &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===5};
+        """),
+        Step(label: "E2 score-free three-question time ledger remains exportable", code: """
+          const s=await snap();const t=s.rehearsal?.timing;
+          return {ok:!!t&&s.rehearsal.status==='COMPLETE'&&t.questions.length===3
+            &&t.questions.every(q=>q.ended===true)
+            &&t.model_wait_seconds<=t.elapsed_seconds
+            &&s.rehearsal.results.every(r=>r.time_metrics!==undefined)
+            &&document.getElementById('rehearsalClock')!==null};
         """),
     ] : failureTesting ? [
         Step(label: "failure journey opens synthetic native consent", code: """

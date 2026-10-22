@@ -25,6 +25,10 @@
       previewSelected: "Selected mechanism", previewSource: "Choose the mechanism in the configuration preview; it controls the approved instructions used here.",
       previewSend: "Send to Senior Interviewer · 1 paid request", previewRetry: "Retry recorded response · 1 paid request",
       retryRecorded: "Your input was recorded, but no model reply was committed. A retry sends the same recorded text and uses one additional request. There are no automatic retries.",
+      rehearsalTimeout: "Interview time expired · frozen record", rehearsalClockHold: "Interview paused by local clock anomaly",
+      rehearsalClock: "⏱ Show / hide interview time", rehearsalElapsed: "Elapsed",
+      rehearsalLimit: "Session hard limit", rehearsalQuestionTime: "Current question",
+      rehearsalWaitTime: "Waiting for model", localTimeUncertified: "Host-owned local clock. Device time is not certified; changing system time may interrupt the interview.",
       previewComplete: "The preview exchange is complete. Close it to freeze the record; no score is assigned.",
       previewClosed: "Preview closed · record frozen", closePreview: "Close preview & freeze record", cancelRequest: "Cancel pending request",
       pendingRequest: "Waiting for the native provider. Cancellation prevents a late reply from being committed; a request already sent may still be billed.",
@@ -130,6 +134,10 @@
       previewSelected: "当前面试机制", previewSource: "可在配置预览中选择面试机制；此选项决定实际使用的已批准指令。",
       previewSend: "发送给资深面试官 · 1 次付费请求", previewRetry: "重试已记录的回答 · 1 次付费请求",
       retryRecorded: "你的回答已记录，但尚未提交模型回复。重试会发送同一段已记录文本，并消耗额外 1 次请求；不会自动重试。",
+      rehearsalTimeout: "45 分钟已到 · 记录冻结", rehearsalClockHold: "检测到本地时钟异常 · 已停止面试",
+      rehearsalClock: "⏱ 显示 / 隐藏面试计时", rehearsalElapsed: "已用时间",
+      rehearsalLimit: "总时长硬截止", rehearsalQuestionTime: "当前题耗时",
+      rehearsalWaitTime: "等待模型时间", localTimeUncertified: "计时由本机 Host 控制，但本机系统时间不具备第三方防作弊认证；修改系统时间可能中断面试。",
       previewComplete: "预览对话已完成。关闭预览即可冻结记录，不会生成分数。",
       previewClosed: "预览已关闭 · 记录已冻结", closePreview: "关闭预览并冻结记录", cancelRequest: "取消当前请求",
       pendingRequest: "正在等待原生模型请求。取消后，迟到的回复不会被提交；已经发出的请求仍可能产生费用。",
@@ -249,6 +257,10 @@
     errors.hidden = true;
     errors.textContent = "";
   }
+  // Display clock is presentation-only. Every 15 seconds the renderer asks the
+  // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
+  let clockVisualBaseMs = Date.now();
+  let clockDetailsExpanded = false;
   const liveRequestActions = new Set(["preview_verify", "preview_send"]);
   const interruptActions = new Set(["preview_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
@@ -335,6 +347,7 @@
       }
       if (response.ok === true && item?.action === "preview_verify" && state?.screen !== "LIVE_PREVIEW") { liveDraft = ""; liveKind = "clarify"; }
       state = response.state;
+      clockVisualBaseMs = Date.now();
       // Read-only diagnostic copy for native UI tests. It is never submitted as authority.
       window.tiaState = JSON.parse(JSON.stringify(state));
       render();
@@ -545,6 +558,46 @@
     if (activation.error_code) add(detail, node("p", errorText(activation.error_code), "notice"));
     return detail;
   }
+  function formatElapsed(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  }
+  function rehearsalClock() {
+    const rehearsal = state.rehearsal;
+    const record = rehearsal?.timing;
+    if (!record) return null;
+    const detail = node("details", null, "rehearsal-clock");
+    detail.id = "rehearsalClock";
+    detail.open = clockDetailsExpanded;
+    detail.addEventListener("toggle", () => { clockDetailsExpanded = detail.open; });
+    add(detail, node("summary", t("rehearsalClock")));
+    const active = rehearsal.status === "ACTIVE" && record.started === true;
+    const shown = node("strong", "", "rehearsal-elapsed");
+    shown.id = "hostClockElapsed";
+    shown.dataset.hostElapsed = String(record.elapsed_seconds);
+    shown.dataset.limit = String(record.limit_seconds);
+    shown.dataset.active = String(active);
+    const current = record.questions?.[Math.min(2, record.current_question)] || {};
+    add(detail, shown,
+      node("p", `${t("rehearsalLimit")}: ${formatElapsed(record.limit_seconds)}`, "field-help"),
+      node("p", `${t("rehearsalQuestionTime")}: ${formatElapsed(current.elapsed_seconds || 0)}`, "field-help"),
+      node("p", `${t("rehearsalWaitTime")}: ${formatElapsed(record.model_wait_seconds || 0)}`, "field-help"),
+      node("p", t("localTimeUncertified"), "field-help"));
+    if (record.integrity !== "LOCAL_UNATTESTED") {
+      add(detail, node("p", record.integrity, "notice"));
+    }
+    return detail;
+  }
+  function updateClockDisplay() {
+    const display = document.getElementById("hostClockElapsed");
+    if (!display) return;
+    const elapsed = Number(display.dataset.hostElapsed) || 0;
+    const limit = Number(display.dataset.limit) || 2700;
+    const active = display.dataset.active === "true";
+    // This interpolation is VISUAL ONLY and has zero Host authority.
+    const interpolated = active ? Math.min(limit, elapsed + (Date.now() - clockVisualBaseMs) / 1000) : elapsed;
+    display.textContent = `${t("rehearsalElapsed")}: ${formatElapsed(interpolated)}`;
+  }
   function previewStartCard() {
     const card = node("section", null, "preview-start-card");
     const mechanism = state.setup_config?.interviewer_mechanism || "STRICT_CHALLENGING";
@@ -572,6 +625,7 @@
         interruptButton("disconnect", t("disconnected"), "disconnect")),
       previewStartCard(), node("p", t("setupPending"), "notice"),
       button("prepareSetup", t("prepareSetup"), () => act("setup_continue"), "secondary full-width"));
+    if (state.rehearsal?.timing) add(main, rehearsalClock());
     add(main, card, nav());
   }
   function previewProvenance(profile) {
@@ -631,6 +685,7 @@
       add(work, kind.field, label, input, inputSize, helper, submit);
     } else add(work, node("p", t("previewComplete"), "notice"));
     add(columns, work);
+    if (state.rehearsal?.timing) add(main, rehearsalClock());
     if (state.rehearsal?.status === "ACTIVE") {
       const rs = state.rehearsal;
       add(main, node("p", `Question ${rs.current_index + 1} / ${rs.question_count} · ${preview.candidate_turns_used} / ${preview.candidate_turn_limit} candidate turns`, "notice"));
@@ -662,13 +717,18 @@
         button("closePreview", t("closePreview"), () => act("preview_close"), "primary")));
   }
   function rehearsalComplete(main) {
-    add(main, heading(t("rehearsalComplete")), node("p", t("rehearsalNote"), "notice"));
     const rs = state.rehearsal || {};
+    const finalTitle = rs.status === "TIMED_OUT" ? "rehearsalTimeout" :
+      rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
+    add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
+    if (rs.timing) add(main, rehearsalClock());
     (rs.results || []).forEach((r, i) => {
       const question = rs.questions?.[i] || {};
       add(main, add(node("section", null, "receipt-card"),
         node("h2", `${i + 1}. ${question.title || "Question"}`),
         node("p", `${r.outcome} · NOT_RUN · NOT_SCORED`),
+        r.time_metrics ? node("p", `${t("rehearsalElapsed")}: ${formatElapsed(r.time_metrics.elapsed_seconds)} · ${t("rehearsalWaitTime")}: ${formatElapsed(r.time_metrics.model_wait_seconds)}`, "field-help") : null,
+        r.behavior_metrics ? node("p", `${r.behavior_metrics.candidate_turn_count} candidate turns · ${r.behavior_metrics.clarification_requests} clarifications · ${r.behavior_metrics.help_requests} help requests · ${r.behavior_metrics.code_submissions} code submissions · NOT_VERIFIED`, "field-help") : null,
         node("p", `${r.session?.events?.filter(e => e.actor === "candidate").length || 0} candidate turns`),
         r.session?.receipt?.sha256 ? node("code", r.session.receipt.sha256, "digest") : null));
     });
@@ -1021,6 +1081,7 @@
     if (state.transport_mode === "MOCK_HTTP") add(shell, node("p", "AUTOMATED TEST · MOCK HTTP · NO REAL PROVIDER CALLS", "setup-warning"));
     add(shell, progress, livePending, main, footer);
     app.replaceChildren(shell);
+    updateClockDisplay();
     setBusy(pending.size > 0);
     if (previousScreen !== state.screen) {
       previousScreen = state.screen;
@@ -1034,5 +1095,11 @@
   }
   add(app, node("p", strings.en.loading, "loading"),
     button("retryConnection", strings.en.retry, () => act("snapshot")));
+  setInterval(updateClockDisplay, 1000);
+  setInterval(() => {
+    if (state?.rehearsal?.status === "ACTIVE" && pending.size === 0 && !busy) {
+      request("rehearsal_tick").catch(() => {});
+    }
+  }, 15000);
   request("snapshot").catch(() => {});
 })();

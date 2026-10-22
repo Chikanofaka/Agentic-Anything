@@ -156,3 +156,41 @@ python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --in
 See [`engineering/s03e_three_question/PLAN.md`](engineering/s03e_three_question/PLAN.md)
 for gates, constraints and next increments. No real provider UAT or GitHub push
 is authorized by this candidate patch.
+
+
+## S03-E2 — time intelligence (local MVI increment)
+
+In the **three-question AI rehearsal only**, the trusted Python Host records an
+independently journalled 45-minute wall-clock deadline and per-question elapsed
+times. The clock begins when the first authorized model question is **committed
+and presented**, not while the API key is being configured. It includes reading,
+writing, dialogue, model wait and subsequent question transitions. A collapsed
+clock widget expands to display count-up time, per-question elapsed time, model
+wait and the 45-minute limit. WebKit's one-second updates are visual only;
+`rehearsal_tick` checkpoints authoritative times locally every 15 seconds and
+never makes a provider request. Host commands and native reply commits enforce
+the deadline even if WebKit is throttled.
+
+Rehearsal journal entries record replayable host-monotonic + local wall-clock
+samples. App downtime counts toward the remaining wall-clock deadline; a
+backwards adjustment of more than 2 seconds fails closed as
+`CLOCK_INTEGRITY_HOLD`, and expired sessions become `TIMED_OUT` with pending
+model replies invalidated. This is a local practice timer, not certified
+anti-tamper proctoring; forward clock adjustment or OS modification can make
+time expire early. Older E1 saves remain readable but are marked without E2
+time evidence rather than backfilled with invented durations.
+
+After every question, the Host records objective candidate message, help, code
+submission and clarification counts, with source event IDs. The final export
+contains timestamped time events and time metrics. **No code is run or scored**;
+Technical/Communication remain `NOT_SCORED` and correctness is `NOT_VERIFIED`.
+Full SQL/Pandas execution and evidenced scorecards are later milestones.
+
+Run on macOS:
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-E2 --ui --regressions
+```
+
+The command uses **mock HTTP** and synthetic input; a real paid BYOK UAT
+remains a separate, expressly consented Human Gate.
