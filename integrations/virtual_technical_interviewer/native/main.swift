@@ -17,7 +17,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
@@ -39,6 +39,15 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
                     .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
                 ] : [])
+                if CommandLine.arguments.contains("--ui-rehearsal-test") {
+                    TIATestHTTPProtocol.reset([
+                        .reply("Synthetic opener for Question 1"),
+                        .reply("Synthetic follow-up for Question 1 turn 1"),
+                        .reply("Synthetic follow-up for Question 1 turn 2"),
+                        .reply("Synthetic opener for Question 3"),
+                        .reply("Synthetic follow-up for Question 3"),
+                    ])
+                }
                 if CommandLine.arguments.contains("--ui-provider-failure-test") {
                     var delayed = TIATestHTTPProtocol.Plan.reply("This cancelled mock response must never commit.")
                     delayed.delay = 1
@@ -388,7 +397,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
               let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first(where: { !($0 is NSPopUpButton) }),
               let delegate = field.delegate as? CredentialFieldDelegate else { return false }
         field.stringValue = "synthetic-ui-fixture-not-a-real-key"
-        if CommandLine.arguments.contains("--ui-provider-failure-test") {
+        if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
         consent.state = .on; delegate.changed()

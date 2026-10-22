@@ -102,6 +102,10 @@
       questionNumber: "Question", emptyTemplate: "Advanced: insert JSON template", bytes: "UTF-8 bytes",
       extractQuestion: "Extract question", confirmQuestion: "Confirm reviewed fields",
       practiceQuestion: "Practise this question with Live AI (unscored)",
+      rehearsalStart: "Start 3-question AI rehearsal (unscored)",
+      rehearsalSubmit: "Finish question → Next", rehearsalSkip: "Skip question → Next",
+      rehearsalFinish: "Finish interview & freeze record", rehearsalComplete: "Three-question rehearsal complete",
+      rehearsalNote: "Three imported questions, up to four candidate turns each. AI replies are real; SQL/Pandas is NOT_RUN and competency is NOT_SCORED.",
       sourceChoice: "Source", reviewGuidance: "Review and edit extracted fields. Image-only schemas must be entered manually until image import is implemented.",
       reviewIncomplete: "Missing or uncertain fields remain unverified. Final SQL scoring is unavailable.",
       importTooLarge: "This question exceeds the 8192 UTF-8-byte cap. Shorten it before importing.",
@@ -203,6 +207,10 @@
       questionNumber: "题目", emptyTemplate: "高级：插入 JSON 模板", bytes: "UTF-8 字节",
       extractQuestion: "提取题目", confirmQuestion: "确认已审阅字段",
       practiceQuestion: "用真实 AI 练习此题（不评分）",
+      rehearsalStart: "开始三题 AI 模拟面试（不评分）",
+      rehearsalSubmit: "结束本题并进入下一题", rehearsalSkip: "跳过本题并进入下一题",
+      rehearsalFinish: "完成面试并冻结记录", rehearsalComplete: "三题模拟面试已完成",
+      rehearsalNote: "三道已确认题目，每题最多四次提交。AI 对话真实；代码未执行，也不进行能力评分。",
       sourceChoice: "来源", reviewGuidance: "请核对并修改提取字段。纯图片表结构在图片导入上线前需手动填写。",
       reviewIncomplete: "缺失或不确定字段仍未验证。正式 SQL 评分尚不可用。",
       importTooLarge: "此题超过 8192 UTF-8 字节上限，请缩短后再导入。",
@@ -541,7 +549,8 @@
     const card = node("section", null, "preview-start-card");
     const mechanism = state.setup_config?.interviewer_mechanism || "STRICT_CHALLENGING";
     add(card, node("h2", t("livePreview")), node("p", t("livePreviewNote")),
-      state.practice_question ? node("p", `${state.practice_question.title} · ${state.practice_question.source} · ${state.practice_question.environment}`, "notice") : null,
+      (state.practice_question || (state.rehearsal?.status === "ACTIVE" ? state.rehearsal.questions[state.rehearsal.current_index] : null))
+        ? node("p", `${(state.practice_question || state.rehearsal.questions[state.rehearsal.current_index]).title} · ${(state.practice_question || state.rehearsal.questions[state.rehearsal.current_index]).environment}`, "notice") : null,
       node("p", `${t("previewSelected")}: ${t(mechanism === "STRICT_CHALLENGING" ? "strict" : "supportive")}`, "notice"),
       node("p", t("previewSource"), "field-help"));
     const verify = button("verifyPreview", t("verifyPreview"), () => act("preview_verify"), "primary full-width");
@@ -622,6 +631,10 @@
       add(work, kind.field, label, input, inputSize, helper, submit);
     } else add(work, node("p", t("previewComplete"), "notice"));
     add(columns, work);
+    if (state.rehearsal?.status === "ACTIVE") {
+      const rs = state.rehearsal;
+      add(main, node("p", `Question ${rs.current_index + 1} / ${rs.question_count} · ${preview.candidate_turns_used} / ${preview.candidate_turn_limit} candidate turns`, "notice"));
+    }
     add(main, columns, conversation(preview.session, true), scores(), previewProvenance(preview.prompt_provenance));
     if (preview.session?.receipt) {
       const receipt = preview.session.receipt;
@@ -635,10 +648,31 @@
       add(main, verify);
       if (state.activation?.live_enabled !== true) add(main, node("p", t("providerConsentRequired"), "notice"));
     }
+    if (state.rehearsal?.status === "ACTIVE") {
+      const final = state.rehearsal.current_index === 2;
+      add(main, actions(
+        button("finishRehearsalQuestion", t(final ? "rehearsalFinish" : "rehearsalSubmit"),
+          () => act("rehearsal_submit"), "primary"),
+        button("skipRehearsalQuestion", t("rehearsalSkip"), () => act("rehearsal_skip"), "secondary")));
+    }
     add(main, actions(button("openPortal", t("portal"), () => act("api_portal")),
       interruptButton("disconnect", t("disconnected"), "disconnect")),
+      state.rehearsal?.status === "ACTIVE" ? null :
       actions(preview.closed ? button("realInterview", t("portalStep"), () => act("choose_real")) :
         button("closePreview", t("closePreview"), () => act("preview_close"), "primary")));
+  }
+  function rehearsalComplete(main) {
+    add(main, heading(t("rehearsalComplete")), node("p", t("rehearsalNote"), "notice"));
+    const rs = state.rehearsal || {};
+    (rs.results || []).forEach((r, i) => {
+      const question = rs.questions?.[i] || {};
+      add(main, add(node("section", null, "receipt-card"),
+        node("h2", `${i + 1}. ${question.title || "Question"}`),
+        node("p", `${r.outcome} · NOT_RUN · NOT_SCORED`),
+        node("p", `${r.session?.events?.filter(e => e.actor === "candidate").length || 0} candidate turns`),
+        r.session?.receipt?.sha256 ? node("code", r.session.receipt.sha256, "digest") : null));
+    });
+    add(main, button("exportRehearsal", t("export"), () => act("export"), "primary"));
   }
   function configValues(overrides = {}) {
     const current = state.setup_config || {};
@@ -740,6 +774,18 @@
     }
     add(section, form, buttons);
   }
+  function rehearsalStartButton() {
+    const eligible = state.setup_config?.duration_minutes === 45 &&
+      state.setup_config?.question_source === "BYOQ" &&
+      state.setup_questions?.length === 3 &&
+      state.setup_questions.every(q => q.practice_eligible && q.human_confirmed) &&
+      new Set(state.setup_questions.map(q => q.content_sha256)).size === 3;
+    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start"), "secondary full-width");
+    start.dataset.unavailable = String(!eligible);
+    start.disabled = busy || !eligible;
+    return add(node("section", null, "preview-start-card"),
+      node("h2", t("rehearsalStart")), node("p", t("rehearsalNote"), "field-help"), start);
+  }
   function questionSource(main) {
     const config = configValues();
     const count = state.setup_config?.question_count || (config.duration_minutes === 60 ? 4 : 3);
@@ -834,6 +880,9 @@
     } else {
       add(main, node("p", t("randomBlocked"), "setup-warning"));
     }
+    if (config.question_source === "BYOQ" && config.duration_minutes === 45) {
+      add(main, rehearsalStartButton());
+    }
     if (state.setup_allocation) {
       const detail = node("p", `${state.setup_allocation.provided_count} / ${state.setup_allocation.required_count} · ${t("executionUnverified")}`, "notice");
       detail.id = "questionAllocation";
@@ -899,6 +948,9 @@
       add(main, node("h2", t("questionReviewStatus"), "section-title"));
       state.setup_questions.forEach((review, index) => add(main, questionReview(review, index)));
     }
+    if (config.question_source === "BYOQ" && config.duration_minutes === 45) {
+      add(main, rehearsalStartButton());
+    }
     const blockers = node("section", null, "launch-blockers");
     add(blockers, node("h2", t("blockers")), issueList(state.setup_blockers || []),
       node("p", t("preflightNote"), "muted"));
@@ -944,7 +996,7 @@
     const main = node("main"); main.id = "main";
     const screens = {
       ENTRY: entry, WELCOME: welcome, RULES: rules, QUESTION: question, ROOM: room, COMPLETE: complete,
-      API_PORTAL: apiPortal, LIVE_PREVIEW: livePreview, CONFIG: configuration, QUESTION_SOURCE: questionSource, MECHANISM: mechanism, REVIEW: setupReview,
+      API_PORTAL: apiPortal, LIVE_PREVIEW: livePreview, REHEARSAL_COMPLETE: rehearsalComplete, CONFIG: configuration, QUESTION_SOURCE: questionSource, MECHANISM: mechanism, REVIEW: setupReview,
     };
     if (state.recovery_error) {
       const saveUnavailable = state.recovery_error === "SAVE_UNAVAILABLE" ||

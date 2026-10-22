@@ -31,7 +31,7 @@ enum BridgePolicy {
         "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
         "tutorial_complete", "tutorial_replay", "choose_real", "reset",
         "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch",
-        "preview_verify", "preview_close", "preview_cancel"
+        "preview_verify", "preview_close", "preview_cancel", "rehearsal_start", "rehearsal_submit", "rehearsal_skip"
     ]
     static func validate(_ value: Any) -> (String, String, [String: Any])? {
         guard let body = value as? [String: Any],

@@ -25,10 +25,62 @@ final class TIAUISmoke {
     """
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
+    private var rehearsalTesting: Bool { CommandLine.arguments.contains("--ui-rehearsal-test") }
     private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
     private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
     private var failureTesting: Bool { CommandLine.arguments.contains("--ui-provider-failure-test") }
-    private var steps: [Step] { failureTesting ? [
+    private var steps: [Step] { rehearsalTesting ? [
+        Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');
+          await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
+        """),
+        Step(label: "E1 three distinct question imports and confirmations render start action", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');
+          await press('prepareSetup','CONFIG');
+          await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,
+            difficulty:'HARD',question_source:'BYOQ',interviewer_mechanism:'STRICT_CHALLENGING'}});
+          for(let i=0;i<3;i++){
+            const fields={problem_statement:'Find the total per customer for example '+i,task:'Aggregate rows for exercise '+i,
+              schema:'Items'+i+'(id INT, customer_id INT)',example_input:'(1, 2)',expected_output:'(2)',
+              environment:'POSTGRESQL',source:'OWNER',constraints:'One row per key',source_reference:''};
+            const response=await request('setup_question_set',{index:i,source:'OWNER',raw_text:JSON.stringify(fields)});
+            const review=response.setup_questions[i];
+            await request('setup_question_confirm',{index:i,fields:review.fields,raw_sha256:review.raw_sha256});
+          }
+          const s=await snap();return {ok:s.screen==='QUESTION_SOURCE'&&!!el('startRehearsal')&&!el('startRehearsal').disabled&&s.setup_questions.every(q=>q.human_confirmed)};
+        """),
+        Step(label: "E1 start through WebKit and verify first native mocked question", code: """
+          await press('startRehearsal','API_PORTAL');
+          let s=await snap();if(s.rehearsal.status!=='ACTIVE'||s.rehearsal.current_index!==0)return {ok:false};
+          await press('verifyPreview','LIVE_PREVIEW');s=await snap();
+          return {ok:s.rehearsal.current_index===0&&s.activation.requests_used===1&&s.live_preview.candidate_turn_limit===4&&s.transport_mode==='MOCK_HTTP'};
+        """),
+        Step(label: "E1 two successive turns use guarded mocked native requests", code: """
+          for(let turn=0;turn<2;turn++){
+            const box=el('previewResponse');box.value='Synthetic follow-up '+turn;
+            box.dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
+            await until(()=>window.tiaState?.live_preview?.candidate_turns_used===turn+1 &&
+              window.tiaState.activation.requests_used===turn+2 && !document.querySelector('[aria-busy="true"]'));
+          }
+          const s=await snap();return {ok:s.live_preview.can_send===true&&s.live_preview.candidate_turns_used===2&&s.activation.requests_used===3};
+        """),
+        Step(label: "E1 finish Q1, skip Q2, open Q3 without extra calls", code: """
+          await press('finishRehearsalQuestion','API_PORTAL');let s=await snap();
+          if(s.rehearsal.results[0].outcome!=='DISCUSSION_ONLY'||s.rehearsal.current_index!==1)return {ok:false};
+          await request('rehearsal_skip');s=await snap();
+          return {ok:s.rehearsal.current_index===2&&s.rehearsal.results[1].outcome==='SKIPPED'&&s.activation.requests_used===3};
+        """),
+        Step(label: "E1 Q3 uses original question context and freezes unscored three-question outcome", code: """
+          await press('verifyPreview','LIVE_PREVIEW');
+          const input=el('previewResponse');input.value='My final explanation for question three.';
+          input.dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
+          await until(()=>window.tiaState?.activation?.requests_used===5&&!document.querySelector('[aria-busy="true"]'));
+          await press('finishRehearsalQuestion','REHEARSAL_COMPLETE');
+          const s=await snap();return {ok:s.rehearsal.status==='COMPLETE'&&s.rehearsal.results.length===3
+            &&s.rehearsal.results[2].session.receipt.live_model_used===true&&s.rehearsal.execution==='NOT_RUN'
+            &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===5};
+        """),
+    ] : failureTesting ? [
         Step(label: "failure journey opens synthetic native consent", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');await press('realInterview','API_PORTAL');return {ok:true};
         """),
@@ -301,7 +353,7 @@ final class TIAUISmoke {
                 guard app.portalIsVisible else { self.end(false, "Native API sheet not visible"); return }
                 app.cancelPortalForTest()
             }
-            if step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" {
+            if step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" {
                 guard app.enterSyntheticCredentialForTest() else { self.end(false, "Synthetic native input failed"); return }
             }
             self.receipts.append(["test": step.label, "status": "PASSED"])
@@ -315,7 +367,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.failureTesting ? "failure-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.failureTesting ? "failure-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -335,9 +387,9 @@ final class TIAUISmoke {
         guard !done else { return }; done = true
         let receipt: [String: Any] = ["schema": "tia-native-ui-test/v1", "passed": receipts.count,
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
-            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting, "human_uat": "NOT_RUN"]
+            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting, "human_uat": "NOT_RUN"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(failureTesting ? "ui-provider-failure-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(failureTesting ? "ui-provider-failure-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

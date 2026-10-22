@@ -27,6 +27,7 @@ from .provider import ModelPortalError
 from .setup import SetupError, assess_allocation, review_question, validate_config
 from .freeform_import import extract_freeform, ImportIssue, MAX_RAW_QUESTION_BYTES
 from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, validate_commit
+from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEARSAL_TURNS, RehearsalError
 
 
 PROTOCOL = "tia-native-tutorial/v1"
@@ -62,10 +63,11 @@ COMMAND_FIELDS = {
     # rejects them as renderer actions. They contain no credentials or URLs.
     "native_prepare_preview": PREPARE_FIELDS, "native_commit_preview": COMMIT_FIELDS,
     "native_cancel_preview": set(), "preview_close": set(),
+    "rehearsal_start": set(), "rehearsal_submit": set(), "rehearsal_skip": set(),
 }
 MUTATING_COMMANDS = frozenset(COMMAND_FIELDS) - {"snapshot", "export", "reset"}
 SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL",
-           "CONFIG", "QUESTION_SOURCE", "MECHANISM", "REVIEW", "LIVE_PREVIEW")
+           "CONFIG", "QUESTION_SOURCE", "MECHANISM", "REVIEW", "LIVE_PREVIEW", "REHEARSAL_COMPLETE")
 CONFIG_FIELDS = {"technical_environment", "duration_minutes", "difficulty",
                  "question_source", "interviewer_mechanism"}
 SETUP_STATE_FIELDS = ("setup_config", "setup_questions", "setup_allocation",
@@ -134,12 +136,15 @@ class TutorialHost:
         self._prepared_return = None
         self._preview_history = []
         self._practice_question = None
+        self._rehearsal = None
 
     def _selected_preview_question(self):
         # Freeze source binding for each preview; later edits cannot relabel a
         # prior session's model input or evidence on reopening.
         return copy.deepcopy(self._live_question if self._live_controller is not None else
-                             (self._practice_question or QUESTION))
+                             (self._rehearsal["questions"][self._rehearsal["current_index"]]
+                              if self._rehearsal is not None and self._rehearsal["status"] == "ACTIVE"
+                              else (self._practice_question or QUESTION)))
 
     def _practice_snapshot(self):
         return copy.deepcopy(self._practice_question) if self._practice_question else None
@@ -152,9 +157,12 @@ class TutorialHost:
         replies = [e for e in session['events']
                    if e['actor'] == 'interviewer' and e['provenance'] == 'LIVE_MODEL']
         verified = any(e['payload']['operation'] == 'verify' for e in replies)
-        answered = any(e['payload']['operation'] == 'reply' for e in replies)
+        answered_count = sum(e['payload']['operation'] == 'reply' for e in replies)
         pending = self._live_controller.native_pending is not None
         closed = self._live_controller.phase != 'INTERVIEWING'
+        rehearsal_active = self._rehearsal is not None and self._rehearsal['status'] == 'ACTIVE'
+        limit = MAX_REHEARSAL_TURNS if rehearsal_active else 1
+        unanswered = len(candidates) > answered_count
         return {
             'question': self._selected_preview_question(), 'session': session,
             'pending': pending, 'closed': closed,
@@ -162,11 +170,11 @@ class TutorialHost:
             'prompt_provenance': {key: copy.deepcopy(value)
                                   for key, value in self._live_profile.items() if key != 'instructions'},
             'execution_status': 'NOT_RUN', 'technical': 'NOT_SCORED',
-            'communication': 'NOT_SCORED', 'candidate_turn_limit': 1,
+            'communication': 'NOT_SCORED', 'candidate_turn_limit': limit,
             'candidate_turns_used': len(candidates),
-            'can_send': verified and not answered and not pending and not closed,
-            'retry_input': ({'kind': candidates[0]['kind'], 'text': candidates[0]['payload']['text']}
-                            if candidates and not answered else None),
+            'can_send': verified and (unanswered or len(candidates) < limit) and not pending and not closed,
+            'retry_input': ({'kind': candidates[-1]['kind'], 'text': candidates[-1]['payload']['text']}
+                            if unanswered else None),
             'verified_response_count': len(replies),
             'full_interview_authorized': False,
         }
@@ -191,6 +199,8 @@ class TutorialHost:
         }
         if self._practice_question is not None:
             result['practice_question'] = self._practice_snapshot()
+        if self._rehearsal is not None:
+            result['rehearsal'] = public_plan(self._rehearsal)
         if self._live_controller is not None:
             result['live_preview'] = self._preview_state()
             result['live_preview_history'] = copy.deepcopy(self._preview_history)
@@ -345,6 +355,13 @@ class TutorialHost:
         if (self._live_controller is not None and self._live_controller.native_pending is not None
                 and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close')):
             raise HostError('NATIVE_REQUEST_PENDING')
+        if (self._rehearsal is not None and self._rehearsal['status'] == 'ACTIVE'
+                and action not in ('language', 'snapshot', 'export', 'api_portal',
+                                   'rehearsal_submit', 'rehearsal_skip',
+                                   'preview_verify', 'preview_send', 'preview_close',
+                                   'native_prepare_preview', 'native_commit_preview',
+                                   'native_cancel_preview')):
+            raise HostError('REHEARSAL_ACTIVE')
         if action == "language":
             self.language = params["language"]
         elif action in ("tutorial_start", "tutorial_replay"):
@@ -542,6 +559,62 @@ class TutorialHost:
             }
             self._refresh_allocation()
             self.screen = "REVIEW"
+        elif action == 'rehearsal_start':
+            if self.screen not in ('QUESTION_SOURCE', 'REVIEW'):
+                raise HostError('INVALID_TRANSITION')
+            if self._live_controller is not None and self._live_controller.phase == 'INTERVIEWING':
+                raise HostError('PREVIEW_ACTIVE')
+            if self._rehearsal is not None:
+                raise HostError('REHEARSAL_ALREADY_STARTED')
+            if self._live_controller is not None and len(self._preview_history) >= 8:
+                raise HostError('PREVIEW_HISTORY_LIMIT')
+            try:
+                plan = create_plan(self._setup_config, self.setup_questions)
+            except RehearsalError as error:
+                raise HostError(str(error)) from None
+            if self._live_controller is not None:
+                # Do not erase an already frozen S03-C/D record when a new
+                # three-question rehearsal begins from the same private save.
+                self._preview_history.append(self._preview_state())
+            self._rehearsal = plan
+            self._practice_question = None
+            self._live_controller = self._live_profile = None
+            self._live_question = None
+            self.screen = 'API_PORTAL'
+        elif action in ('rehearsal_submit', 'rehearsal_skip'):
+            if (self._rehearsal is None or self._rehearsal['status'] != 'ACTIVE'
+                    or self.screen not in ('LIVE_PREVIEW', 'API_PORTAL')):
+                raise HostError('REHEARSAL_NOT_ACTIVE')
+            if self._live_controller is not None and self._live_controller.native_pending is not None:
+                raise HostError('NATIVE_REQUEST_PENDING')
+            result = {
+                'index': self._rehearsal['current_index'],
+                'outcome': ('SKIPPED' if action == 'rehearsal_skip' else
+                            'NO_SUBMISSION' if self._live_controller is None or not any(
+                                e['actor'] == 'candidate' for e in self._live_controller.snapshot()['events'])
+                            else 'SUBMITTED_UNVERIFIED' if any(
+                                e['actor'] == 'candidate' and e['kind'] == 'implement'
+                                for e in self._live_controller.snapshot()['events'])
+                            else 'DISCUSSION_ONLY'),
+                'execution_status': 'NOT_RUN', 'technical': 'NOT_SCORED',
+                'communication': 'NOT_SCORED',
+                'question_sha256': self._rehearsal['questions'][self._rehearsal['current_index']]['content_sha256'],
+                'session': None,
+            }
+            if self._live_controller is not None:
+                if self._live_controller.phase == 'INTERVIEWING':
+                    self._live_controller.close('submitted' if action == 'rehearsal_submit' else 'cancelled')
+                    self._live_controller.review('rehearsal-host-handoff-eligibility-only')
+                result['session'] = self._live_controller.snapshot()
+            self._rehearsal['results'].append(result)
+            self._rehearsal['current_index'] += 1
+            self._live_controller = self._live_profile = None
+            self._live_question = None
+            if self._rehearsal['current_index'] == 3:
+                self._rehearsal['status'] = 'COMPLETE'
+                self.screen = 'REHEARSAL_COMPLETE'
+            else:
+                self.screen = 'API_PORTAL'
         elif action == "setup_back":
             previous = {"REVIEW": "MECHANISM", "MECHANISM": "QUESTION_SOURCE",
                         "QUESTION_SOURCE": "CONFIG", "CONFIG": "API_PORTAL"}
@@ -599,9 +672,11 @@ class TutorialHost:
                 self._live_question = None
             if self._live_controller is None:
                 self._live_profile = profile
-                self._live_question = copy.deepcopy(self._practice_question or QUESTION)
+                self._live_question = self._selected_preview_question()
                 self._live_controller = InterviewController(
-                    SessionConfig(session_id='preview-' + self._instance_id + '-' + str(len(self._preview_history) + 1),
+                    SessionConfig(session_id=('rehearsal-' + self._instance_id + '-q' + str(self._rehearsal['current_index'] + 1)
+                                                if self._rehearsal is not None else
+                                                'preview-' + self._instance_id + '-' + str(len(self._preview_history) + 1)),
                                   duration_seconds=86400, max_input_bytes=4096),
                     clock=lambda: self._tick,
                 )
@@ -622,8 +697,10 @@ class TutorialHost:
             if self._live_profile['mechanism'] != mechanism:
                 raise HostError('PREVIEW_MECHANISM_MISMATCH')
             previous = [e for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
-            if previous:
-                event = previous[0]
+            answered = sum(e['actor'] == 'interviewer' and e['payload'].get('operation') == 'reply'
+                           for e in self._live_controller.snapshot()['events'])
+            if len(previous) > answered:
+                event = previous[-1]
                 if event['kind'] != params['kind'] or event['payload']['text'] != params['text']:
                     raise HostError('RETRY_INPUT_MISMATCH')
             else:
@@ -648,16 +725,53 @@ class TutorialHost:
                                     'DIAGNOSTIC_QUESTION means ask one question about the candidate\'s obstacle, '
                                     'without supplying an answer or SQL technique. CLARIFY means restate '
                                     'the public requirement and reassess understanding (B05).\n')
+        # The host has no execution adapter in S03-E1. This is factual runtime
+        # provenance, not a candidate-reported result or a model judgment.
+        profile['instructions'] += (
+            '\nHOST-VERIFIED EXECUTION STATUS: SQL_NOT_RUN; PANDAS_NOT_RUN; '
+            'NO_VERIFIED_OUTPUT; NO_CORRECTNESS_SCORE. '
+            'Never say or imply that the candidate executed code or observed test output. '
+            'Never ask for the *actual observed* output as though an execution occurred. '
+            'You MAY ask for predicted/expected output, a dry run, or a proposed test, '
+            'explicitly labeled unverified. If the candidate says they ran code '
+            'externally, treat that as candidate-reported and unverified. '
+            'A candidate SQL submission is text evidence only, not proof of correctness. '
+            'If the candidate requests an input/output example, use only examples '
+            'present in the approved question, or explicitly describe any newly '
+            'constructed example as hypothetical and not an official test. '
+            'Do not claim SQL/Pandas correctness or award a score.\n'
+        )
         profile['sha256'] = hashlib.sha256(profile['instructions'].encode()).hexdigest()
         candidate = [{'event_id': e['id'], 'kind': e['kind'], 'text': e['payload']['text']}
                      for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
         dialogue = [{'event_id': e['id'], 'text': e['payload']['text'], 'provenance': e['provenance']}
-                    for e in self._live_controller.snapshot()['events'] if e['actor'] == 'interviewer'][-1:]
-        input_text = json.dumps({'context_label': 'UNTRUSTED_PUBLIC_TASK_AND_CANDIDATE_DATA',
-                                 'question': self._selected_preview_question(), 'candidate_events': candidate,
-                                 'prior_interviewer_dialogue': dialogue,
-                                 'interface_language': self.language}, ensure_ascii=False)
-        if len(input_text.encode()) > 16000 or len(profile['instructions'].encode()) > 32768:
+                    for e in self._live_controller.snapshot()['events']
+                    if e['actor'] == 'interviewer' and e['payload'].get('operation') in ('verify', 'reply')]
+        # Retain the newest submitted text and recent dialogue. Never let a
+        # long history overflow native 16KB input and never silently shrink the
+        # candidate's newest message. Full evidence remains in the local journal.
+        history_dropped = 0
+        while True:
+            context = {'context_label': 'UNTRUSTED_PUBLIC_TASK_AND_CANDIDATE_DATA',
+                       'question': self._selected_preview_question(),
+                       'candidate_events': candidate, 'prior_interviewer_dialogue': dialogue,
+                       'history_events_omitted': history_dropped,
+                       'execution_status': 'NOT_RUN',
+                       'verified_execution_results': [],
+                       'interface_language': self.language}
+            input_text = json.dumps(context, ensure_ascii=False)
+            if len(input_text.encode()) <= 16000:
+                break
+            if len(dialogue) > 1:
+                dialogue.pop(0)
+            elif len(candidate) > 1:
+                candidate.pop(0)
+            elif len(dialogue):
+                dialogue.pop(0)
+            else:
+                raise HostError('NATIVE_INPUT_TOO_LARGE')
+            history_dropped += 1
+        if len(profile['instructions'].encode()) > 32768:
             raise HostError('NATIVE_INPUT_TOO_LARGE')
         pending = self._live_controller.prepare_native_reply(
             params['request_id'], params['generation'], operation, profile, policy)
@@ -751,6 +865,11 @@ class TutorialHost:
                 "blockers": list(self.setup_blockers),
             },
         }
+        if self._rehearsal is not None:
+            result.update(rehearsal=public_plan(self._rehearsal),
+                          live_preview_history=copy.deepcopy(self._preview_history),
+                          provenance='THREE_QUESTION_REHEARSAL_UNSCORED',
+                          contains_personal_input=True)
         if self._live_controller is not None:
             result.update(provenance='TUTORIAL_AND_LIVE_PREVIEW' if self.controller
                           else 'LIVE_CONVERSATIONAL_PREVIEW',

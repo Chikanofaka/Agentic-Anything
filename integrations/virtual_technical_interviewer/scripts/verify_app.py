@@ -16,9 +16,9 @@ repo = root.parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--ui", action="store_true", help="Open actual native windows with isolated synthetic data.")
 parser.add_argument("--regressions", action="store_true", help="Build/test Witness and shared HAL.")
-parser.add_argument("--increment", choices=["S03-A", "S03-B", "S03-C"], default="S03-C")
+parser.add_argument("--increment", choices=["S03-A", "S03-B", "S03-C", "S03-E1"], default="S03-C")
 args = parser.parse_args()
-out = root / ("engineering/s03c_live_byok/verification" if args.increment == "S03-C" else "engineering/s03_first_playable/verification/" + args.increment)
+out = root / ("engineering/s03e_three_question/verification" if args.increment == "S03-E1" else ("engineering/s03c_live_byok/verification" if args.increment == "S03-C" else "engineering/s03_first_playable/verification/" + args.increment))
 out.mkdir(parents=True, exist_ok=True)
 app = root / "dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab"
 receipt = {"schema": "tia-verification/v1", "increment": args.increment,
@@ -70,12 +70,12 @@ if args.ui:
         shutil.copyfile(test_dir / name, out / name)
     for source, target in (("00.png", "entry.png"), ("05.png", "interview-room.png"), ("07.png", "completion.png")):
         shutil.copyfile(test_dir / source, out / target)
-    if args.increment in ("S03-B", "S03-C"):
+    if args.increment in ("S03-B", "S03-C", "S03-E1"):
         setup_dir = root / ".build-cache" / ("verified-setup-" + str(time.time_ns()))
         run("setup-webkit", [str(app), "--ui-setup-test", "--test-output", str(setup_dir)])
         shutil.copyfile(setup_dir / "ui-setup-receipt.json", out / "ui-setup-receipt.json")
-        shutil.copyfile(setup_dir / ("setup-08.png" if args.increment == "S03-C" else "setup-06.png"), out / "setup-review.png")
-    if args.increment == "S03-C":
+        shutil.copyfile(setup_dir / ("setup-08.png" if args.increment in ("S03-C", "S03-E1") else "setup-06.png"), out / "setup-review.png")
+    if args.increment in ("S03-C", "S03-E1"):
         live_dir = root / ".build-cache" / ("verified-live-" + str(time.time_ns()))
         run("mock-live-webkit", [str(app), "--ui-live-test", "--test-output", str(live_dir)])
         run("mock-live-recovery", [str(app), "--ui-live-recovery-test", "--test-output", str(live_dir)])
@@ -85,6 +85,10 @@ if args.ui:
         failure_dir = root / ".build-cache" / ("verified-failures-" + str(time.time_ns()))
         run("mock-provider-failures", [str(app), "--ui-provider-failure-test", "--test-output", str(failure_dir)])
         shutil.copyfile(failure_dir / "ui-provider-failure-receipt.json", out / "ui-provider-failure-receipt.json")
+if args.ui and args.increment == "S03-E1":
+    rehearsal_dir = root / ".build-cache" / ("verified-rehearsal-" + str(time.time_ns()))
+    run("mock-rehearsal-webkit", [str(app), "--ui-rehearsal-test", "--test-output", str(rehearsal_dir)])
+    shutil.copyfile(rehearsal_dir / "ui-rehearsal-receipt.json", out / "ui-rehearsal-receipt.json")
 if args.regressions:
     run("witness-hal", ["bash", str(repo / "scripts/verify_witness_local.sh")], timeout=240)
 receipt["completed_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()

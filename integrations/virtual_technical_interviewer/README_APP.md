@@ -133,3 +133,26 @@ and mock HTTP. Only after both test suites pass should the S03-D branch enter
 human UAT, followed by an explicit approval to merge/push. No live requests
 are made by automated tests. Image upload, SQL execution, grading, multimodal
 vision and multi-turn voice remain separate later milestones.
+
+### S03-E1 candidate — 3-question live rehearsal (not timed/scored yet)
+
+A separately gated `Start 3-question AI rehearsal` action becomes available when
+three *distinct* BYOQ questions are human-confirmed under the 45-minute
+configuration. It allows a genuine Senior Interviewer to handle up to **four
+candidate turns per question**, with explicit Finish / Skip actions and three
+separately frozen, unscored question records. Source-declared Medium questions
+remain Medium and can be used for this *practice* path; formal `setup_launch`
+remains blocked and never infers grading from an import.
+
+The current E1 slice is **not yet a timed or graded 45-minute interview**.
+E2 will add the host-enforced 45-minute deadline and time ledger; E3 will add
+an evidence-based scorecard and Trainer. Automated Mock HTTP coverage is added
+under `--ui-rehearsal-test`. On macOS, run the separate increment gate:
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-E1 --ui --regressions
+```
+
+See [`engineering/s03e_three_question/PLAN.md`](engineering/s03e_three_question/PLAN.md)
+for gates, constraints and next increments. No real provider UAT or GitHub push
+is authorized by this candidate patch.
