@@ -1,0 +1,19 @@
+{
+  "schema": "tia-postgres-fixture/v1",
+  "fixture_id": "SYNTHETIC-BUS-EXAMPLE-001",
+  "question_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "environment": "POSTGRESQL",
+  "tables": [
+    {
+      "name": "Queue",
+      "columns": [
+        {"name": "person_id", "type": "INTEGER"},
+        {"name": "person_name", "type": "TEXT"},
+        {"name": "weight", "type": "INTEGER"},
+        {"name": "turn", "type": "INTEGER"}
+      ],
+      "rows": [[5, "Alice", 250, 1], [2, "Bob", 175, 2], [3, "Alex", 350, 3], [6, "John", 400, 4]]
+    }
+  ],
+  "expected": {"columns": ["person_name"], "rows": [["Alex"]], "order_sensitive": false}
+}

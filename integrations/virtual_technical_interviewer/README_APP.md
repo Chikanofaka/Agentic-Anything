@@ -194,3 +194,53 @@ python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --in
 
 The command uses **mock HTTP** and synthetic input; a real paid BYOK UAT
 remains a separate, expressly consented Human Gate.
+
+## S03-E2.5A — isolated PostgreSQL fixture grader (standalone engineering increment)
+
+E2.5A is an **opt-in local evaluator**, not yet connected to the three-question
+AppKit rehearsal screen. It NEVER uses the current/default PostgreSQL database
+or external connection settings: on explicit execution it creates an ephemeral
+PostgreSQL 17+ cluster inside a private temporary directory, disables TCP,
+accepts requests over a private Unix socket, creates a non-superuser read-only
+role, inserts only human-inspected fixture rows, and destroys the cluster after
+the attempt. It requires working `initdb`, `pg_ctl`, `psql` server utilities from
+`pg_config --bindir` and refuses to start PostgreSQL as root. If the server
+executables are missing, it reports `POSTGRES_SERVER_NOT_AVAILABLE` rather than
+substituting AI claims for tested answers.
+
+The fixture source MUST be inspected and approved by exact SHA-256 per run.
+Its `question_sha256` must be bound to the confirmed BYOQ question before later
+Host/UI integration; the bundled synthetic bus example uses a **dummy digest**
+and is **NOT** a grading fixture for an actual interview question. Raw LeetCode
+examples are **not** automatically approved test cases. This checker reports
+`VERIFIED_LOCAL_FIXTURE` for a real PostgreSQL attempt (pass, mismatch, or
+query error), never an official LeetCode/HackerRank hidden-test verdict.
+
+From the repository root, inspection makes **zero database calls**:
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/run_sql_accuracy.py \
+  --fixture integrations/virtual_technical_interviewer/engineering/s03e_postgres_accuracy/examples/bus_demo_fixture.json
+```
+
+After human review of the fixture content, copy the printed `sha256` into the
+following explicit command (only on a Mac with an isolated server available):
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/run_sql_accuracy.py \
+  --fixture integrations/virtual_technical_interviewer/engineering/s03e_postgres_accuracy/examples/bus_demo_fixture.json \
+  --sql-file integrations/virtual_technical_interviewer/engineering/s03e_postgres_accuracy/examples/bus_demo_solution.sql \
+  --execute --approve-fixture-sha256 "<COPY_INSPECTED_SHA256>"
+```
+
+The runner accepts one conservative SELECT/WITH statement (no extra semicolons),
+limits output, and compares CSV display values, column names, bag multiplicity
+and an explicitly declared ordering policy. It is **not** a general untrusted
+SQL isolation service or a type-aware official judge; do not connect this runner
+to personal/business databases. Independent per-question Fixture → Code →
+Verdict binding, AppKit/WKWebView UX and three-question Scorecard aggregation
+remain E2.5B/E3 human-verification gates. Unit tests use no PostgreSQL process:
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/run_tests.py
+```
