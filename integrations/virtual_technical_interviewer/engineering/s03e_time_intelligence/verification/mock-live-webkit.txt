@@ -1,0 +1,9 @@
+PASS mock live journey opens actual native paid-consent sheet
+PASS explicit activation alone remains unverified with zero requests
+PASS native mock HTTP response crosses Python commit and verifies preview
+PASS candidate help and real native transport keep model output unscored
+PASS preview uses compiled instruction provenance and compact accessible controls
+PASS host closure freezes LIVE_MODEL evidence with no SQL or scores
+PASS closed preview rejects a late turn without new HTTP or receipt edits
+PASS disconnect clears authentication and retains truthful usage history
+Native UI smoke: PASS — 8 real UI checks; 2 mocked HTTP requests; zero real provider requests

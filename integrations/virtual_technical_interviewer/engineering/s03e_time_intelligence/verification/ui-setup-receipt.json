@@ -1,0 +1,66 @@
+{
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 0,
+  "passed" : 13,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "13 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "configuration still requires the API Portal entry step"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "keyless setup can cancel the mandatory first API Portal"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "keyless Wizard reaches review and full launch stays blocked with zero requests"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "setup begins with actual native secure credential sheet"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "synthetic native credential is only locally configured and unverified"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "60 minutes derives four and 45 derives three Hard questions"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "S03-D freeform LeetCode original can extract, review and confirm through real bridge"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "incomplete BYOQ remains editable and never fabricates validated questions"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "three distinct structured synthetic questions cross the real bridge"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "supportive mechanism loads compiled source and configuration digests"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "launch remains blocked on authentication and independent execution"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "strict mechanism changes effective instructions without expanding authority"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "disconnect keeps full launch blocked while keyless draft remains usable"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}
