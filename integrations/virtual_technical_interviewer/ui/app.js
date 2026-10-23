@@ -124,6 +124,10 @@
       evidenceTurns: "turns", evidenceClarify: "clarifications", evidenceHelp: "help requests", evidenceSQL: "SQL submissions",
       evidenceTestedPrior: "Prior SQL was tested, but final SQL differs. Current submission: NOT_VERIFIED.",
       evidenceSaved: "Derived from saved Host records; opening this report does not run SQL or call AI.",
+      trainerEvidenceHeading: "Trainer Lab · source-linked practice (offline)",
+      trainerEvidenceNotice: "These are actionable drill proposals, not AI diagnoses or employment scores. No model was called. Review each drill and test it on a fresh question.",
+      trainerEvidencePrimary: "Primary practice task", trainerEvidenceSource: "Observed evidence", trainerEvidenceAcceptance: "Completion check", trainerEvidenceLimit: "Skill level remains NOT_SCORED; historical interview evidence cannot change.",
+      trainerEvidenceWaiting: "Finish and lock all three questions to prepare practice tasks.",
       commHeading: "Communication evidence · C01–C06 (unrated)",
       commNotice: "Speech labels and sequence are evidence candidates, not proof of quality. No rating is assigned. Proposed 60/40 weights are not applied.",
       commRecorded: "Candidate events", commReplies: "Interviewer replies",
@@ -251,6 +255,10 @@
       evidenceTurns: "交互次数", evidenceClarify: "澄清次数", evidenceHelp: "求助次数", evidenceSQL: "SQL 提交次数",
       evidenceTestedPrior: "此前 SQL 经过测试，但最终提交发生变化；当前 SQL 为 NOT_VERIFIED。",
       evidenceSaved: "仅从 Host 存档派生；打开报告不会执行 SQL，也不会调用 AI。",
+      trainerEvidenceHeading: "训练实验室 · 有来源的离线练习",
+      trainerEvidenceNotice: "这些是可执行练习提案，不是 AI 诊断或招聘评分；未调用模型。请人工检查，并在新题目上复测。",
+      trainerEvidencePrimary: "第一优先练习", trainerEvidenceSource: "证据来源", trainerEvidenceAcceptance: "完成标准", trainerEvidenceLimit: "能力仍为 NOT_SCORED；不得修改历史面试证据。",
+      trainerEvidenceWaiting: "请先结束并锁定三道题，才能生成练习任务。",
       commHeading: "沟通证据账本 · C01–C06（不评分）",
       commNotice: "事件类别与先后顺序只是候选证据，并非沟通质量的证明。60/40 为待校准假设，当前不计算分数。",
       commRecorded: "候选人事件", commReplies: "面试官回复",
@@ -872,6 +880,30 @@
     add(section, node("code", report.sha256 || "", "digest"));
     return section;
   }
+  function groundedTrainer() {
+    const tplan = state.grounded_trainer;
+    if (!tplan || tplan.schema !== "tia-grounded-trainer/v1") return null;
+    const section = node("section", null, "receipt-card"); section.id = "groundedTrainer";
+    add(section, node("h2", t("trainerEvidenceHeading")), node("p", t("trainerEvidenceNotice"), "notice"),
+      node("p", `${tplan.status} · ${tplan.mode} · ${tplan.numeric_scores}`, "field-help"));
+    if (tplan.status !== "READY_FOR_HUMAN_REVIEW") {
+      add(section, node("p", t("trainerEvidenceWaiting"), "field-help"));
+      return section;
+    }
+    for (const drill of tplan.drills || []) {
+      const detail = node("details", null, "question-review");
+      if (drill.id === tplan.primary_drill_id) detail.open = true;
+      add(detail, node("summary", `${drill.id === tplan.primary_drill_id ? t("trainerEvidencePrimary") + " · " : ""}${drill.id} · P${drill.priority}`),
+        node("p", drill.rationale, "field-help"), node("p", drill.task),
+        node("p", `${t("trainerEvidenceAcceptance")}: ${drill.acceptance}`, "field-help"),
+        node("p", `${t("trainerEvidenceSource")}: ${drill.trigger} · ${drill.evidence.observed_local_status}`,
+          "field-help"), node("p", `Event IDs: ${(drill.evidence.candidate_event_ids || []).join(", ") || "NONE"}`, "field-help"));
+      if (drill.evidence.fixture_sha256) add(detail, node("code", drill.evidence.fixture_sha256, "digest"));
+      section.appendChild(detail);
+    }
+    add(section, node("p", t("trainerEvidenceLimit"), "notice"), node("code", tplan.sha256, "digest"));
+    return section;
+  }
   function evidenceScorecard() {
     const card = state.evidence_scorecard;
     if (!card || card.schema !== "tia-evidence-scorecard/v1") return null;
@@ -923,7 +955,7 @@
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
-    add(main, evidenceScorecard(), communicationEvidence());
+    add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer());
     // Old raw receipts are preserved, including prior SQL versions. For current
     // correctness refer to the source-bound E3 scorecard above instead.
     (rs.results || []).forEach((r, i) => {

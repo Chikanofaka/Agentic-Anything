@@ -362,3 +362,30 @@ python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --in
 ```
 
 See `engineering/s03e_communication_rubric/README_E3B.md`.
+
+## S03-E3C-A — Grounded Trainer Lab (offline; model request NOT implemented)
+
+After the 3-question interview is locked, the completion view includes an
+**offline Trainer Lab** that proposes prioritized, measurable practice based on
+source-bound E3A correctness and E3B communication observations. It lists exact
+candidate Event IDs, question/fixture fingerprints when available, and fresh
+independent retest conditions. A local PASS never means full skill mastery, a
+missing C01–C06 event never means low competence, and all proficiency grades
+remain `NOT_SCORED`. Both Host snapshot and explicit export include the
+`grounded_trainer` view, and reopening the same save regenerates the same view
+without paying for a model call or rerunning SQL. This changes no stored event
+or historical receipt digest.
+
+E3C-A supplies a strict **future model proposal** validation boundary but does
+NOT invoke a real AI Trainer, does not generate personalized AI prose and does
+not implement SMART reminders. The next E3C-B increment must separately wire
+native BYOK paid consent, safe transcript disclosure and model response review.
+
+Mac gate (mock OpenAI/real synthetic local PostgreSQL, zero real provider calls):
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-E3C --ui --regressions
+```
+
+See `engineering/s03e_grounded_trainer/README_E3C_A.md` for limitations and
+test/release boundaries. Local `verification_E3C` is not part of public code.

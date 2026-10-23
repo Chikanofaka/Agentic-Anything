@@ -121,6 +121,17 @@ final class TIAUISmoke {
             &&panel.querySelectorAll('details').length===3
             &&panel.textContent.includes('NOT_OBSERVED')};
         """),
+        Step(label: "E3C offline trainer binds practice to real receipt with no invented score or paid call", code: """
+          await screen('REHEARSAL_COMPLETE'); const s=await snap(),t=s.grounded_trainer;
+          const panel=el('groundedTrainer');const first=t?.drills?.[0];
+          return {ok:!!panel&&t?.schema==='tia-grounded-trainer/v1'
+            &&t.status==='READY_FOR_HUMAN_REVIEW'&&t.model_assessment==='NOT_REQUESTED'
+            &&t.numeric_scores==='NOT_SCORED'&&t.sources.technical_sha256===s.evidence_scorecard.sha256
+            &&t.sources.communication_sha256===s.communication_evidence.sha256
+            &&t.drills.length>0&&first?.evidence?.question_sha256===s.evidence_scorecard.questions[0].question_sha256
+            &&panel.textContent.includes(first.id)&&panel.textContent.includes('NOT_SCORED')
+            &&s.activation.requests_used===2};
+        """),
     ] : rehearsalTesting ? [
         Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
