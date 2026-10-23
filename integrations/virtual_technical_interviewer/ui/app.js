@@ -99,10 +99,10 @@
       saveRecoveryBody: "The latest changes are still in memory but could not be saved. Export a recovery copy before deleting or closing this session.",
       recoveryExport: "Export a recovery copy…",
       prepareSetup: "Preview interview configuration · no paid call",
-      setupPending: "Configuration preview is available without an API key and makes no model requests. Full interview launch still requires validated questions, execution adapters and host policy guards.",
+      setupPending: "Confirm three distinct user-provided questions to run a genuine 45-minute Live AI rehearsal. Practice accepts Easy, Medium, Hard or unspecified difficulty. Formal graded launch remains separate and unavailable.",
       configuration: "Interview configuration", environment: "Technical environment",
       duration: "Session duration", minutes: "minutes", questionCount: "Questions · derived from duration",
-      hardOnly: "Hard · fixed for real interviews", configNote: "45 minutes requires 3 questions; 60 minutes requires 4. The host validates this contract.",
+      hardOnly: "Formal exam profile: HARD (practice accepts any difficulty)", configNote: "45 minutes requires 3 questions; 60 minutes requires 4. The host validates this contract.",
       continueSetup: "Next →", sourceTitle: "Select question source", sourceLabel: "Question source",
       byoq: "Bring your own question · LeetCode / HackerRank", randomized: "Randomized · approved dataset pool",
       sourceInstructions: "Paste the original LeetCode/HackerRank question without rewriting it into JSON. Choose its source, then Extract → Review/Edit → Confirm. JSON import remains available in Advanced mode.",
@@ -110,7 +110,7 @@
       questionNumber: "Question", emptyTemplate: "Advanced: insert JSON template", bytes: "UTF-8 bytes",
       extractQuestion: "Extract question", confirmQuestion: "Confirm reviewed fields",
       practiceQuestion: "Practise this question with Live AI (unscored)",
-      rehearsalStart: "Start 3-question AI rehearsal (unscored)",
+      rehearsalStart: "Start LIVE 3-question interview practice (unscored)",
       rehearsalSubmit: "Finish question → Next", rehearsalSkip: "Skip question → Next",
       rehearsalFinish: "Finish interview & freeze record", rehearsalComplete: "Three-question rehearsal complete",
       rehearsalNote: "Three confirmed questions, up to four candidate turns each. PostgreSQL SQL can be tested only against separately approved local fixtures; Pandas and competency grading remain unavailable.",
@@ -165,9 +165,9 @@
       rubricNote: "Technical 60 / Communication 40 is a provisional reference. Evidence remains separate; no numerical score is approved or assigned here.",
       reviewSetup: "Review setup →", reviewTitle: "Review your interview",
       configDigest: "Configuration digest", profileDigest: "Effective instruction provenance",
-      blockers: "Launch blockers", launchPreflight: "Check launch requirements",
+      blockers: "Formal graded exam · not implemented", launchPreflight: "Show formal exam limitations",
       questionReviewStatus: "Question review", policyProposal: "Versioned policy · scoring remains provisional",
-      setupStep: "Real AI setup", preflightNote: "This check cannot make a paid call. Authentication, independently validated questions and a supported execution adapter are still required.",
+      setupStep: "Real AI setup", preflightNote: "These restrictions apply to formal graded launch only. The 3-question Live AI practice above accepts reviewed Pandas/SQL questions regardless of difficulty; actual paid calls still need native consent. Pandas execution and competency scores remain unverified.",
     },
     zh: {
       livePreview: "真实模型对话预览", livePreviewNote: "资深面试官多轮交互；技术与沟通能力仍为 NOT_SCORED。经单独审核的 PostgreSQL 本地测试数据可用于验证已提交 SQL。",
@@ -245,9 +245,9 @@
       saveRecoveryBody: "最新变更仍保留在内存中，但尚未成功保存。请先导出恢复副本，再删除或关闭此会话。",
       recoveryExport: "导出恢复副本…",
       prepareSetup: "预览面试配置 · 不调用付费 API",
-      setupPending: "无需 API Key 即可预览配置，此流程不会调用模型。完整面试仍需通过题目验证、执行适配器及宿主策略检查。",
+      setupPending: "确认三道不同的自带题目后，可启动真实 AI 45 分钟模拟面试；练习允许 Easy / Medium / Hard 或未知难度。正式判分考试尚未开放。",
       configuration: "面试配置", environment: "技术环境", duration: "会话时长", minutes: "分钟",
-      questionCount: "题目数量 · 根据时长推导", hardOnly: "Hard · 真实面试固定难度",
+      questionCount: "题目数量 · 根据时长推导", hardOnly: "正式考试配置：HARD（练习不限难度）",
       configNote: "45 分钟必须为 3 题，60 分钟必须为 4 题。此约束由宿主验证。",
       continueSetup: "下一步 →", sourceTitle: "选择题目来源", sourceLabel: "题目来源",
       byoq: "自带题目 · LeetCode / HackerRank", randomized: "随机面试 · 已批准的数据集题库",
@@ -256,7 +256,7 @@
       questionNumber: "题目", emptyTemplate: "高级：插入 JSON 模板", bytes: "UTF-8 字节",
       extractQuestion: "提取题目", confirmQuestion: "确认已审阅字段",
       practiceQuestion: "用真实 AI 练习此题（不评分）",
-      rehearsalStart: "开始三题 AI 模拟面试（不评分）",
+      rehearsalStart: "开始真实 AI 三题模拟面试（不评分）",
       rehearsalSubmit: "结束本题并进入下一题", rehearsalSkip: "跳过本题并进入下一题",
       rehearsalFinish: "完成面试并冻结记录", rehearsalComplete: "三题模拟面试已完成",
       rehearsalNote: "三道确认题，每题最多四次交互。SQL 可单独批准本地 PostgreSQL Fixture 执行；Pandas 及综合能力评分仍未开放。",
@@ -311,9 +311,9 @@
       rubricNote: "Technical 60 / Communication 40 仅为暂定参考。证据分别记录；此处不批准或生成数值评分。",
       reviewSetup: "审阅配置 →", reviewTitle: "审阅你的面试",
       configDigest: "配置摘要", profileDigest: "有效指令来源",
-      blockers: "启动阻碍", launchPreflight: "检查启动条件",
+      blockers: "正式评分考试 · 尚未实现", launchPreflight: "查看正式考试限制",
       questionReviewStatus: "题目审查", policyProposal: "版本化策略 · 评分仍为暂定",
-      setupStep: "真实 AI 配置", preflightNote: "此检查不会调用付费 API。仍需完成服务商验证、独立题目验证，并提供受支持的执行适配器。",
+      setupStep: "真实 AI 配置", preflightNote: "这些要求只针对正式判分考试。上方的三题真实 AI 练习支持不同难度的 Pandas/SQL 已审阅题目；付费模型调用仍需原生授权。Pandas 执行与能力分数尚未验证。",
     },
   };
   const t = key => (strings[state?.language === "zh" ? "zh" : "en"][key] || key);
@@ -505,12 +505,153 @@
     });
     add(main, list, node("p", t("simulation"), "notice"), nav(t("understand")), skip());
   }
+  // S03-E4 examples: display-only projection; never modifies confirmed questions,
+  // the trusted controller, journal, model context, or grading authority.
+  function displaySourceText(value) {
+    if (typeof value !== "string") return "";
+    const named = {amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " "};
+    return value.replace(/&#(?:x([\da-fA-F]{1,6})|(\d{1,7}));/gi, (match, hex, dec) => {
+        const point = parseInt(hex || dec, hex ? 16 : 10);
+        return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff)
+          ? String.fromCodePoint(point) : match;
+      })
+      .replace(/&(?:amp|lt|gt|quot|apos|nbsp);/gi, match => named[match.slice(1, -1).toLowerCase()] || match)
+      .replace(/\\([|*_])/g, "$1")
+      .replace(/\*\*/g, "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\r\n?/g, "\n");
+  }
+  function parseLeetCodeExamples(raw) {
+    // Bound display extraction. Not a verifier, source oracle, or hidden-test set.
+    const source = displaySourceText(raw).split("\n");
+    const examples = [];
+    let active = null, section = null;
+    const finish = () => {
+      if (!active) return;
+      for (const name of ["input", "output", "explanation"]) {
+        active[name] = active[name].join("\n").trim();
+      }
+      if (active.input || active.output || active.explanation) examples.push(active);
+    };
+    for (const untrimmed of source) {
+      const line = untrimmed.trim().replace(/^#{1,6}\s*/, "");
+      const heading = /^Example(?:\s+(\d{1,2}))?\s*:\s*$/i.exec(line);
+      if (heading) {
+        finish();
+        if (examples.length >= 8) break;
+        active = {number: heading[1] || String(examples.length + 1), input: [], output: [], explanation: []};
+        section = null;
+        continue;
+      }
+      if (!active) continue;
+      if (/^(?:Constraints|Follow[ -]?up|Notes?)\s*:/i.test(line)) {
+        finish(); active = null; section = null;
+        break;
+      }
+      const label = /^(Input|Output|Explanation)\s*:\s*(.*)$/i.exec(line);
+      if (label) {
+        section = label[1].toLowerCase();
+        if (label[2]) active[section].push(label[2]);
+      } else if (section) {
+        active[section].push(untrimmed);
+      }
+    }
+    finish();
+    return examples.slice(0, 8);
+  }
+  function splitReviewedExampleBlocks(value) {
+    // Imported editable fields may concatenate several "Example N:" blocks.
+    const text = displaySourceText(value).trim();
+    if (!text) return [];
+    const lines = text.split("\n");
+    const blocks = []; let current = null;
+    for (const line of lines) {
+      const m = /^Example\s+(\d{1,2})\s*:\s*$/i.exec(line.trim());
+      if (m) {
+        current = {number: m[1], lines: []}; blocks.push(current);
+      } else if (!current) {
+        current = {number: "1", lines: []}; blocks.push(current);
+        current.lines.push(line);
+      } else current.lines.push(line);
+    }
+    return blocks.slice(0, 8).map(item => ({number: item.number, text: item.lines.join("\n").trim()}));
+  }
+  function reviewedQuestionExamples(previewQuestion) {
+    const hash = previewQuestion?.content_sha256;
+    if (typeof hash !== "string" || !/^[0-9a-f]{64}$/.test(hash)) return [];
+    const index = state.rehearsal?.current_index;
+    const reviews = Array.isArray(state.setup_questions) ? state.setup_questions : [];
+    const preferred = Number.isInteger(index) ? reviews[index] : null;
+    const review = preferred?.content_sha256 === hash ? preferred : reviews.find(item => item?.content_sha256 === hash);
+    // Never pair examples from a different question or an unconfirmed source.
+    if (!review?.human_confirmed || !review.fields) return [];
+    const originals = parseLeetCodeExamples(review.raw_input || "");
+    const inputs = splitReviewedExampleBlocks(review.fields.example_input);
+    const outputs = splitReviewedExampleBlocks(review.fields.expected_output);
+    const numbers = [...new Set([...originals.map(x => x.number), ...inputs.map(x => x.number), ...outputs.map(x => x.number)])].slice(0, 8);
+    return numbers.map(number => {
+      const original = originals.find(x => x.number === number);
+      const confirmedInput = inputs.find(x => x.number === number)?.text || "";
+      const confirmedOutput = outputs.find(x => x.number === number)?.text || "";
+      return {number,
+        input: confirmedInput || original?.input || "",
+        output: confirmedOutput || original?.output || "",
+        explanation: original?.explanation || "",
+        source: "REVIEWED_FIELDS_WITH_ORIGINAL_EXPLANATION",
+      };
+    });
+  }
+  function exampleCardsForQuestion(previewQuestion) {
+    const examples = reviewedQuestionExamples(previewQuestion);
+    if (!examples.length) return null;
+    const zh = state.language === "zh";
+    const section = node("section", null, "question-examples");
+    section.id = "questionExamples";
+    add(section, node("h3", zh ? "题目示例 · 输入、输出与解释" : "Examples · Input, Output & Explanation"),
+      node("p", zh ? "来源为已确认的题目字段及保留的原文；示例不是已执行的测试，也不是官方隐藏测试。" :
+        "Shown from reviewed question fields and original source text. Examples are not executed or official hidden tests.", "field-help"));
+    examples.forEach((example, index) => {
+      const card = node("section", null, "example-display-card");
+      card.id = `questionExample${index}`;
+      const number = example.number;
+      add(card, node("h4", `${zh ? "示例" : "Example"} ${number}`));
+      const pieces = [
+        ["input", zh ? "输入 · Input" : "Input", example.input],
+        ["output", zh ? "期望输出 · Output" : "Expected Output", example.output],
+      ];
+      pieces.forEach(([key, label, value]) => {
+        add(card, node("h5", label));
+        const content = value || (zh ? "来源缺失：请返回题目审阅补充" : "Missing from reviewed source: edit question before testing");
+        const code = add(node("pre", null, "code-block"), node("code", content));
+        code.id = `questionExample${index}_${key}`;
+        add(card, code);
+      });
+      if (example.explanation) {
+        const explanation = node("details", null, "question-review");
+        explanation.open = true;
+        const content = add(node("pre", null, "code-block"), node("code", example.explanation));
+        content.id = `questionExample${index}_explanation`;
+        add(explanation, node("summary", zh ? "解析与中间计算表 · Explanation" : "Explanation & intermediate tables"), content);
+        add(card, explanation);
+      }
+      if (!example.input || !example.output) {
+        add(card, node("p", zh ? "示例信息不完整，不能用于判题。" : "Incomplete example: not usable as a verification fixture.", "notice"));
+      }
+      add(section, card);
+    });
+    return section;
+  }
+
   function questionCard(compact = false, previewQuestion = null) {
     const q = previewQuestion || state.question || {};
     const card = node("section", null, `question-card${compact ? " compact" : ""}`);
     add(card, badge(t(previewQuestion ? "previewQuestion" : "medium")), node(compact ? "h3" : "h2", q.title || "First Order per Customer"),
       node("p", q.statement || "", "question-statement"), node("h3", t("schema")),
       add(node("pre", null, "code-block"), node("code", q.schema || "")));
+    if (previewQuestion) {
+      const examples = exampleCardsForQuestion(previewQuestion);
+      if (examples) add(card, examples);
+    }
     return card;
   }
   function question(main) {
@@ -800,7 +941,10 @@
       node("p", t("livePreviewNote"), "lead"), providerDetails());
     const columns = node("div", null, "room-grid");
     add(columns, add(node("aside", null, "question-side"), questionCard(true, preview.question || {}),
-      node("p", preview.sql_accuracy?.correctness === "VERIFIED_LOCAL_FIXTURE" ? t("gradeResultDisclaimer") : t("noTests"), "notice")));
+      node("p", preview.sql_accuracy?.correctness === "VERIFIED_LOCAL_FIXTURE" ? t("gradeResultDisclaimer")
+        : (preview.question?.environment || state.setup_config?.technical_environment) === "PANDAS"
+          ? (state.language === "zh" ? "尚未运行 Pandas 执行器；模型回复及已提交代码均不等于通过测试。" : "No Pandas evaluator has run. Neither a submitted answer nor an AI reply is a passing test.")
+          : t("noTests"), "notice")));
     const work = node("section", null, "work-side");
     add(work, node("h2", t("senior")),
       node("p", t(preview.mechanism === "PROFESSIONAL_SUPPORTIVE" ? "supportive" : "strict"), "muted"));
@@ -808,14 +952,20 @@
       add(work, node("h2", t("previewClosed")), node("p", t("previewFrozen")));
     } else if (preview.can_send || preview.pending || preview.retry_input) {
       const retry = preview.retry_input;
+      const isPandasPreview = (preview.question?.environment || state.setup_config?.technical_environment) === "PANDAS";
       const kind = selectField("previewKind", t("kind"),
-        ["clarify", "plan", "help", "implement"].map(value => [value, t(value)]), retry?.kind || liveKind);
+        ["clarify", "plan", "help", "implement"].map(value => [value, value === "implement" && isPandasPreview
+          ? (state.language === "zh" ? "提交 Python / Pandas 代码" : "Python / Pandas submission") : t(value)]), retry?.kind || liveKind);
       kind.select.addEventListener("change", () => { liveKind = kind.select.value; });
       kind.select.dataset.unavailable = String(Boolean(retry));
       const label = node("label", t("previewInput")); label.htmlFor = "previewResponse";
       const input = node("textarea"); input.id = "previewResponse"; input.rows = 8;
       input.maxLength = 4096; input.spellcheck = false; input.autocapitalize = "off";
-      input.value = retry?.text ?? liveDraft; input.placeholder = t("placeholder"); input.readOnly = Boolean(retry);
+      input.value = retry?.text ?? liveDraft;
+      input.placeholder = isPandasPreview
+        ? (state.language === "zh" ? "解释思路、澄清问题，或编写 Python / Pandas 代码…" : "Explain your plan, clarify, or write your Python / Pandas code…")
+        : t("placeholder");
+      input.readOnly = Boolean(retry);
       input.setAttribute("aria-describedby", "previewResponseHelp");
       const helper = node("p", retry ? t("retryRecorded") : t("previewPrivacy"), "field-help"); helper.id = "previewResponseHelp";
       const send = () => act("preview_send", {kind: kind.select.value, text: input.value});
@@ -1095,6 +1245,14 @@
         node("p", `${r.outcome} · ${verified} · NOT_SCORED`),
         r.session?.receipt?.sha256 ? node("code", r.session.receipt.sha256, "digest") : null));
     });
+    // Source-bound examples remain available in the frozen final report.
+    (rs.questions || []).forEach((q, i) => {
+      const examples = exampleCardsForQuestion(q);
+      if (!examples) return;
+      const detail = node("details", null, "question-review");
+      add(detail, node("summary", `${i + 1}. ${q.title || "Question"} · ${state.language === "zh" ? "查看输入、输出与解析" : "View examples & explanations"}`), examples);
+      add(main, detail);
+    });
     add(main, button("exportRehearsal", t("export"), () => act("export"), "primary"));
   }
   function configValues(overrides = {}) {
@@ -1169,17 +1327,35 @@
     }
     return detail;
   }
+  // S03-E3D-P1: secondary, reviewable decoder for pasted LeetCode screen chrome.
+  // Crucially, the Host raw_input and saved journal are never rewritten.
+  function cleanSourceDraft(fields) {
+    const output = {...fields};
+    const chrome = /^(?:Solved|Attempted|Topics|Companies|Premium|Discussion|Pandas Schema|SQL Schema|premium lock icon)$/i;
+    for (const key of ["problem_statement", "schema", "constraints"]) {
+      if (typeof output[key] === "string") {
+        output[key] = output[key].split(/\r?\n/)
+          .filter(line => !chrome.test(line.trim())).join("\n").trim();
+      }
+    }
+    return output;
+  }
   const REVIEW_FIELDS = ["problem_statement", "task", "schema", "example_input", "expected_output",
     "environment", "source", "constraints", "source_reference"];
   function editableQuestion(section, review, index) {
     if (!review) return;
     const sha = review.raw_sha256;
     if (!questionFieldDrafts[index] || questionFieldDrafts[index].raw_sha256 !== sha) {
-      questionFieldDrafts[index] = {raw_sha256: sha, fields: {...review.fields}};
+      questionFieldDrafts[index] = {raw_sha256: sha, fields: cleanSourceDraft(review.fields)};
     }
     const edit = questionFieldDrafts[index].fields;
     const form = node("div", null, "review-editor");
     add(form, node("p", t("reviewGuidance"), "field-help"));
+    if (JSON.stringify(edit) !== JSON.stringify(review.fields)) {
+      add(form, node("p", state.language === "zh"
+        ? "已从可编辑草稿去除部分 LeetCode 页面标签；原文及来源仍保存。确认前请检查全部字段。"
+        : "LeetCode page labels were removed from the editable draft only. Original source is preserved; review all fields before confirming.", "notice"));
+    }
     for (const key of REVIEW_FIELDS) {
       const label = node("label", key); label.htmlFor = `reviewField${index}_${key}`;
       const input = node("textarea"); input.id = label.htmlFor;
@@ -1203,11 +1379,14 @@
       state.setup_questions?.length === 3 &&
       state.setup_questions.every(q => q.practice_eligible && q.human_confirmed) &&
       new Set(state.setup_questions.map(q => q.content_sha256)).size === 3;
-    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start"), "secondary full-width");
+    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start"), "primary full-width");
     start.dataset.unavailable = String(!eligible);
     start.disabled = busy || !eligible;
     return add(node("section", null, "preview-start-card"),
-      node("h2", t("rehearsalStart")), node("p", t("rehearsalNote"), "field-help"), start);
+      node("h2", t("rehearsalStart")), node("p", t("rehearsalNote"), "field-help"),
+      node("p", state.language === "zh"
+        ? "先逐题提取并人工确认。点击开始后进入原生 API Portal；验证模型访问才会触发明确授权的付费请求。"
+        : "Extract and confirm every question first. Start opens the native API Portal; a paid model request requires separate explicit consent.", "notice"), start);
   }
   function questionSource(main) {
     const config = configValues();
@@ -1247,7 +1426,7 @@
             review?.fields ? JSON.stringify(review.fields, null, 2) : "";
         }
         const section = node("section", null, "byoq-card");
-        const label = node("label", `${t("questionNumber")} ${index + 1} / ${count} · HARD (formal session)`);
+        const label = node("label", `${t("questionNumber")} ${index + 1} / ${count} · ${state.language === "zh" ? "练习不限难度" : "practice: any difficulty"}`);
         label.htmlFor = `byoqQuestion${index}`;
         const input = node("textarea");
         input.id = `byoqQuestion${index}`;
@@ -1341,7 +1520,7 @@
     const body = node("tbody");
     const rows = [
       [t("environment"), config.technical_environment], [t("duration"), `${config.duration_minutes} ${t("minutes")}`],
-      [t("questionCount"), `${config.question_count} × HARD`],
+      [t("questionCount"), `${config.question_count} × ${state.language === "zh" ? "自带练习题（不限难度）" : "reviewed BYOQ practice (any difficulty)"}`],
       [t("sourceLabel"), config.question_source === "BYOQ" ? t("byoq") : t("randomized")],
       [t("mechanismLabel"), config.interviewer_mechanism === "STRICT_CHALLENGING" ? t("strict") : t("supportive")],
       [t("configDigest"), config.sha256 || "UNVERIFIED"],
@@ -1351,6 +1530,10 @@
       add(body, add(node("tr"), th, node("td", value)));
     });
     add(table, body); add(main, table);
+    // Put the actual working path BEFORE long question reviews and provenance.
+    if (config.question_source === "BYOQ" && config.duration_minutes === 45) {
+      add(main, rehearsalStartButton());
+    }
     if (state.setup_profiles) {
       const section = node("details", null, "question-review");
       add(section, node("summary", t("profileDigest")), node("p", t("policyProposal"), "notice"));
@@ -1371,15 +1554,17 @@
       add(main, node("h2", t("questionReviewStatus"), "section-title"));
       state.setup_questions.forEach((review, index) => add(main, questionReview(review, index)));
     }
-    if (config.question_source === "BYOQ" && config.duration_minutes === 45) {
-      add(main, rehearsalStartButton());
-    }
-    const blockers = node("section", null, "launch-blockers");
-    add(blockers, node("h2", t("blockers")), issueList(state.setup_blockers || []),
+    // Formal grading still fails closed. Show limitations on demand, rather than
+    // making a guaranteed-failing host command the user's primary CTA.
+    const blockers = node("details", null, "launch-blockers");
+    blockers.id = "formalLaunchLimits";
+    add(blockers, node("summary", t("blockers")), issueList(state.setup_blockers || []),
       node("p", t("preflightNote"), "muted"));
     add(main, blockers, node("p", t("rubricNote"), "notice"), scores(true),
-      setupNav(button("launchPreflight", t("launchPreflight"), () => act("setup_launch"), "primary")),
-      previewStartCard());
+      setupNav(button("launchPreflight", t("launchPreflight"), () => {
+        blockers.open = true;
+        blockers.scrollIntoView({block: "nearest"});
+      }, "secondary")), previewStartCard());
   }
   function requestCount() {
     const count = state.activation?.requests_used ?? state.api_requests;

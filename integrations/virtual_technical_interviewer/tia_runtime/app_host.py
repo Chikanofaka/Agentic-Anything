@@ -651,8 +651,8 @@ class TutorialHost:
             if (self._setup_config.question_source == "BYOQ"
                     and not self.setup_allocation["ready_for_content_review"]):
                 raise HostError("QUESTION_REVIEW_REQUIRED")
-            if "QUESTION_DIFFICULTY_NOT_HARD" in self.setup_blockers:
-                raise HostError("QUESTION_DIFFICULTY_NOT_HARD")
+            # Source difficulty is only metadata for the BYOQ practice path.
+            # Formal graded launch remains independently fail-closed.
             self.screen = "MECHANISM"
         elif action == "practice_start":
             if (self.screen != "QUESTION_SOURCE" or self._setup_config is None

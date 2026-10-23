@@ -233,6 +233,16 @@ final class TIAUISmoke {
           await press('verifyPreview','LIVE_PREVIEW');s=await snap();
           return {ok:s.rehearsal.current_index===0&&s.activation.requests_used===1&&s.live_preview.candidate_turn_limit===4&&s.transport_mode==='MOCK_HTTP'};
         """),
+        Step(label: "E4 source-bound examples render in real WebKit room without grading", code: """
+          const s=await snap(); const ex=document.getElementById('questionExamples');
+          const input=document.getElementById('questionExample0_input');
+          const output=document.getElementById('questionExample0_output');
+          return {ok:s.screen==='LIVE_PREVIEW'&&!!ex&&!!input&&!!output
+            &&input.textContent.includes('(1, 2)')&&output.textContent.includes('(2)')
+            &&s.setup_questions[0].human_confirmed===true
+            &&s.live_preview.question.content_sha256===s.setup_questions[0].content_sha256
+            &&s.rehearsal.technical==='NOT_SCORED'};
+        """),
         Step(label: "E2 timer starts on first presented question, exposes local-only clock", code: """
           const s=await snap();const t=s.rehearsal?.timing;
           return {ok:!!t&&t.started===true&&t.limit_seconds===2700
