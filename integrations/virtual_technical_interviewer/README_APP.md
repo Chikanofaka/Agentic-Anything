@@ -244,3 +244,66 @@ remain E2.5B/E3 human-verification gates. Unit tests use no PostgreSQL process:
 ```sh
 python3 -B integrations/virtual_technical_interviewer/run_tests.py
 ```
+
+### S03-E2.5-B — Native-authorized PostgreSQL accuracy inside the rehearsal
+
+In an active **three-question POSTGRESQL rehearsal**, submit the candidate's
+actual code using the **SQL submission** response type. This sends the candidate
+message to the approved interviewer model as ordinary conversation, NOT to a
+SQL execution or scoring authority. The independent **Local PostgreSQL accuracy
+check** then accepts at most 12,000 UTF-8 bytes of an OWNER-reviewed JSON Fixture
+using the strict `tia-postgres-fixture/v1` schema. Its `question_sha256` must
+match the active question's **confirmed** `content_sha256`, and it is bound to
+the current candidate `implement` event and its exact SQL SHA-256. The old
+E2.5-A demonstration Fixture's placeholder `aaaaaaaa...` does **not** match a
+real imported interview question; it cannot be used to award a grade in the App.
+
+The candidate first clicks **Inspect fixture** (no database call). The Host
+validates the fixture, provides a SHA-256 digest and row counts, and saves the
+review privately. After inspecting the fixture's actual tables and expected
+rows, the user checks the explicit review box and clicks **Approve & run**. A
+separate native AppKit confirmation sheet displays the full question, SQL and
+Fixture digests before allowing the actual local PostgreSQL process to start.
+The WebKit renderer cannot bypass this native confirmation, supply a DB URL,
+nominate an executable, forge an execution receipt or claim official hidden
+LeetCode scores. The fixture remains private and is never included in the
+interviewer prompt or transmitted to OpenAI. Human-reviewed expected answers
+ARE visible to the human author; they are not secret judge tests.
+
+One real, isolated PostgreSQL run uses a fresh temporary cluster, a non-TCP
+private Unix socket and a low-privilege read-only candidate role (see
+`sql_accuracy.py`). `pg_config` is discovered only at a fixed allowlist of
+local executable locations (e.g. `/opt/anaconda3/bin/pg_config`), not from
+renderer input or arbitrary `PATH`. This is a narrow local practice runner,
+**not a certified hostile-SQL sandbox or a signed production release**. The
+Mac must have matching PostgreSQL server binaries; otherwise the result is
+`NOT_VERIFIED` with a typed error, never a fabricated zero or passing grade.
+
+The Host stores one source-bound result per current question, reports a local
+Fixture pass/fail, and freezes it into that question's transcript and export.
+After a verified result, duplicate grading is rejected. New SQL written after
+inspection invalidates the previous Fixture approval. A saved grading action
+replays its recorded backend observation **without running PostgreSQL again**.
+SQL execution/wait counts toward the Host's 45-minute limit; any reply arriving
+after that deadline is not counted as a valid pass. Legacy S03-E1/E2 saves are
+readable; historical evidence is not backfilled. Communication and formal
+Technical Capability remain `NOT_SCORED`; official hidden tests remain FALSE.
+Pandas, an official hidden-test oracle, numeric interview scorecards and the
+Trainer live feedback loop remain separate future increments.
+
+Run the full macOS evidence gate **without a real OpenAI key**:
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/run_tests.py
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-E25B --ui --regressions
+```
+
+The new `native-postgres-grading-webkit` test uses a synthetic three-question
+rehearsal and MOCK HTTP interview messages, but launches a REAL ephemeral
+PostgreSQL instance for one synthetic query. It also exercises native consent,
+the question digest, a mismatched fixture rejection, and per-question freezing.
+The test's native confirmation click is simulated **only** in isolated
+`--ui-grading-test` mode; normal app usage requires human confirmation. This
+still needs to be run and verified on macOS before the increment may be
+committed/released. Generated verification screenshots, logs, personal
+transcripts and local review data should not be automatically published.

@@ -45,6 +45,14 @@ enum BridgePolicy {
               data.count <= 32768 else { return nil }
         if emptyActions.contains(action) {
             guard params.isEmpty else { return nil }
+        } else if action == "grade_inspect" {
+            guard Set(params.keys) == ["fixture_json"],
+                  let fixture = params["fixture_json"] as? String,
+                  !fixture.isEmpty, fixture.utf8.count <= 12000 else { return nil }
+        } else if action == "grade_execute" {
+            guard Set(params.keys) == ["fixture_sha256"],
+                  let digest = params["fixture_sha256"] as? String,
+                  digest.range(of: "\\A[0-9a-f]{64}\\z", options: .regularExpression) != nil else { return nil }
         } else if action == "language" {
             guard Set(params.keys) == ["language"], let lang = params["language"] as? String,
                   ["en", "zh"].contains(lang) else { return nil }

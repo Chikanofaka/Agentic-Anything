@@ -17,7 +17,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
@@ -39,6 +39,12 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
                     .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
                 ] : [])
+                if CommandLine.arguments.contains("--ui-grading-test") {
+                    TIATestHTTPProtocol.reset([
+                        .reply("Synthetic opener for SQL grading Q1"),
+                        .reply("Please explain your own candidate SQL.")
+                    ])
+                }
                 if CommandLine.arguments.contains("--ui-rehearsal-test") {
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for Question 1"),
@@ -168,6 +174,21 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         if action == "api_portal" {
             guard ["API_PORTAL", "LIVE_PREVIEW", "REVIEW"].contains(lastState["screen"] as? String ?? "") else { emit(["id": id, "ok": false, "error": "INVALID_TRANSITION"]); return }
             openPortal { self.respondWithState(id) }; return
+        }
+        if action == "grade_execute" {
+            guard let review = lastState["grading_review"] as? [String: Any],
+                  let hash = review["fixture_sha256"] as? String,
+                  let approved = params["fixture_sha256"] as? String, hash == approved,
+                  let sourceQuestion = review["question_sha256"] as? String,
+                  let sourceSQL = review["candidate_sql_sha256"] as? String,
+                  (lastState["rehearsal"] as? [String: Any])?["status"] as? String == "ACTIVE" else {
+                emit(["id": id, "ok": false, "error": "STALE_OR_UNAPPROVED_GRADE"]); return
+            }
+            confirm("Execute current candidate SQL on a NEW local, isolated PostgreSQL cluster?\n\nQuestion SHA-256: \(sourceQuestion)\nCandidate SQL SHA-256: \(sourceSQL)\nFixture SHA-256: \(hash)\n\nThe expected result is from your reviewed fixture, NOT official hidden tests. This does not contact OpenAI or an existing database. / 确认在独立临时数据库运行当前题 SQL；不是官方隐藏测试。") { accepted in
+                if accepted { self.forward(id: id, action: action, params: params) }
+                else { self.respondWithState(id) }
+            }
+            return
         }
         if action == "preview_verify" || action == "preview_send" {
             beginLive(id: id, action: action, params: params); return
@@ -333,6 +354,13 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         alert.beginSheetModal(for: window) { [weak self] response in
             self?.portalSheet = nil; completion(response == .alertFirstButtonReturn)
         }
+        // Test-only: simulate a real native confirmation click, never in a
+        // normal App or in any provider-capable test. All data are synthetic.
+        if uiTesting && CommandLine.arguments.contains("--ui-grading-test") && text.contains("Execute current candidate SQL") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                alert.buttons[0].performClick(nil)
+            }
+        }
     }
 
     func openPortal(completion: @escaping () -> Void) {
@@ -342,8 +370,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         Native secure input · 原生安全输入
         Your key stays in native memory until Disconnect or Quit. Activation makes no request and is UNVERIFIED until a valid response.
         Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. No retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
-        Requests send the approved role instructions, your selected tutorial or imported question (statement, schema, input/output examples and constraints), and conversation context including your submitted text to OpenAI. Review private BYOQ content before authorizing. No SQL execution or scores. Cancelled requests may still be billed.
-        密钥仅留在原生内存；授权不发送请求。请求会发送所选题目（含自带题目的题干、表结构、输入输出示例及约束）和对话内容；授权前请检查私有内容。验证或发送每次最多调用一次，可能收费；取消后仍可能计费。预览不执行 SQL，也不评分。
+        Model requests include the approved role instructions, your selected question, and candidate dialogue. Local SQL fixture grading, when separately authorized, NEVER sends test data or candidate SQL to OpenAI for grading. Model replies do not score SQL. Cancelled requests may still be billed.
+        密钥仅留在原生内存；模型请求包含题目及对话。另行授权的本机 PostgreSQL 判题不会把测试数据发送给 OpenAI，也不会由模型打正确性分数。
         """
         alert.addButton(withTitle: "Allow bounded requests / 授权有限请求")
         alert.addButton(withTitle: "Cancel / 取消")

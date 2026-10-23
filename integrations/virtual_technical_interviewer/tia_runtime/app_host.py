@@ -14,6 +14,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
 import sys
@@ -28,6 +29,8 @@ from .setup import SetupError, assess_allocation, review_question, validate_conf
 from .freeform_import import extract_freeform, ImportIssue, MAX_RAW_QUESTION_BYTES
 from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, validate_commit
 from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEARSAL_TURNS, RehearsalError
+from .grading_binding import (GradingBindingError, inspect_binding, verify_grade_receipt, find_approved_pg_config)
+from .sql_accuracy import AccuracyError, grade_fixture
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
 
@@ -66,6 +69,7 @@ COMMAND_FIELDS = {
     "native_cancel_preview": set(), "preview_close": set(),
     "rehearsal_start": set(), "rehearsal_submit": set(), "rehearsal_skip": set(),
     "rehearsal_tick": set(),
+    "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
 }
 MUTATING_COMMANDS = frozenset(COMMAND_FIELDS) - {"snapshot", "export", "reset"}
 SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL",
@@ -141,6 +145,9 @@ class TutorialHost:
         self._preview_history = []
         self._practice_question = None
         self._rehearsal = None
+        self._grading_review = None
+        self._grading_observation = None
+        self._replay_observation = None
 
     def _selected_preview_question(self):
         # Freeze source binding for each preview; later edits cannot relabel a
@@ -173,7 +180,8 @@ class TutorialHost:
             'mechanism': self._live_profile['mechanism'],
             'prompt_provenance': {key: copy.deepcopy(value)
                                   for key, value in self._live_profile.items() if key != 'instructions'},
-            'execution_status': 'NOT_RUN', 'technical': 'NOT_SCORED',
+            'execution_status': ('RUN_LOCAL_FIXTURE' if self._active_grade_receipt() else 'NOT_RUN'),
+            'sql_accuracy': copy.deepcopy(self._active_grade_receipt()), 'technical': 'NOT_SCORED',
             'communication': 'NOT_SCORED', 'candidate_turn_limit': limit,
             'candidate_turns_used': len(candidates),
             'can_send': verified and (unanswered or len(candidates) < limit) and not pending and not closed,
@@ -205,6 +213,9 @@ class TutorialHost:
             result['practice_question'] = self._practice_snapshot()
         if self._rehearsal is not None:
             result['rehearsal'] = public_plan(self._rehearsal)
+            if self._grading_review is not None and self._rehearsal['status'] == 'ACTIVE':
+                result['grading_review'] = {key: copy.deepcopy(value) for key, value in self._grading_review.items()
+                                            if key != 'fixture_json'}
         if self._live_controller is not None:
             result['live_preview'] = self._preview_state()
             result['live_preview_history'] = copy.deepcopy(self._preview_history)
@@ -212,6 +223,21 @@ class TutorialHost:
             # committed responses cannot establish an actual paid request count.
             result['api_requests'] = None
         return result
+
+    def _active_grade_receipt(self):
+        if self._rehearsal is None or self._rehearsal['status'] != 'ACTIVE':
+            return None
+        grades = self._rehearsal.get('grades') or {}
+        return grades.get(str(self._rehearsal['current_index']))
+
+    def _last_implementation(self):
+        if self._live_controller is None or self._live_controller.phase != 'INTERVIEWING':
+            raise HostError('NO_ACTIVE_SQL_SUBMISSION')
+        candidate = [e for e in self._live_controller.snapshot()['events']
+                     if e['actor'] == 'candidate' and e['kind'] == 'implement']
+        if not candidate:
+            raise HostError('NO_ACTIVE_SQL_SUBMISSION')
+        return candidate[-1]
 
     def _state_digest(self):
         public = self.state()
@@ -232,6 +258,13 @@ class TutorialHost:
             raise HostError("INVALID_COMMAND")
         if action == 'native_prepare_preview':
             validate_prepare(params)
+        if action == 'grade_inspect':
+            if (type(params['fixture_json']) is not str or
+                    len(params['fixture_json'].encode('utf-8')) > 12000):
+                raise HostError('INVALID_GRADE_FIXTURE_SIZE')
+        if action == 'grade_execute' and (type(params['fixture_sha256']) is not str or
+                                         re.fullmatch(r'[0-9a-f]{64}', params['fixture_sha256']) is None):
+            raise HostError('INVALID_GRADE_APPROVAL')
         if action == 'native_commit_preview':
             validate_commit(params)
         if action == "language" and (
@@ -369,16 +402,21 @@ class TutorialHost:
         if plan.get('timing'):
             plan['timing']['questions'][plan['timing']['current_question']]['ended'] = True
         for i in range(plan['current_index'], 3):
-            plan['results'].append({
+            preserved_grade = (plan.get('grades') or {}).get(str(i))
+            result = {
                 'index': i, 'outcome': code if i == plan['current_index'] else 'NOT_REACHED',
-                'execution_status': 'NOT_RUN', 'technical': 'NOT_SCORED',
-                'communication': 'NOT_SCORED',
+                'execution_status': ('RUN_LOCAL_FIXTURE' if preserved_grade and preserved_grade['correctness'] == 'VERIFIED_LOCAL_FIXTURE'
+                                     else 'NOT_VERIFIED' if preserved_grade else 'NOT_RUN'),
+                'technical': 'NOT_SCORED', 'communication': 'NOT_SCORED',
                 'question_sha256': plan['questions'][i]['content_sha256'],
                 'session': (self._live_controller.snapshot() if i == plan['current_index']
                             and self._live_controller is not None else None),
                 'time_metrics': (copy.deepcopy(plan['timing']['questions'][i])
                                  if plan.get('timing') else None),
-            })
+            }
+            if preserved_grade is not None:
+                result['sql_accuracy'] = copy.deepcopy(preserved_grade)
+            plan['results'].append(result)
         plan['current_index'] = 3
         plan['status'] = code
         self._live_controller = self._live_profile = self._live_question = None
@@ -404,6 +442,9 @@ class TutorialHost:
         if action == 'rehearsal_tick':
             # Polls are Host-only time checkpoints. Nothing is charged.
             return
+        if action in ('grade_inspect', 'grade_execute'):
+            await self._grade_dispatch(action, params)
+            return
         if (self._live_controller is not None and self._live_controller.native_pending is not None
                 and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close', 'rehearsal_tick')):
             raise HostError('NATIVE_REQUEST_PENDING')
@@ -412,7 +453,8 @@ class TutorialHost:
                                    'rehearsal_submit', 'rehearsal_skip',
                                    'preview_verify', 'preview_send', 'preview_close',
                                    'native_prepare_preview', 'native_commit_preview',
-                                   'native_cancel_preview', 'rehearsal_tick')):
+                                   'native_cancel_preview', 'rehearsal_tick',
+                                   'grade_inspect', 'grade_execute')):
             raise HostError('REHEARSAL_ACTIVE')
         if action == "language":
             self.language = params["language"]
@@ -632,6 +674,7 @@ class TutorialHost:
             if self._wall_sample is not None:
                 plan['timing'] = begin_rehearsal_time(self._wall_sample, self._tick)
             self._rehearsal = plan
+            self._grading_review = None
             self._practice_question = None
             self._live_controller = self._live_profile = None
             self._live_question = None
@@ -656,6 +699,11 @@ class TutorialHost:
                 'question_sha256': self._rehearsal['questions'][self._rehearsal['current_index']]['content_sha256'],
                 'session': None,
             }
+            receipt = self._active_grade_receipt()
+            if receipt is not None:
+                result['sql_accuracy'] = copy.deepcopy(receipt)
+                result['execution_status'] = ('RUN_LOCAL_FIXTURE' if receipt['correctness'] == 'VERIFIED_LOCAL_FIXTURE'
+                                              else 'NOT_VERIFIED')
             if self._rehearsal.get('timing') is not None:
                 result['time_metrics'] = close_question(self._rehearsal, outcome=result['outcome'])
             if self._live_controller is not None:
@@ -666,7 +714,7 @@ class TutorialHost:
                     'help_requests': sum(e['kind'] == 'help' for e in candidate),
                     'code_submissions': sum(e['kind'] == 'implement' for e in candidate),
                     'evidence_event_ids': [e['id'] for e in candidate],
-                    'correctness': 'NOT_VERIFIED',
+                    'correctness': (receipt['correctness'] if receipt else 'NOT_VERIFIED'),
                 }
                 if self._live_controller.phase == 'INTERVIEWING':
                     self._live_controller.close('submitted' if action == 'rehearsal_submit' else 'cancelled')
@@ -676,6 +724,7 @@ class TutorialHost:
             self._rehearsal['current_index'] += 1
             self._live_controller = self._live_profile = None
             self._live_question = None
+            self._grading_review = None
             if self._rehearsal['current_index'] == 3:
                 self._rehearsal['status'] = 'COMPLETE'
                 self.screen = 'REHEARSAL_COMPLETE'
@@ -721,6 +770,84 @@ class TutorialHost:
             self.screen = 'LIVE_PREVIEW'
         else:
             raise HostError("INVALID_COMMAND")
+
+    async def _grade_dispatch(self, action, params):
+        plan = self._rehearsal
+        if (plan is None or plan['status'] != 'ACTIVE' or
+                self.screen != 'LIVE_PREVIEW' or self._setup_config is None or
+                self._setup_config.technical_environment != 'POSTGRESQL'):
+            raise HostError('GRADING_REHEARSAL_ONLY')
+        if self._live_controller is not None and self._live_controller.native_pending is not None:
+            raise HostError('NATIVE_REQUEST_PENDING')
+        if self._live_controller is None:
+            raise HostError('GRADING_NOT_READY')
+        current_index = plan['current_index']
+        qhash = plan['questions'][current_index]['content_sha256']
+        candidate = self._last_implementation()
+        candidate_text = candidate['payload']['text']
+        candidate_id = candidate['id']
+        sql_sha = hashlib.sha256(candidate_text.encode('utf-8')).hexdigest()
+        previous = self._active_grade_receipt()
+        if previous is not None and previous.get('correctness') == 'VERIFIED_LOCAL_FIXTURE':
+            raise HostError('QUESTION_ALREADY_GRADED')
+        if action == 'grade_inspect':
+            try:
+                review = inspect_binding(params['fixture_json'], qhash, candidate_id, sql_sha, current_index)
+            except (GradingBindingError, AccuracyError) as error:
+                raise HostError(error.code) from None
+            self._grading_review = review
+            return
+        review = self._grading_review
+        if (review is None or review['fixture_sha256'] != params['fixture_sha256'] or
+                review['question_sha256'] != qhash or review['candidate_event_id'] != candidate_id or
+                review['candidate_sql_sha256'] != sql_sha or review['question_index'] != current_index):
+            raise HostError('STALE_OR_UNAPPROVED_GRADE')
+        # A real execution occurs exactly once, on the human-confirmed command.
+        # During deterministic replay, only the previously saved observation is
+        # committed: opening the App can never launch PostgreSQL or change grades.
+        observation = self._replay_observation
+        if observation is None:
+            try:
+                pg_config = find_approved_pg_config()
+                receipt = grade_fixture(review['fixture_json'].encode('utf-8'), candidate_text,
+                                        params['fixture_sha256'], pg_config=pg_config)
+            except (GradingBindingError, AccuracyError) as error:
+                receipt = {'correctness': 'NOT_VERIFIED', 'result': {'status': 'NOT_VERIFIED',
+                           'error_code': error.code}, 'source': 'LOCAL_GRADER_UNAVAILABLE',
+                           'fixture_sha256': review['fixture_sha256'],
+                           'question_sha256': qhash, 'candidate_sql_sha256': sql_sha,
+                           'official_hidden_tests': False, 'passed_fixtures': 0,
+                           'total_approved_fixtures': 0}
+            end_tick = max(self._tick, self._clock_offset + self._clock() - self._origin)
+            end_wall = round(self._wall_clock(), 6)
+            observation = {'result': receipt, 'finished_tick_seconds': end_tick,
+                           'finished_wall_seconds': end_wall}
+        try:
+            verify_grade_receipt(observation, review)
+        except GradingBindingError as error:
+            raise HostError(error.code) from None
+        # Record time actually spent executing: it is not exempt from 45 minutes.
+        end_tick = observation['finished_tick_seconds']
+        end_wall = observation['finished_wall_seconds']
+        if end_tick < self._tick or end_wall < (self._wall_sample or 0) - 2:
+            raise HostError('GRADING_CLOCK_INTEGRITY_HOLD')
+        self._tick = end_tick
+        self._wall_sample = end_wall
+        if plan.get('timing') is not None:
+            timed = advance_rehearsal_time(plan, end_wall, end_tick)
+            if timed in ('TIMEOUT', 'CLOCK_HOLD'):
+                # Fail closed: even a PASS from PostgreSQL cannot become a
+                # counted grade after the deadline. Preserve time outcome.
+                self._end_rehearsal_due_to_time(timed == 'CLOCK_HOLD')
+                self._grading_observation = observation
+                return
+        receipt = copy.deepcopy(observation['result'])
+        receipt.update({'candidate_event_id': candidate_id, 'question_index': current_index,
+                        'approval_kind': 'NATIVE_HUMAN_CONFIRMATION',
+                        'grade_evidence_source': 'LOCAL_POSTGRESQL_OR_TYPED_FAILURE'})
+        plan.setdefault('grades', {})[str(current_index)] = receipt
+        time_event(plan, 'SQL_GRADE_EXECUTED', evidence_id=candidate_id)
+        self._grading_observation = observation
 
     def _prepare_preview(self, params):
         root = Path(__file__).resolve().parents[1]
@@ -879,25 +1006,31 @@ class TutorialHost:
         for item in document["journal"]:
             if (type(item) is not dict
                     or set(item) not in ({"action", "params", "tick_seconds", "outcome"},
-                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds"})
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds"},
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "grade_observation"})
                     or ("wall_seconds" in item and not (type(item["wall_seconds"]) in (int, float)
                          and math.isfinite(item["wall_seconds"]) and 0 <= item["wall_seconds"] <= 10**12))
-                    or item["action"] not in MUTATING_COMMANDS
+                    or item['action'] not in MUTATING_COMMANDS
+                    or ('grade_observation' in item and item['action'] != 'grade_execute')
+                    or (item['action'] == 'grade_execute' and item['outcome'] == 'OK'
+                        and 'grade_observation' not in item)
                     or type(item["tick_seconds"]) not in (int, float)
                     or not math.isfinite(item["tick_seconds"])
                     or not prior_tick <= item["tick_seconds"] <= 315360000
                     or type(item["outcome"]) is not str):
                 raise HostError("INVALID_SAVE")
-            self._tick = item["tick_seconds"]
+            self._tick = item['tick_seconds']
             self._wall_sample = item.get('wall_seconds')
-            prior_tick = self._tick
-            outcome = "OK"
+            self._replay_observation = item.get('grade_observation')
+            outcome = 'OK'
             try:
                 await self._dispatch(item["action"], item["params"])
             except (HostError, SessionError, ModelPortalError) as error:
                 outcome = error.code
-            if outcome != item["outcome"]:
-                raise HostError("INVALID_SAVE")
+            if outcome != item['outcome']:
+                raise HostError('INVALID_SAVE')
+            prior_tick = self._tick
+            self._replay_observation = None
         if self._state_digest() != document["state_sha256"]:
             raise HostError("INVALID_SAVE")
         self._journal = copy.deepcopy(document["journal"])
@@ -952,7 +1085,9 @@ class TutorialHost:
             result.update(rehearsal=public_plan(self._rehearsal),
                           timing=final_metrics(self._rehearsal),
                           live_preview_history=copy.deepcopy(self._preview_history),
-                          provenance='THREE_QUESTION_REHEARSAL_UNSCORED',
+                          provenance=('THREE_QUESTION_REHEARSAL_LOCAL_SQL_VERIFIED'
+                                      if public_plan(self._rehearsal)['execution'] == 'SOME_LOCAL_FIXTURES_RUN'
+                                      else 'THREE_QUESTION_REHEARSAL_UNSCORED'),
                           contains_personal_input=True)
         if self._live_controller is not None:
             result.update(provenance='TUTORIAL_AND_LIVE_PREVIEW' if self.controller
@@ -994,6 +1129,8 @@ class TutorialHost:
         # The sample is written into the journal and used for deterministic
         # replay. No renderer-provided clock or timestamp is accepted.
         self._wall_sample = round(self._wall_clock(), 6)
+        started_tick, started_wall = self._tick, self._wall_sample
+        self._grading_observation = None
         before = self._state_digest()
         outcome = "OK"
         caught = None
@@ -1007,9 +1144,13 @@ class TutorialHost:
         changed = self._state_digest() != before
         # Avoid filling the bounded journal with empty timer polls.
         if (caught is None and action != 'rehearsal_tick') or changed:
-            self._journal.append({"action": action, "params": copy.deepcopy(params),
-                                  "tick_seconds": self._tick, "wall_seconds": self._wall_sample,
-                                  "outcome": outcome})
+            entry = {'action': action, 'params': copy.deepcopy(params),
+                     'tick_seconds': started_tick, 'wall_seconds': started_wall,
+                     'outcome': outcome}
+            if action == 'grade_execute' and self._grading_observation is not None:
+                # On replay only the persisted, source-bound observation is used.
+                entry['grade_observation'] = copy.deepcopy(self._grading_observation)
+            self._journal.append(entry)
             try:
                 self._persist()
             except SaveError:

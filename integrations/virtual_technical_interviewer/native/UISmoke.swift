@@ -26,10 +26,77 @@ final class TIAUISmoke {
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
     private var rehearsalTesting: Bool { CommandLine.arguments.contains("--ui-rehearsal-test") }
+    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") }
     private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
     private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
     private var failureTesting: Bool { CommandLine.arguments.contains("--ui-provider-failure-test") }
-    private var steps: [Step] { rehearsalTesting ? [
+    private var steps: [Step] { gradingTesting ? [
+        Step(label: "E25B opens native consent for synthetic fixture-only interview", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');
+          await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
+        """),
+        Step(label: "E25B starts BYOQ rehearsal with 3 bound questions", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');
+          await press('prepareSetup','CONFIG');
+          await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,
+            difficulty:'HARD',question_source:'BYOQ',interviewer_mechanism:'STRICT_CHALLENGING'}});
+          for(let i=0;i<3;i++){
+            const fields={problem_statement:'Synthetic local fixture Q'+i,task:'Count rows by customer '+i,
+              schema:'Items'+i+'(id INTEGER, customer_id INTEGER)',example_input:'(1,2)',expected_output:'(2,1)',
+              environment:'POSTGRESQL',source:'OWNER',constraints:'Only test fixtures, not hidden tests',source_reference:''};
+            const r=await request('setup_question_set',{index:i,source:'OWNER',raw_text:JSON.stringify(fields)});
+            await request('setup_question_confirm',{index:i,fields:r.setup_questions[i].fields,raw_sha256:r.setup_questions[i].raw_sha256});
+          }
+          await press('startRehearsal','API_PORTAL');
+          await press('verifyPreview','LIVE_PREVIEW');
+          const s=await snap();return {ok:s.rehearsal.current_index===0&&s.live_preview.candidate_turn_limit===4};
+        """),
+        Step(label: "E25B native bridge records candidate raw SQL and rejects mismatched fixture", code: """
+          el('previewKind').value='implement';
+          const input=el('previewResponse');input.value='SELECT customer_id, COUNT(*) AS total FROM Items0 GROUP BY customer_id';
+          input.dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
+          await until(()=>window.tiaState?.live_preview?.candidate_turns_used===1 && !document.querySelector('[aria-busy="true"]'));
+          const bad={schema:'tia-postgres-fixture/v1',fixture_id:'SYNTHETIC-UI-Q0',question_sha256:'a'.repeat(64),
+            environment:'POSTGRESQL',tables:[{name:'Items0',columns:[{name:'id',type:'INTEGER'},{name:'customer_id',type:'INTEGER'}],rows:[[1,2]]}],
+            expected:{columns:['customer_id','total'],rows:[[2,1]],order_sensitive:false}};
+          try{await request('grade_inspect',{fixture_json:JSON.stringify(bad)});return {ok:false};}
+          catch(e){if(e.message!=='FIXTURE_QUESTION_MISMATCH')return {ok:false};}
+          const s=await snap();return {ok:s.live_preview.sql_accuracy===null&&!s.grading_review&&s.activation.requests_used===2};
+        """),
+        Step(label: "E25B WebKit fixture review displays exact current question hash", code: """
+          const s=await snap(), qhash=s.live_preview.question.content_sha256;
+          const f={schema:'tia-postgres-fixture/v1',fixture_id:'SYNTHETIC-UI-Q0',question_sha256:qhash,
+            environment:'POSTGRESQL',tables:[{name:'Items0',columns:[{name:'id',type:'INTEGER'},{name:'customer_id',type:'INTEGER'}],rows:[[1,2]]}],
+            expected:{columns:['customer_id','total'],rows:[[2,1]],order_sensitive:false}};
+          const box=el('gradeFixture');if(!box)return {ok:false};
+          box.value=JSON.stringify(f);box.dispatchEvent(new Event('input',{bubbles:true}));
+          await press('inspectFixture');await until(()=>!!window.tiaState?.grading_review);
+          const r=(await snap()).grading_review;
+          return {ok:r.question_sha256===qhash&&r.status==='AWAITING_NATIVE_HUMAN_APPROVAL'&&r.fixture_id==='SYNTHETIC-UI-Q0'
+            &&!!el('executeGrade')&&el('executeGrade').disabled===true};
+        """),
+        Step(label: "E25B native consent + real ephemeral PostgreSQL returns verified fixture PASS", code: """
+          const check=el('gradeApprove');if(!check)return {ok:false};check.click();
+          const button=el('executeGrade');if(!button||button.disabled)return {ok:false};button.click();
+          let s=null;for(let i=0;i<240;i++){
+            await pause(500);s=window.tiaState;
+            if(s?.live_preview?.sql_accuracy&&(!document.querySelector('[aria-busy="true"]')) )break;
+          }
+          const g=s?.live_preview?.sql_accuracy;
+          return {ok:!!g&&g.correctness==='VERIFIED_LOCAL_FIXTURE'&&g.result.status==='PASSED'
+            &&g.passed_fixtures===1&&g.question_sha256===s.live_preview.question.content_sha256
+            &&g.approval_kind==='NATIVE_HUMAN_CONFIRMATION'&&s.activation.requests_used===2};
+        """),
+        Step(label: "E25B frozen Q1 receipt does not award grades to skipped Q2/Q3", code: """
+          await press('finishRehearsalQuestion','API_PORTAL');await request('rehearsal_skip');
+          await request('rehearsal_skip');const s=await snap();
+          return {ok:s.rehearsal.status==='COMPLETE'&&s.rehearsal.results.length===3
+            &&s.rehearsal.results[0].sql_accuracy.result.status==='PASSED'
+            &&s.rehearsal.results[1].execution_status==='NOT_RUN'
+            &&s.rehearsal.results[2].execution_status==='NOT_RUN'
+            &&s.rehearsal.technical==='NOT_SCORED'};
+        """),
+    ] : rehearsalTesting ? [
         Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
@@ -369,7 +436,7 @@ final class TIAUISmoke {
                 guard app.portalIsVisible else { self.end(false, "Native API sheet not visible"); return }
                 app.cancelPortalForTest()
             }
-            if step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" {
+            if step.label == "E25B opens native consent for synthetic fixture-only interview" || step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" {
                 guard app.enterSyntheticCredentialForTest() else { self.end(false, "Synthetic native input failed"); return }
             }
             self.receipts.append(["test": step.label, "status": "PASSED"])
@@ -383,7 +450,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.failureTesting ? "failure-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -403,9 +470,9 @@ final class TIAUISmoke {
         guard !done else { return }; done = true
         let receipt: [String: Any] = ["schema": "tia-native-ui-test/v1", "passed": receipts.count,
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
-            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting, "human_uat": "NOT_RUN"]
+            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting || gradingTesting, "human_uat": "NOT_RUN"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(failureTesting ? "ui-provider-failure-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

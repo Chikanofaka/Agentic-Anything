@@ -13,6 +13,10 @@
   let draft = "";
   let draftKind = "clarify";
   let liveDraft = "";
+  let gradeFixtureDraft = "";
+  let gradeFixtureApproved = false;
+  let gradeApprovalBinding = "";
+  let gradeQuestionHash = "";
   let liveKind = "clarify";
   let questionDrafts = [];
   let questionSources = [];
@@ -20,7 +24,7 @@
   let previousScreen = null;
   const strings = {
     en: {
-      livePreview: "Live Conversational Preview", livePreviewNote: "A bounded conversation with a Senior Interviewer, not a full technical interview. SQL is NOT_RUN. Technical Capability and Communication remain independently NOT_SCORED.",
+      livePreview: "Live Conversational Preview", livePreviewNote: "A bounded conversation with a Senior Interviewer; technical capability and communication remain NOT_SCORED. Separately approved PostgreSQL local fixture runs may verify an individual submitted SQL answer.",
       previewQuestion: "Approved conversation case · no grading", verifyPreview: "Verify access & open preview · 1 paid request",
       previewSelected: "Selected mechanism", previewSource: "Choose the mechanism in the configuration preview; it controls the approved instructions used here.",
       previewSend: "Send to Senior Interviewer · 1 paid request", previewRetry: "Retry recorded response · 1 paid request",
@@ -109,7 +113,7 @@
       rehearsalStart: "Start 3-question AI rehearsal (unscored)",
       rehearsalSubmit: "Finish question → Next", rehearsalSkip: "Skip question → Next",
       rehearsalFinish: "Finish interview & freeze record", rehearsalComplete: "Three-question rehearsal complete",
-      rehearsalNote: "Three imported questions, up to four candidate turns each. AI replies are real; SQL/Pandas is NOT_RUN and competency is NOT_SCORED.",
+      rehearsalNote: "Three confirmed questions, up to four candidate turns each. PostgreSQL SQL can be tested only against separately approved local fixtures; Pandas and competency grading remain unavailable.",
       sourceChoice: "Source", reviewGuidance: "Review and edit extracted fields. Image-only schemas must be entered manually until image import is implemented.",
       reviewIncomplete: "Missing or uncertain fields remain unverified. Final SQL scoring is unavailable.",
       importTooLarge: "This question exceeds the 8192 UTF-8-byte cap. Shorten it before importing.",
@@ -129,7 +133,7 @@
       setupStep: "Real AI setup", preflightNote: "This check cannot make a paid call. Authentication, independently validated questions and a supported execution adapter are still required.",
     },
     zh: {
-      livePreview: "真实模型对话预览", livePreviewNote: "与资深面试官进行有边界的对话预览，并非完整技术面试。SQL 保持 NOT_RUN；技术能力与沟通分别保持 NOT_SCORED。",
+      livePreview: "真实模型对话预览", livePreviewNote: "资深面试官多轮交互；技术与沟通能力仍为 NOT_SCORED。经单独审核的 PostgreSQL 本地测试数据可用于验证已提交 SQL。",
       previewQuestion: "已批准的对话题目 · 不评分", verifyPreview: "验证访问并打开预览 · 1 次付费请求",
       previewSelected: "当前面试机制", previewSource: "可在配置预览中选择面试机制；此选项决定实际使用的已批准指令。",
       previewSend: "发送给资深面试官 · 1 次付费请求", previewRetry: "重试已记录的回答 · 1 次付费请求",
@@ -218,7 +222,7 @@
       rehearsalStart: "开始三题 AI 模拟面试（不评分）",
       rehearsalSubmit: "结束本题并进入下一题", rehearsalSkip: "跳过本题并进入下一题",
       rehearsalFinish: "完成面试并冻结记录", rehearsalComplete: "三题模拟面试已完成",
-      rehearsalNote: "三道已确认题目，每题最多四次提交。AI 对话真实；代码未执行，也不进行能力评分。",
+      rehearsalNote: "三道确认题，每题最多四次交互。SQL 可单独批准本地 PostgreSQL Fixture 执行；Pandas 及综合能力评分仍未开放。",
       sourceChoice: "来源", reviewGuidance: "请核对并修改提取字段。纯图片表结构在图片导入上线前需手动填写。",
       reviewIncomplete: "缺失或不确定字段仍未验证。正式 SQL 评分尚不可用。",
       importTooLarge: "此题超过 8192 UTF-8 字节上限，请缩短后再导入。",
@@ -261,7 +265,7 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send"]);
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "grade_execute"]);
   const interruptActions = new Set(["preview_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
@@ -444,8 +448,9 @@
   }
   function scores(forSetup = false) {
     const grid = node("div", null, "evidence-grid");
+    const graded = state.screen === "LIVE_PREVIEW" && state.live_preview?.sql_accuracy?.correctness === "VERIFIED_LOCAL_FIXTURE";
     for (const [name, status] of [["technical", "notScored"], ["communication", "notScored"],
-      forSetup ? ["technicalExecution", "unverifiedStatus"] : ["execution", "notRun"]]) {
+      forSetup ? ["technicalExecution", "unverifiedStatus"] : ["execution", graded ? "localFixtureRun" : "notRun"]]) {
       add(grid, add(node("div", null, "evidence-item"), node("span", t(name), "muted"), node("strong", t(status))));
     }
     return grid;
@@ -640,13 +645,88 @@
     add(detail, list);
     return detail;
   }
+  function gradingPanel() {
+    const rehearsal = state.rehearsal;
+    const preview = state.live_preview;
+    if (rehearsal?.status !== "ACTIVE" || state.setup_config?.technical_environment !== "POSTGRESQL" || !preview) return null;
+    const qhash = preview.question?.content_sha256 || "";
+    if (qhash !== gradeQuestionHash) {
+      gradeQuestionHash = qhash;
+      gradeFixtureDraft = "";
+      gradeFixtureApproved = false;
+    }
+    const area = node("section", null, "receipt-card"); area.id = "gradePanel";
+    add(area, node("h2", t("gradeTitle")), node("p", t("gradeNote"), "notice"),
+      node("p", t("gradeResultDisclaimer"), "field-help"),
+      node("p", t("gradeCurrentQuestion"), "eyebrow"), node("code", qhash, "digest"));
+    const impl = (preview.session?.events || []).filter(e => e.actor === "candidate" && e.kind === "implement");
+    if (!impl.length) {
+      add(area, node("p", t("gradeRequiresSQL"), "notice"));
+      return area;
+    }
+    const last = impl[impl.length - 1];
+    add(area, node("p", `Submitted code evidence: ${last.id}`, "field-help"));
+    const reviewed = state.grading_review;
+    // A new SQL submission, candidate event or Fixture must get fresh consent.
+    // Merely re-rendering an unchanged, reviewed Fixture keeps the same choice.
+    const approvalBinding = reviewed ? [reviewed.question_sha256, reviewed.candidate_event_id,
+      reviewed.candidate_sql_sha256, reviewed.fixture_sha256].join(":") : "";
+    if (gradeApprovalBinding !== approvalBinding) {
+      gradeApprovalBinding = approvalBinding;
+      gradeFixtureApproved = false;
+    }
+    const receipt = preview.sql_accuracy;
+    if (receipt) {
+      add(area, node("h3", t("gradeStatus")),
+        node("p", `${receipt.result?.status || "NOT_VERIFIED"} · ${receipt.passed_fixtures || 0}/${receipt.total_approved_fixtures || 0} local fixture(s)`),
+        node("p", `${receipt.result?.reason || receipt.result?.error_code || ""} · ${receipt.correctness || "NOT_VERIFIED"}`),
+        node("code", receipt.candidate_sql_sha256 || "", "digest"));
+      if (receipt.correctness === "VERIFIED_LOCAL_FIXTURE") return area;
+    }
+    const label = node("label", "Human-reviewed Fixture JSON (maximum 12,000 UTF-8 bytes)"); label.htmlFor = "gradeFixture";
+    const box = node("textarea"); box.id = "gradeFixture"; box.rows = 8;
+    box.value = gradeFixtureDraft; box.spellcheck = false;
+    const inspect = button("inspectFixture", t("gradeInspect"), () => act("grade_inspect", {fixture_json: box.value}), "secondary");
+    const validate = () => {
+      // Preserve the field-level precondition across setBusy(false), which
+      // otherwise re-enables every button after a Host snapshot/response.
+      const unavailable = !box.value.trim() || new TextEncoder().encode(box.value).length > 12000;
+      inspect.dataset.unavailable = String(unavailable);
+      inspect.disabled = busy || unavailable;
+    };
+    box.addEventListener("input", () => { gradeFixtureDraft = box.value; gradeFixtureApproved = false; validate(); });
+    validate();
+    add(area, label, box, inspect);
+    if (reviewed && reviewed.candidate_event_id === last.id && reviewed.question_sha256 === qhash) {
+      add(area, node("p", `${reviewed.fixture_id} · ${reviewed.expected_row_count} expected row(s)`, "field-help"),
+        node("code", reviewed.fixture_sha256, "digest"),
+        node("p", `Tables: ${reviewed.table_summary.map(x => `${x.name} (${x.rows})`).join(", ")}`, "field-help"));
+      const approve = node("input"); approve.type = "checkbox"; approve.id = "gradeApprove";
+      approve.checked = gradeFixtureApproved;
+      const checkLabel = node("label", t("gradeExpected")); checkLabel.htmlFor = "gradeApprove";
+      const execute = button("executeGrade", t("gradeExecute"),
+        () => act("grade_execute", {fixture_sha256: reviewed.fixture_sha256}), "primary");
+      // No execution before explicit approval, including after a snapshot,
+      // language change, or any other render/setBusy(false) cycle.
+      execute.dataset.unavailable = String(!gradeFixtureApproved);
+      execute.disabled = busy || !gradeFixtureApproved;
+      approve.addEventListener("change", () => {
+        gradeFixtureApproved = approve.checked;
+        execute.dataset.unavailable = String(!gradeFixtureApproved);
+        execute.disabled = busy || !gradeFixtureApproved;
+      });
+      add(area, approve, checkLabel, execute, node("p", t("gradePending"), "field-help"));
+    }
+    return area;
+  }
+
   function livePreview(main) {
     const preview = state.live_preview || {};
     add(main, add(node("div", null, "title-row"), heading(t("livePreview")), badge(modelLabel(), "accent")),
       node("p", t("livePreviewNote"), "lead"), providerDetails());
     const columns = node("div", null, "room-grid");
     add(columns, add(node("aside", null, "question-side"), questionCard(true, preview.question || {}),
-      node("p", t("noTests"), "notice")));
+      node("p", preview.sql_accuracy?.correctness === "VERIFIED_LOCAL_FIXTURE" ? t("gradeResultDisclaimer") : t("noTests"), "notice")));
     const work = node("section", null, "work-side");
     add(work, node("h2", t("senior")),
       node("p", t(preview.mechanism === "PROFESSIONAL_SUPPORTIVE" ? "supportive" : "strict"), "muted"));
@@ -690,7 +770,7 @@
       const rs = state.rehearsal;
       add(main, node("p", `Question ${rs.current_index + 1} / ${rs.question_count} · ${preview.candidate_turns_used} / ${preview.candidate_turn_limit} candidate turns`, "notice"));
     }
-    add(main, columns, conversation(preview.session, true), scores(), previewProvenance(preview.prompt_provenance));
+    add(main, columns, conversation(preview.session, true), gradingPanel(), scores(), previewProvenance(preview.prompt_provenance));
     if (preview.session?.receipt) {
       const receipt = preview.session.receipt;
       add(main, add(node("section", null, "receipt-card"), node("h2", t("receipt")), node("p", t("previewFrozen")),
@@ -726,10 +806,11 @@
       const question = rs.questions?.[i] || {};
       add(main, add(node("section", null, "receipt-card"),
         node("h2", `${i + 1}. ${question.title || "Question"}`),
-        node("p", `${r.outcome} · NOT_RUN · NOT_SCORED`),
+        node("p", `${r.outcome} · ${r.execution_status || "NOT_RUN"} · NOT_SCORED`),
         r.time_metrics ? node("p", `${t("rehearsalElapsed")}: ${formatElapsed(r.time_metrics.elapsed_seconds)} · ${t("rehearsalWaitTime")}: ${formatElapsed(r.time_metrics.model_wait_seconds)}`, "field-help") : null,
-        r.behavior_metrics ? node("p", `${r.behavior_metrics.candidate_turn_count} candidate turns · ${r.behavior_metrics.clarification_requests} clarifications · ${r.behavior_metrics.help_requests} help requests · ${r.behavior_metrics.code_submissions} code submissions · NOT_VERIFIED`, "field-help") : null,
+        r.behavior_metrics ? node("p", `${r.behavior_metrics.candidate_turn_count} candidate turns · ${r.behavior_metrics.clarification_requests} clarifications · ${r.behavior_metrics.help_requests} help requests · ${r.behavior_metrics.code_submissions} code submissions · ${r.behavior_metrics.correctness || "NOT_VERIFIED"}`, "field-help") : null,
         node("p", `${r.session?.events?.filter(e => e.actor === "candidate").length || 0} candidate turns`),
+        r.sql_accuracy ? node("p", `${t("gradeStatus")}: ${r.sql_accuracy.result?.status || "NOT_VERIFIED"} · ${r.sql_accuracy.passed_fixtures || 0}/${r.sql_accuracy.total_approved_fixtures || 0} local fixture(s)`, "notice") : node("p", t("gradeUnverified"), "field-help"),
         r.session?.receipt?.sha256 ? node("code", r.session.receipt.sha256, "digest") : null));
     });
     add(main, button("exportRehearsal", t("export"), () => act("export"), "primary"));

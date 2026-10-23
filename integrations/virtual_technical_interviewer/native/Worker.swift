@@ -57,7 +57,11 @@ final class TIAWorker {
             self.pending = (id, completion)
             do { try self.input.fileHandleForWriting.write(contentsOf: data + Data([10])) }
             catch { self.fail(); return }
-            self.queue.asyncAfter(deadline: .now() + 15) {
+            // An isolated temporary PostgreSQL cluster may take longer than
+            // a normal Host IPC roundtrip. It is bounded independently by
+            // initdb/pg_ctl/psql timeouts and cannot call a persistent DB.
+            let watchdog: Double = action == "grade_execute" ? 115 : 15
+            self.queue.asyncAfter(deadline: .now() + watchdog) {
                 if self.pending?.0 == id { self.fail() }
             }
         }

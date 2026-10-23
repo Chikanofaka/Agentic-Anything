@@ -72,6 +72,8 @@ def public_plan(plan):
         ],
         'results': copy.deepcopy(plan['results']),
         **({'timing': copy.deepcopy(plan['timing'])} if plan.get('timing') else {}),
-        'technical': 'NOT_SCORED', 'communication': 'NOT_SCORED', 'execution': 'NOT_RUN',
+        'technical': 'NOT_SCORED', 'communication': 'NOT_SCORED',
+        'execution': ('SOME_LOCAL_FIXTURES_RUN' if any(x.get('correctness') == 'VERIFIED_LOCAL_FIXTURE'
+                      for x in (plan.get('grades') or {}).values()) else 'NOT_RUN'),
         'formal_exam_authorized': False,
     }
