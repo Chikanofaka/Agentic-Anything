@@ -274,7 +274,13 @@ class NativePreviewTests(unittest.IsolatedAsyncioTestCase):
         await self.call('reset')
         await self.verify()
         prepared = await self.prepare('reply', 'clarify', 'What does earliest mean for ties?')
-        self.assertIn('YES_CLARIFY_REASSESS', prepared['instructions'])
+        # C2B1 uses a new Host action name. Historical journal replay continues
+        # to use YES_CLARIFY_REASSESS without rewriting older sealed prompts.
+        # Check behavioral authority, not a legacy-only serialized rule name.
+        self.assertIn('"rule_id": "E4C2B1_HOST_DECISION"', prepared['instructions'])
+        self.assertIn('"action": "CLARIFY"', prepared['instructions'])
+        self.assertIn('"max_hint_level": "H0"', prepared['instructions'])
+        self.assertIn('reassess understanding (B05)', prepared['instructions'])
         self.assertIn('F01-001', prepared['instructions'])
 
     async def test_second_successful_candidate_turn_is_blocked(self):

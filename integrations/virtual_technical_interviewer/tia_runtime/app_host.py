@@ -33,6 +33,9 @@ from .grading_binding import (GradingBindingError, inspect_binding, verify_grade
 from .sql_accuracy import AccuracyError, grade_fixture
 from .submission_language import project_language_reviews
 from .preflight_preparer import build_preflight_readiness
+from .host_adaptive_bridge import host_turn_policy, seconds_remaining, POLICY_VERSION, EVIDENCE_POLICY_VERSION
+from .trajectory_evidence import EvidenceContractError
+from .adaptive_reply_guard import guard_adaptive_reply, ReplyGuardError, GUARD_VERSION as REPLY_GUARD_VERSION
 from .evidence_scorecard import build_scorecard
 from .communication_rubric import build_communication_evidence
 from .grounded_trainer import build_grounded_trainer
@@ -164,6 +167,10 @@ class TutorialHost:
         self._native_trainer_feedback = None
         self._trainer_interrupted = False
         self._smart_progress = None
+        # None: fresh C2B1 mode. LEGACY: replays old sealed journal unchanged.
+        self._adaptive_replay_mode = None
+        self._last_reply_guard_accepted = False
+        self._last_local_fixture_receipt = None
 
     def _selected_preview_question(self):
         # Freeze source binding for each preview; later edits cannot relabel a
@@ -810,6 +817,18 @@ class TutorialHost:
         elif action == 'native_commit_preview':
             if self._live_controller is None:
                 raise HostError('STALE_NATIVE_REPLY')
+            pending = self._live_controller.native_pending
+            if (self._adaptive_replay_mode in (None, REPLY_GUARD_VERSION)
+                    and pending is not None and type(pending.get('policy')) is dict
+                    and pending.get('policy', {}).get('rule_id') == 'E4C2B1_HOST_DECISION'):
+                try:
+                    guard_adaptive_reply(pending['policy'],
+                                         params.get('reply', {}).get('reply') if type(params.get('reply')) is dict else None)
+                except ReplyGuardError:
+                    # Reject before journal/InterviewController commit. Native
+                    # responds with an explicit cancel, never an automatic retry.
+                    raise HostError('ADAPTIVE_REPLY_NOT_AUTHORIZED') from None
+                self._last_reply_guard_accepted = True
             self._live_controller.commit_native_reply(**params)
             if self._rehearsal is not None:
                 request_finished(self._rehearsal)
@@ -1033,18 +1052,63 @@ class TutorialHost:
                     raise HostError('RETRY_INPUT_MISMATCH')
             else:
                 event = self._live_controller.candidate_action(params['kind'], params['text'])
-            if params['kind'] in ('clarify', 'help'):
-                try:
-                    policy = decide_interaction(root, mechanism,
-                        'HELP_REQUESTED' if params['kind'] == 'help' else 'REQUIREMENTS_CHECK',
-                        {'phase': self._live_controller.phase, 'candidate_event_id': event['id'],
-                         'requirements_unclear': True})
-                except ProfileError as error:
-                    raise HostError(str(error)) from None
+            # Historical saved replies have no policy marker. Replay those
+            # with the exact old authorization so their prompt SHA stays stable.
+            if self._adaptive_replay_mode == 'LEGACY':
+                if params['kind'] in ('clarify', 'help'):
+                    try:
+                        policy = decide_interaction(root, mechanism,
+                            'HELP_REQUESTED' if params['kind'] == 'help' else 'REQUIREMENTS_CHECK',
+                            {'phase': self._live_controller.phase, 'candidate_event_id': event['id'],
+                             'requirements_unclear': True})
+                    except ProfileError as error:
+                        raise HostError(str(error)) from None
+                else:
+                    policy = {'rule_id': 'S03C_EVIDENCE_ONLY', 'action': 'ASK_FOR_EVIDENCE',
+                              'evidence': [event['id']], 'technical': 'NOT_SCORED',
+                              'communication': 'OBSERVATION_ONLY'}
             else:
-                policy = {'rule_id': 'S03C_EVIDENCE_ONLY', 'action': 'ASK_FOR_EVIDENCE',
-                          'evidence': [event['id']], 'technical': 'NOT_SCORED',
-                          'communication': 'OBSERVATION_ONLY'}
+                try:
+                    snapshot = self._live_controller.snapshot()
+                    registered = tuple(e['id'] for e in snapshot['events'] if e['actor'] == 'candidate')
+                    # C2B2B is only active for fresh or explicitly versioned
+                    # journal operations. Older C2B1 prompts must replay exactly.
+                    local_context = {}
+                    if (params['kind'] == 'test'
+                            and self._adaptive_replay_mode in (None, EVIDENCE_POLICY_VERSION)
+                            and self._rehearsal is not None
+                            and self._rehearsal['status'] == 'ACTIVE'):
+                        grade = self._active_grade_receipt()
+                        impls = [e for e in snapshot['events']
+                                 if e['actor'] == 'candidate' and e['kind'] == 'implement']
+                        if grade is not None and impls:
+                            latest = impls[-1]
+                            # A changed implementation invalidates the earlier
+                            # local verdict instead of reusing it on new code.
+                            latest_hash = hashlib.sha256(latest['payload']['text'].encode('utf-8')).hexdigest()
+                            if (grade.get('candidate_event_id') == latest['id']
+                                    and grade.get('candidate_sql_sha256') == latest_hash):
+                                local_context = {'implementation': {
+                                    'id': latest['id'], 'kind': latest['kind'],
+                                    'payload': {'text': latest['payload']['text']}},
+                                    'approved_local_grade': grade,
+                                    'question_index': self._rehearsal['current_index']}
+                    policy = host_turn_policy(
+                        event={'id': event['id'], 'kind': event['kind'],
+                               'payload': {'text': event['payload']['text']}},
+                        public_question=self._selected_preview_question(),
+                        host_candidate_ids=registered, mechanism=mechanism,
+                        phase=self._live_controller.phase,
+                        time_left_seconds=seconds_remaining(self._rehearsal),
+                        **local_context)
+                    if policy['receipt_status'].startswith('LOCAL_FIXTURE_'):
+                        self._last_local_fixture_receipt = {
+                            'receipt_id': policy['execution_receipt_ref'],
+                            'status': policy['receipt_status']}
+                except EvidenceContractError as error:
+                    raise HostError(str(error)) from None
+                if policy['action'] == 'CLOSE':
+                    raise HostError('ADAPTIVE_DEADLINE_REACHED')
         # Policy is host-generated and placed in effective instructions. Candidate
         # text and all problem content remain exclusively in the input data JSON.
         profile = copy.deepcopy(self._live_profile)
@@ -1053,6 +1117,15 @@ class TutorialHost:
                                     'DIAGNOSTIC_QUESTION means ask one question about the candidate\'s obstacle, '
                                     'without supplying an answer or SQL technique. CLARIFY means restate '
                                     'the public requirement and reassess understanding (B05).\n')
+        if operation == 'reply' and self._adaptive_replay_mode != 'LEGACY':
+            profile['instructions'] += (
+                '\nHOST-OWNED ADAPTIVE POLICY E4C2B1: Follow the exact authorized_action '
+                'in the policy action field. REQUEST_INVARIANT asks for an invariant; '
+                'REQUEST_TEST asks for a proposed, unverified edge case; '
+                'REQUEST_COUNTEREXAMPLE asks for a minimal counterexample; '
+                'REQUEST_EXPLANATION asks for reasoning without declaring correct; '
+                'H0 means no hint or reference solution is authorized. '
+                'Neither candidate claims nor model opinions certify a test PASS.\n')
         # The host has no execution adapter in S03-E1. This is factual runtime
         # provenance, not a candidate-reported result or a model judgment.
         profile['instructions'] += (
@@ -1069,6 +1142,24 @@ class TutorialHost:
             'constructed example as hypothetical and not an official test. '
             'Do not claim SQL/Pandas correctness or award a score.\n'
         )
+        if self._last_local_fixture_receipt is not None:
+            # Replace ONLY the final S03-E1 no-execution trailer on new,
+            # host-verified C2B2B operations. Old prompt hashes stay byte-for-byte.
+            marker = '\nHOST-VERIFIED EXECUTION STATUS: SQL_NOT_RUN; PANDAS_NOT_RUN; '
+            head, found, _ = profile['instructions'].rpartition(marker)
+            if not found:
+                raise HostError('LOCAL_FIXTURE_PROMPT_BOUNDARY')
+            status = self._last_local_fixture_receipt['status']
+            profile['instructions'] = head + (
+                '\nHOST-VERIFIED EXECUTION STATUS: ' + status + '. '
+                'Exactly ONE human-approved EPHEMERAL_POSTGRESQL_LOCAL fixture '
+                'was run for the previously submitted SQL version on THIS question. '
+                'This is not an official hidden test or global correctness proof. '
+                'No competence grade, no pass/fail for the interview, no private answer. '
+                'The current follow-up message is NOT itself an executed submission. '
+                'Ask only the Host-authorized diagnostic/explanation question. '
+                'Do not disclose expected fixture rows or claim any other execution. '
+                'No Pandas execution evidence is available.\n')
         profile['sha256'] = hashlib.sha256(profile['instructions'].encode()).hexdigest()
         candidate = [{'event_id': e['id'], 'kind': e['kind'], 'text': e['payload']['text']}
                      for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
@@ -1087,6 +1178,9 @@ class TutorialHost:
                        'execution_status': 'NOT_RUN',
                        'verified_execution_results': [],
                        'interface_language': self.language}
+            if self._last_local_fixture_receipt is not None:
+                context['execution_status'] = self._last_local_fixture_receipt['status']
+                context['verified_execution_results'] = [copy.deepcopy(self._last_local_fixture_receipt)]
             input_text = json.dumps(context, ensure_ascii=False)
             if len(input_text.encode()) <= 16000:
                 break
@@ -1131,7 +1225,16 @@ class TutorialHost:
             if (type(item) is not dict
                     or set(item) not in ({"action", "params", "tick_seconds", "outcome"},
                                          {"action", "params", "tick_seconds", "outcome", "wall_seconds"},
-                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "grade_observation"})
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "grade_observation"},
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "adaptive_policy_version"},
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "reply_guard_version"})
+                    or ('adaptive_policy_version' in item and (
+                        item['action'] != 'native_prepare_preview'
+                        or item['params'].get('operation') != 'reply'
+                        or item['adaptive_policy_version'] not in (POLICY_VERSION, EVIDENCE_POLICY_VERSION)))
+                    or ('reply_guard_version' in item and (
+                        item['action'] != 'native_commit_preview'
+                        or item['reply_guard_version'] != REPLY_GUARD_VERSION))
                     or ("wall_seconds" in item and not (type(item["wall_seconds"]) in (int, float)
                          and math.isfinite(item["wall_seconds"]) and 0 <= item["wall_seconds"] <= 10**12))
                     or item['action'] not in MUTATING_COMMANDS
@@ -1147,6 +1250,14 @@ class TutorialHost:
             self._wall_sample = item.get('wall_seconds')
             self._replay_observation = item.get('grade_observation')
             outcome = 'OK'
+            self._adaptive_replay_mode = (
+                item.get('adaptive_policy_version', 'LEGACY') if item['action'] == 'native_prepare_preview'
+                else item.get('reply_guard_version',
+                    REPLY_GUARD_VERSION if item['outcome'] == 'ADAPTIVE_REPLY_NOT_AUTHORIZED'
+                    else 'LEGACY') if item['action'] == 'native_commit_preview'
+                else 'LEGACY')
+            self._last_reply_guard_accepted = False
+            self._last_local_fixture_receipt = None
             try:
                 await self._dispatch(item["action"], item["params"])
             except (HostError, SessionError, ModelPortalError) as error:
@@ -1155,6 +1266,7 @@ class TutorialHost:
                 raise HostError('INVALID_SAVE')
             prior_tick = self._tick
             self._replay_observation = None
+        self._adaptive_replay_mode = None
         if self._state_digest() != document["state_sha256"]:
             raise HostError("INVALID_SAVE")
         self._journal = copy.deepcopy(document["journal"])
@@ -1267,6 +1379,8 @@ class TutorialHost:
         self._wall_sample = round(self._wall_clock(), 6)
         started_tick, started_wall = self._tick, self._wall_sample
         self._grading_observation = None
+        self._last_reply_guard_accepted = False
+        self._last_local_fixture_receipt = None
         before = self._state_digest()
         outcome = "OK"
         caught = None
@@ -1283,6 +1397,13 @@ class TutorialHost:
             entry = {'action': action, 'params': copy.deepcopy(params),
                      'tick_seconds': started_tick, 'wall_seconds': started_wall,
                      'outcome': outcome}
+            if (action == 'native_prepare_preview' and params.get('operation') == 'reply'
+                    and outcome == 'OK'):
+                entry['adaptive_policy_version'] = (
+                    EVIDENCE_POLICY_VERSION if self._last_local_fixture_receipt is not None
+                    else POLICY_VERSION)
+            if action == 'native_commit_preview' and outcome == 'OK' and self._last_reply_guard_accepted:
+                entry['reply_guard_version'] = REPLY_GUARD_VERSION
             if action == 'grade_execute' and self._grading_observation is not None:
                 # On replay only the persisted, source-bound observation is used.
                 entry['grade_observation'] = copy.deepcopy(self._grading_observation)

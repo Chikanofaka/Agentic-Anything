@@ -1,0 +1,38 @@
+{
+  "app_sha256": "0e890b35e6b352aeec98fc05e718a141b88450ca41fea2d687212c2124084747",
+  "cases": [
+    {
+      "exit_code": 0,
+      "mock_http_requests": 6,
+      "mode": "positive",
+      "passed_steps": 9,
+      "real_requests": 0,
+      "receipt_sha256": "30c07917a9c6a1c1bc344c28a9dad7740a95403a98ebbcdeb287ad422557c6bf"
+    },
+    {
+      "exit_code": 0,
+      "mock_http_requests": 4,
+      "mode": "stale",
+      "passed_steps": 8,
+      "real_requests": 0,
+      "receipt_sha256": "74f5482f68c3fce45c4e911aa3489710df5164e8679b1f82cfaa4240e89ea302"
+    },
+    {
+      "exit_code": 0,
+      "mock_http_requests": 0,
+      "mode": "recovery",
+      "passed_steps": 2,
+      "real_requests": 0,
+      "receipt_sha256": "9f45fd6e4ab07a6b672253f3e14df7cae432e93e326ae75549da6b2204e1ba54"
+    }
+  ],
+  "completed_utc": "2026-10-23T17:40:33.493377+00:00",
+  "human_uat": "NOT_RUN",
+  "live_api_uat": "NOT_RUN",
+  "macos": "26.6.2",
+  "postgres_config": "pg_config",
+  "python_version": "3.12.4",
+  "schema": "tia-c2c-verification/v1",
+  "started_utc": "2026-10-23T17:40:20.840815+00:00",
+  "status": "PASS"
+}

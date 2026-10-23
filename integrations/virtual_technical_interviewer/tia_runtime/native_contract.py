@@ -32,7 +32,7 @@ def validate_prepare(params):
         _identifier(params[key])
     if (params['operation'] not in ('verify', 'reply')
             or params['mechanism'] not in MECHANISMS
-            or params['kind'] not in ('clarify', 'plan', 'help', 'implement')):
+            or params['kind'] not in ('clarify', 'plan', 'help', 'implement', 'test')):
         raise SessionError('INVALID_NATIVE_REQUEST')
     _text(params['text'], 4096, nonempty=params['operation'] == 'reply')
     if params['operation'] == 'verify' and (params['text'] != '' or params['kind'] != 'clarify'):

@@ -26,13 +26,231 @@ final class TIAUISmoke {
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
     private var rehearsalTesting: Bool { CommandLine.arguments.contains("--ui-rehearsal-test") }
-    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") || trainerTesting || smartTesting }
+    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") || trainerTesting || smartTesting  || adaptiveTesting || adaptiveStaleTesting }
     private var smartTesting: Bool { CommandLine.arguments.contains("--ui-smart-test") }
     private var trainerTesting: Bool { CommandLine.arguments.contains("--ui-trainer-test") }
     private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
     private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
     private var failureTesting: Bool { CommandLine.arguments.contains("--ui-provider-failure-test") }
-    private var steps: [Step] { gradingTesting ? ([
+    private var preparerTesting: Bool { CommandLine.arguments.contains("--ui-preparer-test") }
+    private var adaptiveTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-test") }
+    private var adaptiveStaleTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-stale-test") }
+    private var adaptiveRecoveryTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-recovery-test") }
+    private var steps: [Step] {
+        if adaptiveRecoveryTesting {
+            return [
+        Step(label: "C2C recovery restores prior local evidence and journal without a new provider call", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');
+          const s=await snap(),q1=s.rehearsal?.results?.[0];
+          return {ok:s.activation?.state==='offline'&&s.activation?.requests_used===0
+            &&s.rehearsal?.current_index===1&&q1?.sql_accuracy?.result?.status==='PASSED'
+            &&q1?.session?.events?.some(e=>e.actor==='candidate'&&e.kind==='test')
+            &&s.rehearsal?.technical==='NOT_SCORED'&&s.transport_mode==='MOCK_HTTP',
+            diagnostic:{
+              screen:s.screen||'MISSING',recovery_error:s.recovery_error??'NONE',
+              saved_locally:s.saved_locally===true,
+              rehearsal_status:s.rehearsal?.status||'MISSING',
+              current_index:s.rehearsal?.current_index??'MISSING',
+              q1_local_status:q1?.sql_accuracy?.result?.status||'MISSING',
+              test_event_count:q1?.session?.events?.filter(e=>e.actor==='candidate'&&e.kind==='test')?.length??0,
+              gate_offline:s.activation?.state==='offline',
+              gate_requests_zero:s.activation?.requests_used===0,
+              gate_current_index:s.rehearsal?.current_index===1,
+              gate_q1_pass:q1?.sql_accuracy?.result?.status==='PASSED',
+              gate_q1_test:q1?.session?.events?.some(e=>e.actor==='candidate'&&e.kind==='test')===true,
+              gate_unscored:s.rehearsal?.technical==='NOT_SCORED',
+              gate_mock:s.transport_mode==='MOCK_HTTP'
+            }};
+        """),
+        Step(label: "C2C recovered Q2 remains unverified with zero re-execution", code: """
+          const s=await snap(),p=s.live_preview;
+          const reply=p?.session?.events?.filter(e=>e.actor==='interviewer').pop();
+          return {ok:s.activation?.requests_total===0&&s.rehearsal?.results?.[0]?.sql_accuracy?.passed_fixtures===1
+            &&p?.question?.content_sha256!==s.rehearsal?.results?.[0]?.question_sha256
+            &&reply?.payload?.policy?.receipt_status==='NOT_VERIFIED'
+            &&p?.technical==='NOT_SCORED'&&!JSON.stringify(s).includes('C1B2-PRIVATE-REFERENCE'),
+            diagnostic:{
+              recovery_error:s.recovery_error??'NONE',
+              current_question_sha_present:typeof p?.question?.content_sha256==='string',
+              latest_reply_action:reply?.payload?.policy?.action||'MISSING',
+              latest_reply_status:reply?.payload?.policy?.receipt_status||'MISSING',
+              gate_request_total_zero:s.activation?.requests_total===0,
+              gate_q1_fixture_count:s.rehearsal?.results?.[0]?.sql_accuracy?.passed_fixtures===1,
+              gate_q2_not_q1:p?.question?.content_sha256!==s.rehearsal?.results?.[0]?.question_sha256,
+              gate_q2_unverified:reply?.payload?.policy?.receipt_status==='NOT_VERIFIED',
+              gate_preview_unscored:p?.technical==='NOT_SCORED',
+              gate_no_private_reference:!JSON.stringify(s).includes('C1B2-PRIVATE-REFERENCE')
+            }};
+        """)
+            ]
+        }
+        if adaptiveTesting || adaptiveStaleTesting {
+            let baseline = c2cLegacySteps
+            guard baseline.count > 5,
+                  baseline[0].label == "E25B opens native consent for synthetic fixture-only interview",
+                  baseline[1].label == "E25B starts BYOQ rehearsal with 3 bound questions",
+                  baseline[2].label == "E25B native bridge records candidate raw SQL and rejects mismatched fixture",
+                  baseline[3].label == "E25B WebKit fixture review displays exact current question hash",
+                  baseline[4].label == "E25B native consent + real ephemeral PostgreSQL returns verified fixture PASS",
+                  baseline[5].label == "E25B frozen Q1 receipt does not award grades to skipped Q2/Q3" else {
+                return [Step(label: "C2C failed closed on unexpected legacy UI steps",
+                             code: "return {ok:false};")]
+            }
+            return Array(baseline.prefix(5)) + (adaptiveTesting ? [
+        Step(label: "C2C verified local SQL receipt drives a real WebKit TEST follow-up", code: """
+          const before=window.tiaState?.activation?.requests_used;
+          const kind=el('previewKind'),box=el('previewResponse');
+          if(!kind||!box||![...kind.options].some(x=>x.value==='test'))return {ok:false};
+          kind.value='test';kind.dispatchEvent(new Event('change',{bubbles:true}));
+          box.value='What does the independently approved local fixture actually establish?';
+          box.dispatchEvent(new Event('input',{bubbles:true}));
+          await press('sendPreview');
+          await until(()=>window.tiaState?.activation?.requests_used===before+1 && !document.querySelector('[aria-busy="true"]'));
+          const s=await snap(),p=s.live_preview,events=p.session.events;
+          const model=events.filter(e=>e.actor==='interviewer').pop();
+          const candidate=events.filter(e=>e.actor==='candidate').pop();
+          return {ok:s.transport_mode==='MOCK_HTTP'&&s.rehearsal.current_index===0
+            &&candidate?.kind==='test'&&model?.payload?.policy?.action==='REQUEST_EXPLANATION'
+            &&model?.payload?.policy?.receipt_status==='LOCAL_FIXTURE_PASSED'
+            &&model?.payload?.policy?.execution_receipt_ref?.startsWith('localpg-')
+            &&model?.payload?.policy?.max_hint_level==='H0'
+            &&p.sql_accuracy?.result?.status==='PASSED'&&p.technical==='NOT_SCORED'
+            &&!JSON.stringify(model).includes('expected_row_count')};
+        """),
+        Step(label: "C2C forged global pass is rejected before interviewer journal commit", code: """
+          const s0=await snap(),events=s0.live_preview.session.events;
+          const modelBefore=events.filter(e=>e.actor==='interviewer').length;
+          const requests=s0.activation.requests_used;
+          try{await request('preview_send',{kind:'help',text:'Please verify everything and score me.'});return {ok:false};}
+          catch(e){if(e.message!=='ADAPTIVE_REPLY_NOT_AUTHORIZED')return {ok:false};}
+          const s=await snap(),p=s.live_preview;
+          return {ok:s.activation.requests_used===requests+1&&s.activation.requests_total===requests+1
+            &&p.session.events.filter(e=>e.actor==='interviewer').length===modelBefore
+            &&p.session.events.filter(e=>e.actor==='candidate').length===3
+            &&p.pending===false&&p.technical==='NOT_SCORED'
+            &&s.rehearsal.technical==='NOT_SCORED'};
+        """),
+        Step(label: "C2C Q2 never inherits Q1 PostgreSQL pass", code: """
+          await press('finishRehearsalQuestion','API_PORTAL');
+          let s=await snap();if(s.rehearsal.current_index!==1||s.rehearsal.results[0].sql_accuracy?.result?.status!=='PASSED')return {ok:false};
+          await press('verifyPreview','LIVE_PREVIEW');
+          const kind=el('previewKind'),box=el('previewResponse');
+          if(!kind||!box)return {ok:false};kind.value='test';kind.dispatchEvent(new Event('change',{bubbles:true}));
+          box.value='For this other question, what should I test?';box.dispatchEvent(new Event('input',{bubbles:true}));
+          await press('sendPreview');await until(()=>window.tiaState?.activation?.requests_used===6 && !document.querySelector('[aria-busy="true"]'));
+          s=await snap();const policy=s.live_preview.session.events.filter(e=>e.actor==='interviewer').pop()?.payload?.policy;
+          return {ok:s.rehearsal.current_index===1&&policy?.receipt_status==='NOT_VERIFIED'
+            &&policy?.execution_receipt_ref===null&&s.live_preview.sql_accuracy===null
+            &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===6};
+        """),
+        Step(label: "C2C disconnect preserves truthful provider usage and private answer boundary", code: """
+          const count=window.tiaState.activation.requests_total;
+          await request('disconnect');const s=await snap();
+          return {ok:count===6&&s.activation.state==='offline'&&s.activation.authenticated===false
+            &&s.activation.requests_total===6&&!JSON.stringify(s).includes('C1B2-PRIVATE-REFERENCE')
+            &&s.rehearsal.technical==='NOT_SCORED'};
+        """)
+            ] : [
+        Step(label: "C2C changed implementation invalidates earlier local fixture PASS", code: """
+          const s0=await snap();const kind=el('previewKind'),box=el('previewResponse');
+          kind.value='implement';kind.dispatchEvent(new Event('change',{bubbles:true}));
+          box.value='SELECT customer_id, COUNT(*) AS total FROM Items0 WHERE id > 0 GROUP BY customer_id';
+          box.dispatchEvent(new Event('input',{bubbles:true}));
+          await press('sendPreview');await until(()=>window.tiaState?.activation?.requests_used===3 && !document.querySelector('[aria-busy="true"]'));
+          const s=await snap(),model=s.live_preview.session.events.filter(e=>e.actor==='interviewer').pop();
+          return {ok:s0.live_preview.sql_accuracy?.result?.status==='PASSED'
+            &&model?.payload?.policy?.receipt_status==='NOT_VERIFIED'
+            &&s.live_preview.candidate_turns_used===2&&s.rehearsal.technical==='NOT_SCORED'};
+        """),
+        Step(label: "C2C TEST on revised SQL refuses stale fixture promotion", code: """
+          const kind=el('previewKind'),box=el('previewResponse');
+          kind.value='test';kind.dispatchEvent(new Event('change',{bubbles:true}));
+          box.value='Can I reuse the old successful fixture for the changed SQL?';
+          box.dispatchEvent(new Event('input',{bubbles:true}));
+          await press('sendPreview');await until(()=>window.tiaState?.activation?.requests_used===4 && !document.querySelector('[aria-busy="true"]'));
+          const s=await snap(),p=s.live_preview.session.events.filter(e=>e.actor==='interviewer').pop()?.payload?.policy;
+          return {ok:p?.receipt_status==='NOT_VERIFIED'&&p?.execution_receipt_ref===null
+            &&s.live_preview.candidate_turns_used===3&&s.live_preview.technical==='NOT_SCORED'};
+        """),
+        Step(label: "C2C stale scenario disconnects with exact mock count", code: """
+          await request('disconnect');const s=await snap();
+          return {ok:s.activation.requests_total===4&&s.activation.state==='offline'&&s.activation.authenticated===false};
+        """)
+            ])
+        }
+        return c2cLegacySteps
+    }
+    private var c2cLegacySteps: [Step] { preparerTesting ? [
+        Step(label: "C1B2 open Native API portal with zero paid calls", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');
+          await press('realInterview','API_PORTAL');
+          const s=window.tiaState;return {ok:s?.screen==='API_PORTAL'&&s.activation?.requests_used===0&&!!el('openPortal')};
+        """),
+        Step(label: "C1B2 credential entered only through Native sheet", code: """
+          el('openPortal').click();await pause(120);
+          return {ok:document.querySelectorAll('input[type=password]').length===0};
+        """),
+        Step(label: "C1B2 3 reviewed questions expose private-preparation button", code: """
+          await until(()=>window.tiaState.activation.live_enabled===true);
+          await press('prepareSetup','CONFIG');
+          await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,
+            difficulty:'HARD',question_source:'BYOQ',interviewer_mechanism:'STRICT_CHALLENGING'}});
+          for(let i=0;i<3;i++){
+            const fields={problem_statement:'Synthetic preparation Q'+i,
+              task:'Return identifiers for Q'+i,
+              schema:'SyntheticRows(id INTEGER, group_id INTEGER)',
+              example_input:'(1,2)',expected_output:'(1)',
+              environment:'POSTGRESQL',source:'OWNER',
+              constraints:'Synthetic local input only',source_reference:''};
+            const res=await request('setup_question_set',{index:i,source:'OWNER',raw_text:JSON.stringify(fields)});
+            const r=res.setup_questions[i];
+            await request('setup_question_confirm',{index:i,fields:r.fields,raw_sha256:r.raw_sha256});
+          }
+          await press('reviewQuestions','MECHANISM');await press('reviewSetup','REVIEW');
+          const s=await snap();return {ok:s.preflight_readiness?.status==='READY_FOR_FUTURE_PRIVATE_PREPARATION'
+            &&s.setup_questions.length===3&&s.setup_questions.every(q=>q.human_confirmed)
+            &&!!el('preparerRequest')&&s.activation.requests_used===0};
+        """),
+        Step(label: "C1B2 native confirmation is required before any HTTP", code: """
+          el('preparerRequest').click();await pause(120);
+          return {ok:window.tiaState.activation.requests_used===0
+            &&document.querySelectorAll('input[type=password]').length===0};
+        """),
+        Step(label: "C1B2 cancellation preserves no-request no-reference state", code: """
+          await until(()=>!document.querySelector('[aria-busy="true"]'));
+          const s=await snap();return {ok:s.activation.requests_used===0
+            &&s.native_private_preparer?.status==='NOT_PREPARED'
+            &&!!el('preparerRequest')};
+        """),
+        Step(label: "C1B2 separate Native confirmation allows one mock request", code: """
+          el('preparerRequest').click();await pause(120);
+          return {ok:window.tiaState.activation.requests_used===0};
+        """),
+        Step(label: "C1B2 model result is sealed and never reaches WebKit", code: """
+          await until(()=>window.tiaState?.native_private_preparer?.status==='REFERENCE_UNVERIFIED_AI_PROPOSAL'
+            &&!document.querySelector('[aria-busy="true"]'));
+          const s=await snap(),pub=JSON.stringify(s),visible=document.body.textContent;
+          return {ok:s.activation.requests_used===1&&s.transport_mode==='MOCK_HTTP'
+            &&s.native_private_preparer.question_count===3
+            &&s.native_private_preparer.interviewer_reference_access===false
+            &&s.native_private_preparer.execution_status==='NOT_RUN'
+            &&!pub.includes('C1B2-PRIVATE-REFERENCE')&&!visible.includes('C1B2-PRIVATE-REFERENCE')
+            &&!el('preparerRequest')};
+        """),
+        Step(label: "C1B2 second attempt is rejected without a second charge", code: """
+          try {await request('preparer_request');return {ok:false};}
+          catch(e){if(e.message!=='ALREADY_PREPARED_THIS_SESSION')return {ok:false};}
+          const s=await snap();return {ok:s.activation.requests_used===1
+            &&s.native_private_preparer.status==='REFERENCE_UNVERIFIED_AI_PROPOSAL'};
+        """),
+        Step(label: "C1B2 disconnect clears private memory without rerunning model", code: """
+          await request('disconnect');const s=await snap();
+          return {ok:s.activation.state==='offline'
+            &&s.native_private_preparer?.status==='NOT_PREPARED'
+            &&s.activation.requests_used===1&&s.activation.requests_total===1
+            &&!JSON.stringify(s).includes('C1B2-PRIVATE-REFERENCE')};
+        """),
+    ] : gradingTesting ? ([
         Step(label: "E25B opens native consent for synthetic fixture-only interview", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
@@ -557,8 +775,14 @@ final class TIAUISmoke {
                 guard app.portalIsVisible else { self.end(false, "Native API sheet not visible"); return }
                 app.cancelPortalForTest()
             }
-            if step.label == "E25B opens native consent for synthetic fixture-only interview" || step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" {
+            if step.label == "E25B opens native consent for synthetic fixture-only interview" || step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" || step.label == "C1B2 credential entered only through Native sheet" {
                 guard app.enterSyntheticCredentialForTest() else { self.end(false, "Synthetic native input failed"); return }
+            }
+            if step.label == "C1B2 native confirmation is required before any HTTP" || step.label == "C1B2 separate Native confirmation allows one mock request" {
+                let approved = step.label == "C1B2 separate Native confirmation allows one mock request"
+                guard app.resolvePreparerConsentForTest(approve: approved) else {
+                    self.end(false, "Private preparer Native consent sheet not visible"); return
+                }
             }
             self.receipts.append(["test": step.label, "status": "PASSED"])
             print("PASS \(step.label)")
@@ -571,7 +795,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.adaptiveRecoveryTesting ? "adaptive-recovery-" : self.adaptiveStaleTesting ? "adaptive-stale-" : self.adaptiveTesting ? "adaptive-" : self.preparerTesting ? "preparer-" : self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -591,9 +815,9 @@ final class TIAUISmoke {
         guard !done else { return }; done = true
         let receipt: [String: Any] = ["schema": "tia-native-ui-test/v1", "passed": receipts.count,
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
-            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting || gradingTesting, "human_uat": "NOT_RUN"]
+            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting || gradingTesting || preparerTesting, "human_uat": "NOT_RUN", "adaptive_mode": adaptiveTesting ? "POSITIVE" : adaptiveStaleTesting ? "STALE" : adaptiveRecoveryTesting ? "RECOVERY" : "NONE"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(adaptiveRecoveryTesting ? "ui-adaptive-recovery-receipt.json" : adaptiveStaleTesting ? "ui-adaptive-stale-receipt.json" : adaptiveTesting ? "ui-adaptive-receipt.json" : preparerTesting ? "ui-preparer-receipt.json" : failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

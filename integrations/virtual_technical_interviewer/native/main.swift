@@ -17,7 +17,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
@@ -44,6 +44,26 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for SQL grading Q1"),
                         .reply("Please explain your own candidate SQL.")
+                    ])
+                }
+                if CommandLine.arguments.contains("--ui-adaptive-test") {
+                    // AppKit + WKWebView + real local Postgres, but provider is URLProtocol-only.
+                    // Fourth synthetic reply is deliberately refused by C2B2A Host Reply Guard.
+                    TIATestHTTPProtocol.reset([
+                        .reply("Explain your approach to the synthetic first question."),
+                        .reply("Which assumption would you verify for this SQL submission?"),
+                        .reply("Explain the boundary covered by the one local fixture, not hidden tests."),
+                        .reply("Your SQL passed all tests."),
+                        .reply("Explain the public constraints of the second question."),
+                        .reply("Which test case would you design for the second question?")
+                    ])
+                }
+                if CommandLine.arguments.contains("--ui-adaptive-stale-test") {
+                    TIATestHTTPProtocol.reset([
+                        .reply("Explain the first synthetic question."),
+                        .reply("Which assumption would you verify for this SQL submission?"),
+                        .reply("How would you verify the revised submission?"),
+                        .reply("Which independent test would you propose for the changed code?")
                     ])
                 }
                 if CommandLine.arguments.contains("--ui-rehearsal-test") {
@@ -289,8 +309,15 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     self.worker?.request("native_commit_preview", params: commitment) { [weak self] committed in
                         guard let self = self else { return }
                         if let state = committed["state"] as? [String: Any] { self.lastState = state }
-                        self.finishLive(ok: committed["ok"] as? Bool == true,
-                                        error: committed["error"] as? String)
+                        if (committed["ok"] as? Bool) != true &&
+                            (committed["error"] as? String) == "ADAPTIVE_REPLY_NOT_AUTHORIZED" {
+                            // Never leave a rejected model reply's native transaction pending.
+                            // The paid attempt is already charged; no automatic retry.
+                            self.cancelPrepared(error: "ADAPTIVE_REPLY_NOT_AUTHORIZED")
+                        } else {
+                            self.finishLive(ok: committed["ok"] as? Bool == true,
+                                            error: committed["error"] as? String)
+                        }
                     }
                 }
             }
@@ -487,7 +514,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         // Test-only: simulate a real native confirmation click, never in a
         // normal App or in any provider-capable test. All data are synthetic.
-        if uiTesting && ((CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test")) && text.contains("Execute current candidate SQL") ||
+        if uiTesting && ((CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test")) && text.contains("Execute current candidate SQL") ||
             (CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI"))) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)
@@ -550,6 +577,29 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             "source_sha256": ["preparer/questions": package.questionSetSHA]]
         guard let spec = try? TIAModelRequest(specValue) else {
             emit(["id": id, "ok": false, "state": lastState, "error": "INVALID_PREPARER_SPEC"]); return
+        }
+        // This flag always uses TIATestHTTPProtocol.configuration(), never the network.
+        // The synthetic source and reference are test data, never real questions.
+        if uiTesting && CommandLine.arguments.contains("--ui-preparer-test") {
+            let approach: [String: Any] = [
+                "label": "synthetic-selection", "code": "SELECT id FROM SyntheticRows /* C1B2-PRIVATE-REFERENCE */",
+                "rationale": "Return each identifier without inventing rows",
+                "invariants": ["every returned id comes from SyntheticRows"],
+                "edge_cases": ["empty relation", "duplicate identifiers"],
+                "complexity": "linear scan"]
+            let items: [[String: Any]] = package.questions.map { question in
+                ["question_sha256": question["question_sha256"] ?? "",
+                 "language": question["environment"] ?? "",
+                 "approaches": [approach]]
+            }
+            let mock: [String: Any] = ["schema": "tia-preparer-model-proposal/v1",
+                                       "question_set_sha256": package.questionSetSHA, "items": items]
+            guard let text = try? TIAPreparerPackage.encoded(mock) else {
+                emit(["id": id, "ok": false, "state": lastState, "error": "INVALID_SYNTHETIC_PREPARATION"]); return
+            }
+            TIATestHTTPProtocol.enqueue([.reply(text, usage: ["input_tokens": 420,
+                                                             "output_tokens": 360,
+                                                             "total_tokens": 780])])
         }
         busy = true; liveRequestID = id; liveGeneration = generation; liveStage = "preparer_calling"
         portal.send(spec) { [weak self] outcome in
@@ -626,13 +676,26 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         guard uiTesting, let alert = portalSheet else { return }
         window.endSheet(alert.window, returnCode: .alertSecondButtonReturn)
     }
+    // Test-only native human-consent action. Never accepts a browser instruction
+    // and cannot operate outside the isolated --ui-preparer-test App launch.
+    func resolvePreparerConsentForTest(approve: Bool) -> Bool {
+        guard uiTesting, CommandLine.arguments.contains("--ui-preparer-test"),
+              let alert = portalSheet,
+              alert.messageText == "Local data / 本机数据",
+              alert.informativeText.contains("Prepare 3 reviewed questions") else { return false }
+        window.endSheet(alert.window, returnCode: approve ? .alertFirstButtonReturn : .alertSecondButtonReturn)
+        return true
+    }
     func enterSyntheticCredentialForTest() -> Bool {
         guard uiTesting, let alert = portalSheet, portalIsVisible,
               let field = alert.accessoryView?.subviews.compactMap({ $0 as? NSSecureTextField }).first,
               let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first(where: { !($0 is NSPopUpButton) }),
               let delegate = field.delegate as? CredentialFieldDelegate else { return false }
         field.stringValue = "synthetic-ui-fixture-not-a-real-key"
-        if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+        if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") {
+            // Test-only synthetic credential and bounded MOCK_HTTP requests.
+            alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "10")
+        } else if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
         consent.state = .on; delegate.changed()

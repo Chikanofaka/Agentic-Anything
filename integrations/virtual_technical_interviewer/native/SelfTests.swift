@@ -81,7 +81,9 @@ func runNativeTests() -> Int32 {
         check("native-only handshake " + action, BridgePolicy.validate(request(action)) == nil)
     }
     check("bounded preview input", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "one row per customer"])) != nil)
-    check("preview cannot issue test execution", BridgePolicy.validate(request("preview_send", ["kind": "test", "text": "run"])) == nil)
+    check("preview test inquiry allowed without execution authority",
+          BridgePolicy.validate(request("preview_send", ["kind": "test", "text": "Propose a test case"])) != nil &&
+          BridgePolicy.validate(request("preview_send", ["kind": "test", "text": "run", "execute_sql": true])) == nil)
     check("preview cannot inject mechanism or authority", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "x", "mechanism": "STRICT_CHALLENGING"])) == nil)
     // E2.5-B: exact renderer contract, with native confirmation in main.swift.
     check("E25B inspect bounded fixture", BridgePolicy.validate(request("grade_inspect", ["fixture_json": "{\"x\":1}"])) != nil)

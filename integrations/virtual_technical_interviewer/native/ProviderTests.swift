@@ -211,6 +211,93 @@ func runProviderTests() -> Int32 {
     portal.disconnect()
     TIATestHTTPProtocol.reset([])
     check("mock transport exhausted plan fails closed", failure(transport(.init(payload: Data(), error: .resourceUnavailable)), "PROVIDER_NETWORK_ERROR"))
+    // E4-C1B.1: REAL NativePortal->Mock HTTP transport for the new Preparer role.
+    // These are synthetic fixtures; there is no real endpoint or credential.
+    for questionCount in [3, 4] {
+        let hashes = (0..<questionCount).map { String(repeating: String(UnicodeScalar(97 + $0)!), count: 64) }
+        let fields: [String: String] = [
+            "problem_statement": "Return identifiers", "task": "Select every id",
+            "schema": "Orders(id INTEGER)", "example_input": "1", "expected_output": "1",
+            "environment": "POSTGRESQL", "source": "OWNER"]
+        let reports: [[String: Any]] = hashes.enumerated().map { index, hash in
+            ["question_index": index, "question_sha256": hash,
+             "environment": "POSTGRESQL", "status": "SOURCE_BOUND_CONFIRMED"]
+        }
+        let reviews: [[String: Any]] = hashes.map { hash in
+            ["human_confirmed": true, "practice_eligible": true,
+             "content_sha256": hash, "fields": fields]
+        }
+        let state: [String: Any] = ["screen": "REVIEW", "preflight_readiness": [
+            "schema": "tia-preflight-readiness/v1", "status": "READY_FOR_FUTURE_PRIVATE_PREPARATION",
+            "required_count": questionCount, "questions": reports], "setup_questions": reviews]
+        guard let package = try? TIAPreparerPackage(state: state) else {
+            check("C1B1 synthetic preparation package \(questionCount)", false)
+            continue
+        }
+        let code = "SELECT id FROM Orders -- " + String(repeating: "x", count: 2100)
+        let approach: [String: Any] = ["label": "ordered selection", "code": code,
+            "rationale": "Select all ids", "invariants": ["selected id exists"],
+            "edge_cases": ["zero rows"], "complexity": "linear"]
+        let items: [[String: Any]] = hashes.map { hash in
+            ["question_sha256": hash, "language": "POSTGRESQL", "approaches": [approach]]
+        }
+        let proposal: [String: Any] = ["schema": "tia-preparer-model-proposal/v1",
+            "question_set_sha256": package.questionSetSHA, "items": items]
+        guard let proposalText = try? TIAPreparerPackage.encoded(proposal) else {
+            check("C1B1 synthetic proposal JSON \(questionCount)", false)
+            continue
+        }
+        let prePortal = NativePortal(adapter: TIAOpenAIAdapter(configuration: TIATestHTTPProtocol.configuration()))
+        let preActivated = prePortal.activate(key: key, model: model, requestLimit: 1, paidConsent: true)
+        var requestData = dictionary(generation: prePortal.generation, role: "preparer")
+        requestData["max_output_tokens"] = 8192
+        requestData["input"] = package.input
+        requestData["source_sha256"] = ["preparer/questions": package.questionSetSHA]
+        guard let preSpec = try? TIAModelRequest(requestData), preActivated else {
+            check("C1B1 native preparer spec \(questionCount)", false)
+            continue
+        }
+        let preRequest = try? TIAOpenAIAdapter.request(key: key, model: model, spec: preSpec)
+        let requestJSON = preRequest?.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        check("C1B1 native schema and output cap \(questionCount)",
+            requestJSON?["max_output_tokens"] as? Int == 8192 &&
+            ((requestJSON?["text"] as? [String: Any])?["format"] as? [String: Any])?["name"] as? String == "tia_preparer_reply")
+        TIATestHTTPProtocol.reset([.reply(proposalText, usage: ["input_tokens": 800,
+            "output_tokens": 1500, "total_tokens": 2300])])
+        var prepareResult: Result<TIAProviderReply, TIAProviderFailure>?
+        prePortal.send(preSpec) { prepareResult = $0 }
+        spin({ prepareResult != nil })
+        var nativeSeal: TIAPreparerSeal?
+        if case .success(let reply)? = prepareResult { nativeSeal = try? package.validate(reply.text) }
+        check("C1B1 Native Mock HTTP fully validates \(questionCount)",
+            nativeSeal?.count == questionCount && TIATestHTTPProtocol.calls == 1 &&
+            prePortal.requestsUsed == 1 && prePortal.publicState["usage_responses"] as? Int == 1)
+        // Bind optionality to the seal rather than Dictionary.flatMap; the latter
+        // produces [Data] and cannot be combined with the Data() fallback.
+        let safeJSON: Data?
+        if let seal = nativeSeal {
+            safeJSON = try? JSONSerialization.data(withJSONObject: seal.safeStatus)
+        } else {
+            safeJSON = nil
+        }
+        check("C1B1 3/4 solutions never in public status \(questionCount)",
+            safeJSON != nil && !String(decoding: safeJSON ?? Data(), as: UTF8.self).contains("SELECT id"))
+        var secondData = requestData
+        secondData["request_id"] = UUID().uuidString
+        var secondResult: Result<TIAProviderReply, TIAProviderFailure>?
+        if let second = try? TIAModelRequest(secondData) {
+            prePortal.send(second) { secondResult = $0 }
+            spin({ secondResult != nil })
+        }
+        check("C1B1 no unapproved second paid request \(questionCount)",
+            failure(secondResult, "REQUEST_LIMIT_REACHED") && TIATestHTTPProtocol.calls == 1)
+        var wrong = proposal
+        wrong["question_set_sha256"] = String(repeating: "f", count: 64)
+        let wrongText = (try? TIAPreparerPackage.encoded(wrong)) ?? ""
+        check("C1B1 wrong batch SHA rejects successful HTTP proposal \(questionCount)",
+            (try? package.validate(wrongText)) == nil)
+        prePortal.disconnect()
+    }
     print("Provider tests: \(passed) passed, \(failed) failed; real provider requests: 0; transport: MOCK_HTTP")
     return failed == 0 ? 0 : 1
 }

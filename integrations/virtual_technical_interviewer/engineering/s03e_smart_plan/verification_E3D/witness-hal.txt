@@ -36,14 +36,14 @@ Python 3.12.4
     "rule": "margin-v1",
     "unit": "user_supplied_units"
   },
-  "run_id": "ef4df21d-b315-41bc-a6f4-d0f2807e92fe",
+  "run_id": "5cb54e45-65e6-404e-96be-688c2d317b6a",
   "status": "SUCCESS",
   "tool_id": "calculate-margin"
 }
 {
   "contract_schema": "hal-domain/v1",
   "domain_id": "returns-operations",
-  "elapsed_ms": 0.58,
+  "elapsed_ms": 0.52,
   "events": [
     {
       "code": "PACKAGE_INSPECTED"
@@ -74,7 +74,7 @@ Python 3.12.4
     "not_a_real_business_policy": true,
     "rule": "fictional-returns-v1"
   },
-  "run_id": "47de5ccf-4b8f-4eb8-ad52-64f7a84c5c8f",
+  "run_id": "cd5980a0-b0ed-4a7b-89c5-9eb0a700eb28",
   "status": "SUCCESS",
   "tool_id": "triage-return"
 }
@@ -461,6 +461,6 @@ test_v1_migration_preserves_save_semantics_without_claiming_inspection (test_wit
 test_wrong_language_is_replaced_with_selected_language (test_witness_v2.WitnessV2Tests.test_wrong_language_is_replaced_with_selected_language) ... ok
 
 ----------------------------------------------------------------------
-Ran 287 tests in 9.660s
+Ran 287 tests in 9.385s
 
 OK

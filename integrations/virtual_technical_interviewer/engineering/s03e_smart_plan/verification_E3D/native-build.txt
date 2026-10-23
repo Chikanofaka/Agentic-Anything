@@ -2,54 +2,54 @@ PASS accessibility fragment retains bridge
 PASS query cannot change document origin
 PASS external page rejected
 PASS neighbor file rejected
-PASS allow exact command rehearsal_tick
-PASS reject extra params rehearsal_tick
-PASS allow exact command rehearsal_start
-PASS reject extra params rehearsal_start
-PASS allow exact command preparer_request
-PASS reject extra params preparer_request
+PASS allow exact command rehearsal_skip
+PASS reject extra params rehearsal_skip
 PASS allow exact command tutorial_back
 PASS reject extra params tutorial_back
+PASS allow exact command preview_cancel
+PASS reject extra params preview_cancel
 PASS allow exact command smart_start
 PASS reject extra params smart_start
-PASS allow exact command tutorial_next
-PASS reject extra params tutorial_next
+PASS allow exact command rehearsal_submit
+PASS reject extra params rehearsal_submit
+PASS allow exact command tutorial_start
+PASS reject extra params tutorial_start
 PASS allow exact command setup_continue
 PASS reject extra params setup_continue
+PASS allow exact command preview_close
+PASS reject extra params preview_close
+PASS allow exact command rehearsal_start
+PASS reject extra params rehearsal_start
+PASS allow exact command snapshot
+PASS reject extra params snapshot
 PASS allow exact command disconnect
 PASS reject extra params disconnect
 PASS allow exact command setup_launch
 PASS reject extra params setup_launch
-PASS allow exact command preview_verify
-PASS reject extra params preview_verify
 PASS allow exact command choose_real
 PASS reject extra params choose_real
-PASS allow exact command tutorial_complete
-PASS reject extra params tutorial_complete
-PASS allow exact command snapshot
-PASS reject extra params snapshot
-PASS allow exact command trainer_request
-PASS reject extra params trainer_request
-PASS allow exact command tutorial_start
-PASS reject extra params tutorial_start
 PASS allow exact command tutorial_replay
 PASS reject extra params tutorial_replay
 PASS allow exact command reset
 PASS reject extra params reset
+PASS allow exact command preview_verify
+PASS reject extra params preview_verify
 PASS allow exact command setup_back
 PASS reject extra params setup_back
+PASS allow exact command trainer_request
+PASS reject extra params trainer_request
+PASS allow exact command preparer_request
+PASS reject extra params preparer_request
+PASS allow exact command tutorial_complete
+PASS reject extra params tutorial_complete
 PASS allow exact command export
 PASS reject extra params export
-PASS allow exact command preview_cancel
-PASS reject extra params preview_cancel
+PASS allow exact command rehearsal_tick
+PASS reject extra params rehearsal_tick
+PASS allow exact command tutorial_next
+PASS reject extra params tutorial_next
 PASS allow exact command api_portal
 PASS reject extra params api_portal
-PASS allow exact command preview_close
-PASS reject extra params preview_close
-PASS allow exact command rehearsal_submit
-PASS reject extra params rehearsal_submit
-PASS allow exact command rehearsal_skip
-PASS reject extra params rehearsal_skip
 PASS E3D exact SMART start
 PASS E3D SMART start cannot inject time
 PASS E3D exact SMART activity
@@ -102,7 +102,7 @@ PASS native-only handshake native_prepare_trainer
 PASS native-only handshake native_commit_trainer
 PASS native-only handshake native_cancel_trainer
 PASS bounded preview input
-PASS preview cannot issue test execution
+PASS preview test inquiry allowed without execution authority
 PASS preview cannot inject mechanism or authority
 PASS E25B inspect bounded fixture
 PASS E25B inspect rejects empty
@@ -191,5 +191,15 @@ PASS provider disconnect suppresses late completion
 PASS provider failed key cannot become verified
 PASS provider 401 clears former credential
 PASS provider mock transport exhausted plan fails closed
-Provider tests: 59 passed, 0 failed; real provider requests: 0; transport: MOCK_HTTP
+PASS provider C1B1 native schema and output cap 3
+PASS provider C1B1 Native Mock HTTP fully validates 3
+PASS provider C1B1 3/4 solutions never in public status 3
+PASS provider C1B1 no unapproved second paid request 3
+PASS provider C1B1 wrong batch SHA rejects successful HTTP proposal 3
+PASS provider C1B1 native schema and output cap 4
+PASS provider C1B1 Native Mock HTTP fully validates 4
+PASS provider C1B1 3/4 solutions never in public status 4
+PASS provider C1B1 no unapproved second paid request 4
+PASS provider C1B1 wrong batch SHA rejects successful HTTP proposal 4
+Provider tests: 69 passed, 0 failed; real provider requests: 0; transport: MOCK_HTTP
 Built local development App: <repo>/integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app

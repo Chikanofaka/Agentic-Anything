@@ -75,7 +75,7 @@ enum BridgePolicy {
         } else if action == "tutorial_submit" || action == "preview_send" {
             guard Set(params.keys) == ["kind", "text"],
                   let kind = params["kind"] as? String,
-                  (action == "preview_send" ? ["clarify", "plan", "implement", "help"] : ["clarify", "plan", "implement", "test", "help"]).contains(kind),
+                  (action == "preview_send" ? ["clarify", "plan", "implement", "test", "help"] : ["clarify", "plan", "implement", "test", "help"]).contains(kind),
                   let text = params["text"] as? String,
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   text.utf8.count <= (action == "preview_send" ? 4096 : 8192) else { return nil }

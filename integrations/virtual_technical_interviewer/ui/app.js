@@ -983,7 +983,7 @@
       const retry = preview.retry_input;
       const isPandasPreview = (preview.question?.environment || state.setup_config?.technical_environment) === "PANDAS";
       const kind = selectField("previewKind", t("kind"),
-        ["clarify", "plan", "help", "implement"].map(value => [value, value === "implement" && isPandasPreview
+        ["clarify", "plan", "help", "implement", "test"].map(value => [value, value === "implement" && isPandasPreview
           ? (state.language === "zh" ? "提交 Python / Pandas 代码" : "Python / Pandas submission") : t(value)]), retry?.kind || liveKind);
       kind.select.addEventListener("change", () => { liveKind = kind.select.value; });
       kind.select.dataset.unavailable = String(Boolean(retry));
