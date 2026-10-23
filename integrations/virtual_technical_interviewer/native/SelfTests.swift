@@ -20,6 +20,8 @@ func runNativeTests() -> Int32 {
         check("allow exact command \(action)", BridgePolicy.validate(request(action)) != nil)
         check("reject extra params \(action)", BridgePolicy.validate(request(action, ["key": "synthetic"])) == nil)
     }
+    check("E3CB exact user trainer request", BridgePolicy.validate(request("trainer_request")) != nil)
+    check("E3CB renderer cannot send trainer feedback", BridgePolicy.validate(request("trainer_request", ["proposal": "approved"])) == nil)
     check("no arbitrary process execution", BridgePolicy.validate(request("exec", ["command": "true"])) == nil)
     check("no host phase mutation", BridgePolicy.validate(request("set_phase", ["phase": "COMPLETE"])) == nil)
     check("no renderer credentials", BridgePolicy.validate(request("api_portal", ["credential": "synthetic"])) == nil)
@@ -62,7 +64,8 @@ func runNativeTests() -> Int32 {
     check("S03D practice cannot override role", BridgePolicy.validate(request("practice_start", ["index": 0, "content_sha256": digest, "role": "admin"])) == nil)
     check("S03D exact finish command", BridgePolicy.validate(request("setup_questions_finish")) != nil)
     check("S03D finish rejects extra fields", BridgePolicy.validate(request("setup_questions_finish", ["bypass": true])) == nil)
-    for action in ["native_prepare_preview", "native_commit_preview", "native_cancel_preview"] {
+    for action in ["native_prepare_preview", "native_commit_preview", "native_cancel_preview",
+                   "native_prepare_trainer", "native_commit_trainer", "native_cancel_trainer"] {
         check("native-only handshake " + action, BridgePolicy.validate(request(action)) == nil)
     }
     check("bounded preview input", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "one row per customer"])) != nil)

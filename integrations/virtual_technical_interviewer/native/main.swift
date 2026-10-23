@@ -17,7 +17,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
@@ -39,7 +39,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
                     .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
                 ] : [])
-                if CommandLine.arguments.contains("--ui-grading-test") {
+                if CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-trainer-test") {
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for SQL grading Q1"),
                         .reply("Please explain your own candidate SQL.")
@@ -172,8 +172,11 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         guard !busy, portalSheet == nil else { emit(["id": id, "ok": false, "error": "NATIVE_BUSY"]); return }
         if action == "api_portal" {
-            guard ["API_PORTAL", "LIVE_PREVIEW", "REVIEW"].contains(lastState["screen"] as? String ?? "") else { emit(["id": id, "ok": false, "error": "INVALID_TRANSITION"]); return }
+            guard ["API_PORTAL", "LIVE_PREVIEW", "REVIEW", "REHEARSAL_COMPLETE"].contains(lastState["screen"] as? String ?? "") else { emit(["id": id, "ok": false, "error": "INVALID_TRANSITION"]); return }
             openPortal { self.respondWithState(id) }; return
+        }
+        if action == "trainer_request" {
+            beginTrainer(id: id); return
         }
         if action == "grade_execute" {
             guard let review = lastState["grading_review"] as? [String: Any],
@@ -289,28 +292,143 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
     }
 
+    private func beginTrainer(id: String) {
+        guard lastState["screen"] as? String == "REHEARSAL_COMPLETE",
+              let trainer = lastState["grounded_trainer"] as? [String: Any],
+              trainer["status"] as? String == "READY_FOR_HUMAN_REVIEW",
+              let hash = trainer["sha256"] as? String,
+              let drills = trainer["drills"] as? [[String: Any]], !drills.isEmpty,
+              lastState["native_trainer_feedback"] is NSNull || lastState["native_trainer_feedback"] == nil,
+              lastState["native_trainer_pending"] as? Bool != true else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "TRAINER_EVIDENCE_NOT_READY"]); return
+        }
+        guard portal.publicState["live_enabled"] as? Bool == true else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "PAID_CONSENT_REQUIRED"]); return
+        }
+        let count = portal.publicState["requests_used"] as? Int ?? 0
+        let limit = portal.publicState["request_limit"] as? Int ?? 0
+        guard count < limit else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "REQUEST_LIMIT_REACHED"]); return
+        }
+        let first = drills[0]
+        let notice = """
+        Send ONE bounded request to OpenAI for a non-authoritative Trainer PROPOSAL?
+
+        Source trainer SHA-256: \(hash)
+        Selected drill: \(first["id"] as? String ?? "unknown")
+        Will send: the chosen offline drill, its citation IDs and up to 280 characters of each cited candidate event.
+        Candidate excerpts may include a complete SHORT SQL submission (280 characters or fewer). Will NOT send PostgreSQL fixtures, the full transcript, unrelated questions, or an API key in model content.
+        A response can be billed even if cancelled or rejected. No automatic retry after failure or restart.
+        Model feedback remains PENDING_HUMAN_REVIEW, NEVER a technical or hiring grade.
+        请求会产生可能的费用；输出是需人工复核的建议，不是能力评分。
+        """
+        confirm(notice) { [weak self] accepted in
+            guard let self = self else { return }
+            if !accepted { self.respondWithState(id); return }
+            self.executeNativeTrainer(id: id)
+        }
+    }
+
+    private func executeNativeTrainer(id: String) {
+        let generation = portal.generation
+        let requestID = UUID().uuidString
+        busy = true; liveRequestID = id; liveGeneration = generation; liveStage = "trainer_preparing"
+        worker?.request("native_prepare_trainer", params: ["request_id": requestID, "generation": generation]) { [weak self] response in
+            guard let self = self else { return }
+            if let state = response["state"] as? [String: Any] { self.lastState = state }
+            guard self.liveGeneration == generation, self.portal.generation == generation else {
+                self.cancelPrepared(error: "REQUEST_CANCELLED"); return
+            }
+            guard response["ok"] as? Bool == true,
+                  let prepared = response["prepared"] as? [String: Any],
+                  let spec = try? TIAModelRequest(prepared), spec.generation == generation,
+                  spec.requestID == requestID, spec.role == "trainer", spec.schemaName == "tia_trainer_reply" else {
+                // A failed prepare does not create a pending paid transaction.
+                if response["ok"] as? Bool == true { self.cancelPrepared(error: "INVALID_TRAINER_SPEC") }
+                else { self.finishLive(ok: false, error: response["error"] as? String ?? "INVALID_TRAINER_PREPARE") }
+                return
+            }
+            if self.uiTesting && CommandLine.arguments.contains("--ui-trainer-test") {
+                // Synthetic model payload is created ONLY inside the mock-only UI test.
+                // It is never sent to a live provider or treated as a real diagnosis.
+                guard let data = spec.input.data(using: .utf8),
+                      let input = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let drill = input["drill"] as? [String: Any],
+                      let trainerHash = input["trainer_sha256"] as? String else {
+                    self.cancelPrepared(error: "INVALID_MOCK_TRAINER_INPUT"); return
+                }
+                let proposal: [String: Any] = [
+                    "schema": "tia-trainer-model-proposal/v1", "trainer_sha256": trainerHash,
+                    "assessor_kind": "MODEL_PROPOSAL", "drill_id": drill["drill_id"] ?? "",
+                    "question_index": drill["question_index"] ?? NSNull(),
+                    "skill_tag": drill["skill_tag"] ?? "",
+                    "cited_candidate_events": drill["cited_candidate_events"] ?? [],
+                    "cited_fixture_sha256": drill["cited_fixture_sha256"] ?? NSNull(),
+                    "hypothesis": "The current local observation suggests another bounded SQL validation step, not a skill score.",
+                    "training_action": "Create one new independent edge-case fixture and explain the expected rows before testing.",
+                    "acceptance": "Record the new SQL and approved fixture hashes and compare the actual output to expected rows.",
+                    "uncertainty": "A local example is not an official hidden test and does not establish mastery or hiring readiness."
+                ]
+                guard let raw = try? JSONSerialization.data(withJSONObject: proposal, options: [.sortedKeys]),
+                      let text = String(data: raw, encoding: .utf8) else {
+                    self.cancelPrepared(error: "INVALID_MOCK_TRAINER_INPUT"); return
+                }
+                TIATestHTTPProtocol.enqueue([.reply(text, usage: ["input_tokens": 170, "output_tokens": 100, "total_tokens": 270])])
+            }
+            self.liveStage = "trainer_calling"
+            self.portal.send(spec) { [weak self] result in
+                guard let self = self, self.liveStage == "trainer_calling",
+                      self.liveGeneration == generation, self.portal.generation == generation else { return }
+                switch result {
+                case .failure(let failure): self.cancelPrepared(error: failure.code)
+                case .success(let reply):
+                    self.liveStage = "trainer_committing"
+                    let commitment: [String: Any] = [
+                        "transaction_id": spec.transactionID, "request_id": requestID,
+                        "generation": generation, "reply": ["reply": reply.text],
+                        "model": self.portal.publicState["model"] as? String ?? "",
+                        "usage": reply.usage as Any? ?? NSNull()
+                    ]
+                    self.worker?.request("native_commit_trainer", params: commitment) { [weak self] committed in
+                        guard let self = self else { return }
+                        if let state = committed["state"] as? [String: Any] { self.lastState = state }
+                        if committed["ok"] as? Bool != true {
+                            // Invalid model output must clear the pending transaction;
+                            // no automatic retry and no authority granted.
+                            self.cancelPrepared(error: committed["error"] as? String ?? "INVALID_TRAINER_FEEDBACK")
+                        } else {
+                            self.finishLive(ok: true, error: nil)
+                        }
+                    }
+                }
+            }
+            self.emit(["ok": true, "state": self.lastState])
+        }
+    }
+
     private func cancelLive(id: String, disconnect: Bool) {
         if disconnect { portal.disconnect() } else { portal.cancel() }
         if disconnect, let sheet = portalSheet, portalIsVisible {
             window.endSheet(sheet.window, returnCode: .alertSecondButtonReturn)
         }
         guard liveRequestID != nil else { respondWithState(id); return }
-        if liveStage == "committing" {
+        if liveStage == "committing" || liveStage == "trainer_committing" {
             // A controller commitment already submitted is atomic. Disconnect still
             // clears the credential immediately; never claim this saved turn rolled back.
             emit(["id": id, "ok": disconnect, "state": lastState,
                   "error": "COMMIT_ALREADY_SUBMITTED"]); return
         }
         cancellationIDs.append(id)
-        if liveStage == "calling" { cancelPrepared(error: "REQUEST_CANCELLED") }
+        if liveStage == "calling" || liveStage == "trainer_calling" { cancelPrepared(error: "REQUEST_CANCELLED") }
         // During preparation the Worker callback runs first, then cancels its
         // transaction. Never send two concurrent requests to the serial Worker.
     }
 
     private func cancelPrepared(error: String) {
         guard liveStage != "cancelling" else { return }
+        let isTrainer = liveStage.hasPrefix("trainer_")
         liveStage = "cancelling"
-        worker?.request("native_cancel_preview") { [weak self] response in
+        worker?.request(isTrainer ? "native_cancel_trainer" : "native_cancel_preview") { [weak self] response in
             guard let self = self else { return }
             if let state = response["state"] as? [String: Any] { self.lastState = state }
             self.finishLive(ok: false, error: error)
@@ -356,7 +474,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         // Test-only: simulate a real native confirmation click, never in a
         // normal App or in any provider-capable test. All data are synthetic.
-        if uiTesting && CommandLine.arguments.contains("--ui-grading-test") && text.contains("Execute current candidate SQL") {
+        if uiTesting && ((CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-trainer-test")) && text.contains("Execute current candidate SQL") ||
+            (CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI"))) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)
             }
@@ -370,7 +489,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         Native secure input · 原生安全输入
         Your key stays in native memory until Disconnect or Quit. Activation makes no request and is UNVERIFIED until a valid response.
         Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. No retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
-        Model requests include the approved role instructions, your selected question, and candidate dialogue. Local SQL fixture grading, when separately authorized, NEVER sends test data or candidate SQL to OpenAI for grading. Model replies do not score SQL. Cancelled requests may still be billed.
+        Model requests include the approved role instructions, your selected question, and candidate dialogue. Local SQL fixture grading, when separately authorized, NEVER sends test data or candidate SQL to OpenAI for grading. Model replies do not score SQL. Optional post-interview Trainer requests send a selected drill and short cited candidate excerpts (which may include short SQL) only after separate native consent. Cancelled requests may still be billed.
         密钥仅留在原生内存；模型请求包含题目及对话。另行授权的本机 PostgreSQL 判题不会把测试数据发送给 OpenAI，也不会由模型打正确性分数。
         """
         alert.addButton(withTitle: "Allow bounded requests / 授权有限请求")
@@ -425,7 +544,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
               let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first(where: { !($0 is NSPopUpButton) }),
               let delegate = field.delegate as? CredentialFieldDelegate else { return false }
         field.stringValue = "synthetic-ui-fixture-not-a-real-key"
-        if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") {
+        if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
         consent.state = .on; delegate.changed()

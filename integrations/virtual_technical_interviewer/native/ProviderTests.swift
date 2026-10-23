@@ -26,6 +26,10 @@ final class TIATestHTTPProtocol: URLProtocol {
         lock.lock(); defer { lock.unlock() }
         Self.plans = plans; callCount = 0; bodies = []
     }
+    static func enqueue(_ more: [Plan]) {
+        lock.lock(); defer { lock.unlock() }
+        plans.append(contentsOf: more)
+    }
     static func configuration() -> URLSessionConfiguration {
         let result = URLSessionConfiguration.ephemeral
         result.protocolClasses = [TIATestHTTPProtocol.self]

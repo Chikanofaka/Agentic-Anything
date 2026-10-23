@@ -125,9 +125,18 @@
       evidenceTestedPrior: "Prior SQL was tested, but final SQL differs. Current submission: NOT_VERIFIED.",
       evidenceSaved: "Derived from saved Host records; opening this report does not run SQL or call AI.",
       trainerEvidenceHeading: "Trainer Lab · source-linked practice (offline)",
-      trainerEvidenceNotice: "These are actionable drill proposals, not AI diagnoses or employment scores. No model was called. Review each drill and test it on a fresh question.",
+      trainerEvidenceNotice: "These offline drills were generated without a model, and are not diagnoses or employment scores. A separately authorized Native AI Trainer proposal may involve a paid call.",
       trainerEvidencePrimary: "Primary practice task", trainerEvidenceSource: "Observed evidence", trainerEvidenceAcceptance: "Completion check", trainerEvidenceLimit: "Skill level remains NOT_SCORED; historical interview evidence cannot change.",
       trainerEvidenceWaiting: "Finish and lock all three questions to prepare practice tasks.",
+      nativeTrainerHeading: "Native BYOK · AI Trainer proposal",
+      nativeTrainerNote: "Optional paid OpenAI request. Only the chosen evidence-linked drill and excerpts up to 280 characters per cited candidate event leave your Mac; a short SQL submission may be included in full. A native consent sheet is required for each request. Feedback is an unverified model proposal, not a skill grade.",
+      nativeTrainerRequest: "Ask AI Trainer (requires native consent)",
+      nativeTrainerConnect: "Activate a private OpenAI session…",
+      nativeTrainerPending: "Native request in flight; do not close the App. A restart never resends it automatically.",
+      nativeTrainerInterrupted: "A previous request was interrupted. It may have been billed. No automatic retry occurred.",
+      nativeTrainerReview: "PENDING_HUMAN_REVIEW — assess this advice against the original candidate evidence before using it.",
+      nativeTrainerModel: "Model-proposed hypothesis", nativeTrainerAction: "Suggested training action",
+      nativeTrainerAcceptance: "Suggested completion check", nativeTrainerUncertainty: "Important uncertainties",
       commHeading: "Communication evidence · C01–C06 (unrated)",
       commNotice: "Speech labels and sequence are evidence candidates, not proof of quality. No rating is assigned. Proposed 60/40 weights are not applied.",
       commRecorded: "Candidate events", commReplies: "Interviewer replies",
@@ -256,9 +265,18 @@
       evidenceTestedPrior: "此前 SQL 经过测试，但最终提交发生变化；当前 SQL 为 NOT_VERIFIED。",
       evidenceSaved: "仅从 Host 存档派生；打开报告不会执行 SQL，也不会调用 AI。",
       trainerEvidenceHeading: "训练实验室 · 有来源的离线练习",
-      trainerEvidenceNotice: "这些是可执行练习提案，不是 AI 诊断或招聘评分；未调用模型。请人工检查，并在新题目上复测。",
+      trainerEvidenceNotice: "这些离线练习无需调用模型，不是 AI 诊断或招聘评分；另行授权的原生 AI Trainer 建议可能产生付费请求。",
       trainerEvidencePrimary: "第一优先练习", trainerEvidenceSource: "证据来源", trainerEvidenceAcceptance: "完成标准", trainerEvidenceLimit: "能力仍为 NOT_SCORED；不得修改历史面试证据。",
       trainerEvidenceWaiting: "请先结束并锁定三道题，才能生成练习任务。",
+      nativeTrainerHeading: "原生 BYOK · AI Trainer 反馈提案",
+      nativeTrainerNote: "可选付费 OpenAI 请求。只发送所选训练任务及每条引用事件最多 280 字符的短片段（短 SQL 可能被完整包含）。每次请求需 macOS 原生弹窗确认。模型输出是未获事实认证的建议，不是能力评分。",
+      nativeTrainerRequest: "申请 AI Trainer 建议（原生授权）",
+      nativeTrainerConnect: "激活私有 OpenAI 凭证…",
+      nativeTrainerPending: "原生请求进行中；请勿关闭 App。重启不会自动再次收费调用。",
+      nativeTrainerInterrupted: "上一请求曾被中断，可能已产生费用。没有自动重试。",
+      nativeTrainerReview: "PENDING_HUMAN_REVIEW — 请核对原始证据后再采纳。",
+      nativeTrainerModel: "模型提出的假设", nativeTrainerAction: "建议训练行动",
+      nativeTrainerAcceptance: "建议完成标准", nativeTrainerUncertainty: "局限与不确定性",
       commHeading: "沟通证据账本 · C01–C06（不评分）",
       commNotice: "事件类别与先后顺序只是候选证据，并非沟通质量的证明。60/40 为待校准假设，当前不计算分数。",
       commRecorded: "候选人事件", commReplies: "面试官回复",
@@ -309,7 +327,7 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send", "grade_execute"]);
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "grade_execute", "trainer_request"]);
   const interruptActions = new Set(["preview_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
@@ -904,6 +922,41 @@
     add(section, node("p", t("trainerEvidenceLimit"), "notice"), node("code", tplan.sha256, "digest"));
     return section;
   }
+  function nativeTrainerPanel() {
+    const tplan = state.grounded_trainer;
+    if (!tplan || tplan.status !== "READY_FOR_HUMAN_REVIEW") return null;
+    const section = node("section", null, "receipt-card"); section.id = "nativeTrainerPanel";
+    add(section, node("h2", t("nativeTrainerHeading")),
+      node("p", t("nativeTrainerNote"), "notice"));
+    const feedback = state.native_trainer_feedback;
+    if (feedback?.schema === "tia-native-trainer-feedback/v1") {
+      const p = feedback.proposal || {};
+      add(section, badge("LIVE_OPENAI_NATIVE_BYOK · PENDING_HUMAN_REVIEW", "accent"),
+        node("p", t("nativeTrainerReview"), "notice"),
+        node("p", `${feedback.model_identifier} · ${feedback.drill_id} · NOT_SCORED`, "field-help"),
+        node("h3", t("nativeTrainerModel")), node("p", p.hypothesis || ""),
+        node("h3", t("nativeTrainerAction")), node("p", p.training_action || ""),
+        node("h3", t("nativeTrainerAcceptance")), node("p", p.acceptance || ""),
+        node("h3", t("nativeTrainerUncertainty")), node("p", p.uncertainty || ""),
+        node("p", `Event IDs: ${(p.cited_candidate_events || []).join(", ") || "NONE"}`, "field-help"),
+        node("code", feedback.sha256 || "", "digest"));
+      return section;
+    }
+    if (state.native_trainer_interrupted)
+      add(section, node("p", t("nativeTrainerInterrupted"), "notice"));
+    if (state.native_trainer_pending)
+      add(section, node("p", t("nativeTrainerPending"), "notice"));
+    else {
+      if (!state.activation?.live_enabled)
+        add(section, button("connectTrainer", t("nativeTrainerConnect"), () => act("api_portal"), "secondary"));
+      const buttonAsk = button("requestTrainer", t("nativeTrainerRequest"), () => act("trainer_request"), "primary");
+      buttonAsk.dataset.unavailable = String(!state.activation?.live_enabled);
+      buttonAsk.disabled = busy || !state.activation?.live_enabled;
+      add(section, buttonAsk);
+    }
+    return section;
+  }
+
   function evidenceScorecard() {
     const card = state.evidence_scorecard;
     if (!card || card.schema !== "tia-evidence-scorecard/v1") return null;
@@ -955,7 +1008,7 @@
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
-    add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer());
+    add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer(), nativeTrainerPanel());
     // Old raw receipts are preserved, including prior SQL versions. For current
     // correctness refer to the source-bound E3 scorecard above instead.
     (rs.results || []).forEach((r, i) => {

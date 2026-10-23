@@ -34,6 +34,7 @@ from .sql_accuracy import AccuracyError, grade_fixture
 from .evidence_scorecard import build_scorecard
 from .communication_rubric import build_communication_evidence
 from .grounded_trainer import build_grounded_trainer
+from .native_trainer import NativeTrainerError, prepare_native_trainer, commit_native_trainer
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
 
@@ -73,6 +74,9 @@ COMMAND_FIELDS = {
     "rehearsal_start": set(), "rehearsal_submit": set(), "rehearsal_skip": set(),
     "rehearsal_tick": set(),
     "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
+    # Private native-only trainer IPC; never accepted by WebKit Bridge.
+    "native_prepare_trainer": {"request_id", "generation"},
+    "native_commit_trainer": COMMIT_FIELDS, "native_cancel_trainer": set(),
 }
 MUTATING_COMMANDS = frozenset(COMMAND_FIELDS) - {"snapshot", "export", "reset"}
 SCREENS = ("ENTRY", "WELCOME", "RULES", "QUESTION", "ROOM", "COMPLETE", "API_PORTAL",
@@ -151,6 +155,9 @@ class TutorialHost:
         self._grading_review = None
         self._grading_observation = None
         self._replay_observation = None
+        self._trainer_pending = None
+        self._native_trainer_feedback = None
+        self._trainer_interrupted = False
 
     def _selected_preview_question(self):
         # Freeze source binding for each preview; later edits cannot relabel a
@@ -219,6 +226,9 @@ class TutorialHost:
             result['evidence_scorecard'] = build_scorecard(self._rehearsal)
             result['communication_evidence'] = build_communication_evidence(self._rehearsal)
             result['grounded_trainer'] = build_grounded_trainer(self._rehearsal)
+            result['native_trainer_feedback'] = copy.deepcopy(self._native_trainer_feedback)
+            result['native_trainer_pending'] = self._trainer_pending is not None
+            result['native_trainer_interrupted'] = self._trainer_interrupted
             if self._grading_review is not None and self._rehearsal['status'] == 'ACTIVE':
                 result['grading_review'] = {key: copy.deepcopy(value) for key, value in self._grading_review.items()
                                             if key != 'fixture_json'}
@@ -254,6 +264,11 @@ class TutorialHost:
         # Excluding it preserves all E1/E2/E25B saved state digests verbatim.
         public.pop("evidence_scorecard", None)
         public.pop("grounded_trainer", None)
+        # E3-C-B append-only paid feedback lives in its journal transaction;
+        # old save digests must remain byte-for-byte compatible.
+        public.pop("native_trainer_feedback", None)
+        public.pop("native_trainer_pending", None)
+        public.pop("native_trainer_interrupted", None)
         # Additive S03-B fields have no authority when no draft exists. Omitting
         # their empty defaults preserves the digest of existing S03-A v1 saves.
         if self._setup_config is None:
@@ -275,8 +290,12 @@ class TutorialHost:
         if action == 'grade_execute' and (type(params['fixture_sha256']) is not str or
                                          re.fullmatch(r'[0-9a-f]{64}', params['fixture_sha256']) is None):
             raise HostError('INVALID_GRADE_APPROVAL')
-        if action == 'native_commit_preview':
+        if action in ('native_commit_preview', 'native_commit_trainer'):
             validate_commit(params)
+        if action == 'native_prepare_trainer':
+            for key in ('request_id', 'generation'):
+                if type(params[key]) is not str or re.fullmatch(r'[A-Za-z0-9_-]{1,80}', params[key]) is None:
+                    raise HostError('INVALID_NATIVE_TRAINER_REQUEST')
         if action == "language" and (
                 type(params["language"]) is not str or params["language"] not in ("en", "zh")):
             raise HostError("INVALID_LANGUAGE")
@@ -455,6 +474,11 @@ class TutorialHost:
         if action in ('grade_inspect', 'grade_execute'):
             await self._grade_dispatch(action, params)
             return
+        if action in ('native_prepare_trainer', 'native_commit_trainer', 'native_cancel_trainer'):
+            self._native_trainer_dispatch(action, params)
+            return
+        if self._trainer_pending is not None:
+            raise HostError('NATIVE_TRAINER_PENDING')
         if (self._live_controller is not None and self._live_controller.native_pending is not None
                 and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close', 'rehearsal_tick')):
             raise HostError('NATIVE_REQUEST_PENDING')
@@ -781,6 +805,41 @@ class TutorialHost:
         else:
             raise HostError("INVALID_COMMAND")
 
+    def _native_trainer_dispatch(self, action, params):
+        if action == 'native_cancel_trainer':
+            if self._trainer_pending is None:
+                raise HostError('TRAINER_NOT_PENDING')
+            self._trainer_pending = None
+            # A provider may already have charged for a response that was lost.
+            # Only a NEW explicitly authorized request is ever allowed.
+            self._trainer_interrupted = True
+            return
+        if (self._rehearsal is None or self._rehearsal['status'] not in
+                ('COMPLETE', 'TIMED_OUT', 'CLOCK_INTEGRITY_HOLD') or
+                self.screen != 'REHEARSAL_COMPLETE'):
+            raise HostError('TRAINER_REQUIRES_LOCKED_REHEARSAL')
+        if action == 'native_prepare_trainer':
+            if self._trainer_pending is not None or self._native_trainer_feedback is not None:
+                raise HostError('TRAINER_ALREADY_REQUESTED')
+            try:
+                pending, prepared = prepare_native_trainer(
+                    self._rehearsal, params['request_id'], params['generation'], self.language)
+            except NativeTrainerError as error:
+                raise HostError(error.code) from None
+            self._trainer_pending = pending
+            self._trainer_interrupted = False
+            self._prepared_return = prepared
+            return
+        if self._trainer_pending is None or self._native_trainer_feedback is not None:
+            raise HostError('TRAINER_NOT_PENDING')
+        try:
+            feedback = commit_native_trainer(self._rehearsal, self._trainer_pending, params)
+        except NativeTrainerError as error:
+            raise HostError(error.code) from None
+        self._native_trainer_feedback = feedback
+        self._trainer_pending = None
+        self._trainer_interrupted = False
+
     async def _grade_dispatch(self, action, params):
         plan = self._rehearsal
         if (plan is None or plan['status'] != 'ACTIVE' or
@@ -1057,6 +1116,9 @@ class TutorialHost:
         # the time until restart remains in the per-question wait bucket.
         if self._live_controller and self._live_controller.native_pending is not None:
             await self.command('native_cancel_preview', {})
+        if self._trainer_pending is not None:
+            # Persist explicit interruption; never auto-retry or bill after restart.
+            await self.command('native_cancel_trainer', {})
 
     def _persist(self):
         document = {
@@ -1096,6 +1158,9 @@ class TutorialHost:
                           evidence_scorecard=build_scorecard(self._rehearsal),
                           communication_evidence=build_communication_evidence(self._rehearsal),
                           grounded_trainer=build_grounded_trainer(self._rehearsal),
+                          native_trainer_feedback=copy.deepcopy(self._native_trainer_feedback),
+                          native_trainer_pending=self._trainer_pending is not None,
+                          native_trainer_interrupted=self._trainer_interrupted,
                           timing=final_metrics(self._rehearsal),
                           live_preview_history=copy.deepcopy(self._preview_history),
                           provenance=('THREE_QUESTION_REHEARSAL_LOCAL_SQL_VERIFIED'
@@ -1134,7 +1199,7 @@ class TutorialHost:
             raise HostError("RECOVERY_REQUIRED")
         if len(self._journal) >= MAX_JOURNAL_ENTRIES:
             raise HostError("HISTORY_LIMIT")
-        if action == 'native_prepare_preview' and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1:
+        if action in ('native_prepare_preview', 'native_prepare_trainer') and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1:
             # Keep one durable slot for a cancellation if the process exits while
             # native HTTP is pending; recovery must never create an unreadable save.
             raise HostError('HISTORY_LIMIT')
@@ -1185,7 +1250,7 @@ class TutorialHost:
             result = await self.command(request["action"], request["params"])
             if request["action"] == "export":
                 return {"id": request_id, "ok": True, "state": self.state(), "export": result}
-            if request['action'] == 'native_prepare_preview':
+            if request['action'] in ('native_prepare_preview', 'native_prepare_trainer'):
                 return {'id': request_id, 'ok': True, 'state': result,
                         'prepared': copy.deepcopy(self._prepared_return)}
             return {"id": request_id, "ok": True, "state": result}

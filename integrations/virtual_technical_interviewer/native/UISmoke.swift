@@ -26,11 +26,12 @@ final class TIAUISmoke {
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
     private var rehearsalTesting: Bool { CommandLine.arguments.contains("--ui-rehearsal-test") }
-    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") }
+    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") || trainerTesting }
+    private var trainerTesting: Bool { CommandLine.arguments.contains("--ui-trainer-test") }
     private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
     private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
     private var failureTesting: Bool { CommandLine.arguments.contains("--ui-provider-failure-test") }
-    private var steps: [Step] { gradingTesting ? [
+    private var steps: [Step] { gradingTesting ? ([
         Step(label: "E25B opens native consent for synthetic fixture-only interview", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
@@ -132,7 +133,25 @@ final class TIAUISmoke {
             &&panel.textContent.includes(first.id)&&panel.textContent.includes('NOT_SCORED')
             &&s.activation.requests_used===2};
         """),
-    ] : rehearsalTesting ? [
+    ] + (trainerTesting ? [
+        Step(label: "E3CB native mock paid Trainer uses approved citations and exposes only human-review feedback", code: """
+          await screen('REHEARSAL_COMPLETE');
+          const original=await snap();const requests=original.activation.requests_used;
+          if(original.native_trainer_feedback!==null||!el('requestTrainer')||el('requestTrainer').disabled)return {ok:false};
+          await press('requestTrainer');
+          await until(()=>window.tiaState?.native_trainer_feedback?.status==='PENDING_HUMAN_REVIEW'
+             && !document.querySelector('[aria-busy=\"true\"]'));
+          const s=await snap(),f=s.native_trainer_feedback,panel=el('nativeTrainerPanel');
+          return {ok:!!panel&&f.provenance==='LIVE_OPENAI_NATIVE_BYOK'&&f.authority==='NONE'
+            &&f.technical_score==='NOT_SCORED'&&f.communication_score==='NOT_SCORED'
+            &&f.drill_id===s.grounded_trainer.drills[0].id
+            &&f.proposal.cited_candidate_events.join(',')===s.grounded_trainer.drills[0].evidence.candidate_event_ids.join(',')
+            &&f.status==='PENDING_HUMAN_REVIEW'&&s.activation.requests_used===requests+1
+            &&s.transport_mode==='MOCK_HTTP'&&panel.textContent.includes('PENDING_HUMAN_REVIEW')
+            &&s.evidence_scorecard.summary.overall_grade==='NOT_SCORED'
+            &&!el('requestTrainer')};
+        """),
+    ] : [])) : rehearsalTesting ? [
         Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
