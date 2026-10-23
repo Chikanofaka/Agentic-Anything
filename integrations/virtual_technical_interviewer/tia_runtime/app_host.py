@@ -32,6 +32,7 @@ from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEA
 from .grading_binding import (GradingBindingError, inspect_binding, verify_grade_receipt, find_approved_pg_config)
 from .sql_accuracy import AccuracyError, grade_fixture
 from .evidence_scorecard import build_scorecard
+from .communication_rubric import build_communication_evidence
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
 
@@ -215,6 +216,7 @@ class TutorialHost:
         if self._rehearsal is not None:
             result['rehearsal'] = public_plan(self._rehearsal)
             result['evidence_scorecard'] = build_scorecard(self._rehearsal)
+            result['communication_evidence'] = build_communication_evidence(self._rehearsal)
             if self._grading_review is not None and self._rehearsal['status'] == 'ACTIVE':
                 result['grading_review'] = {key: copy.deepcopy(value) for key, value in self._grading_review.items()
                                             if key != 'fixture_json'}
@@ -1089,6 +1091,7 @@ class TutorialHost:
         if self._rehearsal is not None:
             result.update(rehearsal=public_plan(self._rehearsal),
                           evidence_scorecard=build_scorecard(self._rehearsal),
+                          communication_evidence=build_communication_evidence(self._rehearsal),
                           timing=final_metrics(self._rehearsal),
                           live_preview_history=copy.deepcopy(self._preview_history),
                           provenance=('THREE_QUESTION_REHEARSAL_LOCAL_SQL_VERIFIED'

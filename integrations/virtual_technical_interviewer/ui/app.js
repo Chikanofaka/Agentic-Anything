@@ -124,6 +124,14 @@
       evidenceTurns: "turns", evidenceClarify: "clarifications", evidenceHelp: "help requests", evidenceSQL: "SQL submissions",
       evidenceTestedPrior: "Prior SQL was tested, but final SQL differs. Current submission: NOT_VERIFIED.",
       evidenceSaved: "Derived from saved Host records; opening this report does not run SQL or call AI.",
+      commHeading: "Communication evidence · C01–C06 (unrated)",
+      commNotice: "Speech labels and sequence are evidence candidates, not proof of quality. No rating is assigned. Proposed 60/40 weights are not applied.",
+      commRecorded: "Candidate events", commReplies: "Interviewer replies",
+      commPotential: "Potential evidence · semantic review needed", commNotObserved: "NOT_OBSERVED (not zero)",
+      commPreview: "Exact candidate excerpt", commRefs: "Event IDs",
+      commPrompt: "Communication checkpoints (strategy, not scoring)",
+      commPromptText: "Clarify scope → explain plan → separate verified from unknown → diagnose a gap and request bounded help → act on feedback → honestly summarize.",
+      commNoClose: "Closing speech has no dedicated event in this app; C06 cannot be inferred from the Finish button.",
       sourceChoice: "Source", reviewGuidance: "Review and edit extracted fields. Image-only schemas must be entered manually until image import is implemented.",
       reviewIncomplete: "Missing or uncertain fields remain unverified. Final SQL scoring is unavailable.",
       importTooLarge: "This question exceeds the 8192 UTF-8-byte cap. Shorten it before importing.",
@@ -243,6 +251,14 @@
       evidenceTurns: "交互次数", evidenceClarify: "澄清次数", evidenceHelp: "求助次数", evidenceSQL: "SQL 提交次数",
       evidenceTestedPrior: "此前 SQL 经过测试，但最终提交发生变化；当前 SQL 为 NOT_VERIFIED。",
       evidenceSaved: "仅从 Host 存档派生；打开报告不会执行 SQL，也不会调用 AI。",
+      commHeading: "沟通证据账本 · C01–C06（不评分）",
+      commNotice: "事件类别与先后顺序只是候选证据，并非沟通质量的证明。60/40 为待校准假设，当前不计算分数。",
+      commRecorded: "候选人事件", commReplies: "面试官回复",
+      commPotential: "候选证据 · 待语义审核", commNotObserved: "NOT_OBSERVED（非零分）",
+      commPreview: "候选人原文片段", commRefs: "来源事件 ID",
+      commPrompt: "面试沟通检查点（策略提醒，不评分）",
+      commPromptText: "澄清目标 → 解释方案 → 区分已验证与未知 → 定位卡点并有边界地求助 → 将反馈转为行动 → 如实总结。",
+      commNoClose: "当前 App 尚无专用收尾发言事件，不能从点击结束按钮推断 C06。",
       sourceChoice: "来源", reviewGuidance: "请核对并修改提取字段。纯图片表结构在图片导入上线前需手动填写。",
       reviewIncomplete: "缺失或不确定字段仍未验证。正式 SQL 评分尚不可用。",
       importTooLarge: "此题超过 8192 UTF-8 字节上限，请缩短后再导入。",
@@ -790,7 +806,7 @@
       const rs = state.rehearsal;
       add(main, node("p", `Question ${rs.current_index + 1} / ${rs.question_count} · ${preview.candidate_turns_used} / ${preview.candidate_turn_limit} candidate turns`, "notice"));
     }
-    add(main, columns, conversation(preview.session, true), gradingPanel(), scores(), previewProvenance(preview.prompt_provenance));
+    add(main, columns, communicationPlaybook(), conversation(preview.session, true), gradingPanel(), scores(), previewProvenance(preview.prompt_provenance));
     if (preview.session?.receipt) {
       const receipt = preview.session.receipt;
       add(main, add(node("section", null, "receipt-card"), node("h2", t("receipt")), node("p", t("previewFrozen")),
@@ -815,6 +831,46 @@
       state.rehearsal?.status === "ACTIVE" ? null :
       actions(preview.closed ? button("realInterview", t("portalStep"), () => act("choose_real")) :
         button("closePreview", t("closePreview"), () => act("preview_close"), "primary")));
+  }
+  function communicationPlaybook() {
+    if (state.rehearsal?.status !== "ACTIVE") return null;
+    const detail = node("details", null, "question-review");
+    detail.id = "communicationPlaybook";
+    add(detail, node("summary", t("commPrompt")), node("p", t("commPromptText"), "field-help"),
+      node("p", t("commNotice"), "notice"));
+    return detail;
+  }
+  function communicationEvidence() {
+    const report = state.communication_evidence;
+    if (!report || report.schema !== "tia-communication-evidence/v1") return null;
+    const section = node("section", null, "receipt-card");
+    section.id = "communicationEvidence";
+    add(section, node("h2", t("commHeading")), node("p", t("commNotice"), "notice"),
+      node("p", `${t("evidenceClosed")}: ${report.summary?.closed_questions || 0} / 3 · ` +
+        `Communication: ${report.summary?.communication_competency || "NOT_SCORED"}`, "field-help"),
+      node("p", t("commNoClose"), "field-help"));
+    for (const question of report.questions || []) {
+      const outer = node("details", null, "question-review");
+      add(outer, node("summary", `Q${question.index + 1} · ${t("commRecorded")}: ${question.candidate_event_count} · ` +
+        `${t("commReplies")}: ${question.interviewer_reply_count}`));
+      for (const d of question.dimensions || []) {
+        const item = node("div", null, "field-help");
+        add(item, node("strong", `${d.id} · ${d.title}`),
+          node("p", d.status === "NOT_OBSERVED" ? t("commNotObserved") : t("commPotential")),
+          node("p", `Anchor: NOT_EVALUATED · ${t("commRefs")}: ` +
+            (d.evidence || []).map(x => x.event_id).join(", ")));
+        for (const e of (d.evidence || []).slice(0, 2))
+          add(item, node("p", `${t("commPreview")}: ${e.preview}` +
+            (e.elapsed_seconds === null ? "" : ` · +${e.elapsed_seconds}s`), "field-help"));
+        if (d.followup_sequences?.length)
+          add(item, node("p", `Reply → action: ` +
+            d.followup_sequences.map(x => `${x.interviewer_event_id} → ${x.candidate_event_id}`).join(", "), "field-help"));
+        outer.appendChild(item);
+      }
+      section.appendChild(outer);
+    }
+    add(section, node("code", report.sha256 || "", "digest"));
+    return section;
   }
   function evidenceScorecard() {
     const card = state.evidence_scorecard;
@@ -867,7 +923,7 @@
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
-    add(main, evidenceScorecard());
+    add(main, evidenceScorecard(), communicationEvidence());
     // Old raw receipts are preserved, including prior SQL versions. For current
     // correctness refer to the source-bound E3 scorecard above instead.
     (rs.results || []).forEach((r, i) => {

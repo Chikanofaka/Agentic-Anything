@@ -110,6 +110,17 @@ final class TIAUISmoke {
             &&panel.querySelectorAll('details').length===3
             &&text.includes('NOT_SCORED')&&!text.includes('100%')};
         """),
+        Step(label: "E3B shows six C01–C06 dimensions for each closed question and never fabricates ratings", code: """
+          await screen('REHEARSAL_COMPLETE');const s=await snap(),r=s.communication_evidence;
+          const panel=el('communicationEvidence');const dims=r?.questions?.[0]?.dimensions||[];
+          return {ok:!!panel&&r?.schema==='tia-communication-evidence/v1'
+            &&r.summary.communication_competency==='NOT_SCORED'
+            &&r.summary.evaluated_dimensions===0&&r.questions.length===3
+            &&dims.map(x=>x.id).join(',')==='C01,C02,C03,C04,C05,C06'
+            &&r.questions[1].dimensions.every(x=>x.anchor_0_to_4===null)
+            &&panel.querySelectorAll('details').length===3
+            &&panel.textContent.includes('NOT_OBSERVED')};
+        """),
     ] : rehearsalTesting ? [
         Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');

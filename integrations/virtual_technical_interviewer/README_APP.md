@@ -332,3 +332,33 @@ python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --in
 See `engineering/s03e_evidence_scorecard/README_E3A.md` for evidence-policy
 boundaries and final Human Gate. Generated `verification_E3A` is not intended
 for public commit until reviewed for private information.
+
+
+## S03-E3B — Communication Evidence Rubric (candidate-source projection)
+
+E3B adds the six PRD v3 Communication dimensions C01–C06 and an explicit
+communication strategy checklist in the live three-question rehearsal. This is
+a deterministic, read-only communication *evidence map*, not an automatic
+communication performance rating. Candidate Event IDs, SHA-256 fingerprints,
+short source excerpts, and interviewer-reply → candidate-action sequences are
+shown only as potential evidence for subsequent contextual review. A help
+request, plan statement, or follow-up is **not** automatically a good request,
+a good plan, or proof of learned feedback. Professional closure (C06) is
+`NOT_OBSERVED` until a real closing-statement event exists.
+
+PRD's 60 Technical / 40 Communication baseline is a **hypothesis**, and proposed
+C01–C06 weights (6/7/7/9/7/4) and anchors are uncalibrated. E3B assigns no
+0–4 anchors, no numeric points, no mental-impression bonus and no hiring grade.
+The distinct read-only `communication_evidence` is returned by Host snapshot
+and export; it does not alter existing E3A scorecards, prior receipts, or save
+digests. Recovery never contacts an LLM or PostgreSQL for communication review.
+`validate_review_proposal` is a fail-closed future rater-draft contract; even
+a valid proposal stays `PENDING_HUMAN_REVIEW` and cannot grant scores.
+
+Mac gate (mock provider + real local approved PostgreSQL only):
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-E3B --ui --regressions
+```
+
+See `engineering/s03e_communication_rubric/README_E3B.md`.
