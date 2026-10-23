@@ -17,7 +17,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
@@ -39,7 +39,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
                     .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
                 ] : [])
-                if CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+                if CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") {
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for SQL grading Q1"),
                         .reply("Please explain your own candidate SQL.")
@@ -474,7 +474,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         // Test-only: simulate a real native confirmation click, never in a
         // normal App or in any provider-capable test. All data are synthetic.
-        if uiTesting && ((CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-trainer-test")) && text.contains("Execute current candidate SQL") ||
+        if uiTesting && ((CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test")) && text.contains("Execute current candidate SQL") ||
             (CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI"))) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)

@@ -34,6 +34,8 @@ from .sql_accuracy import AccuracyError, grade_fixture
 from .evidence_scorecard import build_scorecard
 from .communication_rubric import build_communication_evidence
 from .grounded_trainer import build_grounded_trainer
+from .smart_plan import (SmartPlanError, build_smart_plan, start_smart_progress,
+                         record_smart_activity, smart_progress_summary)
 from .native_trainer import NativeTrainerError, prepare_native_trainer, commit_native_trainer
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
@@ -73,6 +75,7 @@ COMMAND_FIELDS = {
     "native_cancel_preview": set(), "preview_close": set(),
     "rehearsal_start": set(), "rehearsal_submit": set(), "rehearsal_skip": set(),
     "rehearsal_tick": set(),
+    "smart_start": set(), "smart_record": {"task_id", "kind", "note", "artifact_sha256"},
     "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
     # Private native-only trainer IPC; never accepted by WebKit Bridge.
     "native_prepare_trainer": {"request_id", "generation"},
@@ -158,6 +161,7 @@ class TutorialHost:
         self._trainer_pending = None
         self._native_trainer_feedback = None
         self._trainer_interrupted = False
+        self._smart_progress = None
 
     def _selected_preview_question(self):
         # Freeze source binding for each preview; later edits cannot relabel a
@@ -226,6 +230,10 @@ class TutorialHost:
             result['evidence_scorecard'] = build_scorecard(self._rehearsal)
             result['communication_evidence'] = build_communication_evidence(self._rehearsal)
             result['grounded_trainer'] = build_grounded_trainer(self._rehearsal)
+            smart = build_smart_plan(self._rehearsal)
+            result['smart_plan'] = smart
+            result['smart_progress'] = copy.deepcopy(self._smart_progress)
+            result['smart_progress_summary'] = smart_progress_summary(smart, self._smart_progress)
             result['native_trainer_feedback'] = copy.deepcopy(self._native_trainer_feedback)
             result['native_trainer_pending'] = self._trainer_pending is not None
             result['native_trainer_interrupted'] = self._trainer_interrupted
@@ -264,6 +272,11 @@ class TutorialHost:
         # Excluding it preserves all E1/E2/E25B saved state digests verbatim.
         public.pop("evidence_scorecard", None)
         public.pop("grounded_trainer", None)
+        public.pop("smart_plan", None)
+        public.pop("smart_progress_summary", None)
+        if self._smart_progress is None:
+            # Preserve exact legacy save digests before the user starts a plan.
+            public.pop("smart_progress", None)
         # E3-C-B append-only paid feedback lives in its journal transaction;
         # old save digests must remain byte-for-byte compatible.
         public.pop("native_trainer_feedback", None)
@@ -479,6 +492,9 @@ class TutorialHost:
             return
         if self._trainer_pending is not None:
             raise HostError('NATIVE_TRAINER_PENDING')
+        if action in ('smart_start', 'smart_record'):
+            self._smart_dispatch(action, params)
+            return
         if (self._live_controller is not None and self._live_controller.native_pending is not None
                 and action not in ('native_commit_preview', 'native_cancel_preview', 'preview_close', 'rehearsal_tick')):
             raise HostError('NATIVE_REQUEST_PENDING')
@@ -804,6 +820,32 @@ class TutorialHost:
             self.screen = 'LIVE_PREVIEW'
         else:
             raise HostError("INVALID_COMMAND")
+
+    def _smart_dispatch(self, action, params):
+        # Only the locked interview can be used to start or record practice.
+        # Neither an untrusted WebKit clock nor an AI draft is authoritative.
+        if (self._rehearsal is None or self._rehearsal['status'] not in
+                ('COMPLETE', 'TIMED_OUT', 'CLOCK_INTEGRITY_HOLD') or
+                self.screen != 'REHEARSAL_COMPLETE'):
+            raise HostError('SMART_REQUIRES_LOCKED_REHEARSAL')
+        plan = build_smart_plan(self._rehearsal)
+        if action == 'smart_start':
+            if self._smart_progress is not None:
+                raise HostError('SMART_ALREADY_STARTED')
+            try:
+                self._smart_progress = start_smart_progress(plan, self._wall_sample)
+            except SmartPlanError as error:
+                raise HostError(error.code) from None
+            return
+        if self._smart_progress is None:
+            raise HostError('SMART_NOT_STARTED')
+        try:
+            self._smart_progress = record_smart_activity(
+                plan, self._smart_progress,
+                task_id=params['task_id'], kind=params['kind'], note=params['note'],
+                artifact_sha256=params['artifact_sha256'], host_wall_seconds=self._wall_sample)
+        except SmartPlanError as error:
+            raise HostError(error.code) from None
 
     def _native_trainer_dispatch(self, action, params):
         if action == 'native_cancel_trainer':
@@ -1158,6 +1200,9 @@ class TutorialHost:
                           evidence_scorecard=build_scorecard(self._rehearsal),
                           communication_evidence=build_communication_evidence(self._rehearsal),
                           grounded_trainer=build_grounded_trainer(self._rehearsal),
+                          smart_plan=build_smart_plan(self._rehearsal),
+                          smart_progress=copy.deepcopy(self._smart_progress),
+                          smart_progress_summary=smart_progress_summary(build_smart_plan(self._rehearsal), self._smart_progress),
                           native_trainer_feedback=copy.deepcopy(self._native_trainer_feedback),
                           native_trainer_pending=self._trainer_pending is not None,
                           native_trainer_interrupted=self._trainer_interrupted,

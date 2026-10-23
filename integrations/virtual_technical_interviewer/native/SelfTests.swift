@@ -20,6 +20,16 @@ func runNativeTests() -> Int32 {
         check("allow exact command \(action)", BridgePolicy.validate(request(action)) != nil)
         check("reject extra params \(action)", BridgePolicy.validate(request(action, ["key": "synthetic"])) == nil)
     }
+    check("E3D exact SMART start", BridgePolicy.validate(request("smart_start")) != nil)
+    check("E3D SMART start cannot inject time", BridgePolicy.validate(request("smart_start", ["clock": 999])) == nil)
+    let smartSample: [String: Any] = ["task_id": "SMART-Q1-TESTING_PRACTICE", "kind": "PRACTICED", "note": "Reviewed a tie case", "artifact_sha256": NSNull()]
+    check("E3D exact SMART activity", BridgePolicy.validate(request("smart_record", smartSample)) != nil)
+    check("E3D never accept renderer competence grade", BridgePolicy.validate(request("smart_record", smartSample.merging(["score": 100]) { _, extra in extra })) == nil)
+    let smartRetest: [String: Any] = ["task_id": "SMART-Q1-TESTING_PRACTICE", "kind": "RETEST_RECORDED", "note": "External retest attempt", "artifact_sha256": String(repeating: "b", count: 64)]
+    check("E3D self-reported artifact hash is bounded", BridgePolicy.validate(request("smart_record", smartRetest)) != nil)
+    check("E3D cannot claim retest without artifact", BridgePolicy.validate(request("smart_record", smartRetest.merging(["artifact_sha256": NSNull()]) { _, extra in extra })) == nil)
+    check("E3D invalid SMART task id rejected", BridgePolicy.validate(request("smart_record", smartSample.merging(["task_id": "../../fixture"]) { _, extra in extra })) == nil)
+    check("E3D oversized SMART note rejected", BridgePolicy.validate(request("smart_record", smartSample.merging(["note": String(repeating: "中", count: 168)]) { _, extra in extra })) == nil)
     check("E3CB exact user trainer request", BridgePolicy.validate(request("trainer_request")) != nil)
     check("E3CB renderer cannot send trainer feedback", BridgePolicy.validate(request("trainer_request", ["proposal": "approved"])) == nil)
     check("no arbitrary process execution", BridgePolicy.validate(request("exec", ["command": "true"])) == nil)

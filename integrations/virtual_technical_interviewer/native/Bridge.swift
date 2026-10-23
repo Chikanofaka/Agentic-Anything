@@ -31,7 +31,7 @@ enum BridgePolicy {
         "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
         "tutorial_complete", "tutorial_replay", "choose_real", "reset",
         "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch",
-        "preview_verify", "preview_close", "preview_cancel", "trainer_request", "rehearsal_start", "rehearsal_submit", "rehearsal_skip", "rehearsal_tick"
+        "preview_verify", "preview_close", "preview_cancel", "trainer_request", "smart_start", "rehearsal_start", "rehearsal_submit", "rehearsal_skip", "rehearsal_tick"
     ]
     static func validate(_ value: Any) -> (String, String, [String: Any])? {
         guard let body = value as? [String: Any],
@@ -53,6 +53,22 @@ enum BridgePolicy {
             guard Set(params.keys) == ["fixture_sha256"],
                   let digest = params["fixture_sha256"] as? String,
                   digest.range(of: "\\A[0-9a-f]{64}\\z", options: .regularExpression) != nil else { return nil }
+        } else if action == "smart_record" {
+            guard Set(params.keys) == ["task_id", "kind", "note", "artifact_sha256"],
+                  let task = params["task_id"] as? String,
+                  task.range(of: "\\ASMART-[A-Za-z0-9_-]{1,90}\\z", options: .regularExpression) != nil,
+                  let kind = params["kind"] as? String,
+                  ["PRACTICED", "BLOCKED", "RETEST_RECORDED"].contains(kind),
+                  let note = params["note"] as? String,
+                  !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  note.utf8.count <= 500 else { return nil }
+            let artifact = params["artifact_sha256"]
+            if kind == "RETEST_RECORDED" {
+                guard let digest = artifact as? String,
+                      digest.range(of: "\\A[0-9a-f]{64}\\z", options: .regularExpression) != nil else { return nil }
+            } else {
+                guard artifact is NSNull else { return nil }
+            }
         } else if action == "language" {
             guard Set(params.keys) == ["language"], let lang = params["language"] as? String,
                   ["en", "zh"].contains(lang) else { return nil }

@@ -137,6 +137,12 @@
       nativeTrainerReview: "PENDING_HUMAN_REVIEW — assess this advice against the original candidate evidence before using it.",
       nativeTrainerModel: "Model-proposed hypothesis", nativeTrainerAction: "Suggested training action",
       nativeTrainerAcceptance: "Suggested completion check", nativeTrainerUncertainty: "Important uncertainties",
+      smartHeading: "Seven-day SMART practice sprint", smartNotice: "Goals are derived from frozen evidence; logging practice is self-reported and cannot certify improvement.",
+      smartStart: "Start seven-day practice sprint", smartLog: "Record activity (self-report)",
+      smartNote: "Describe what you actually tried (3–500 UTF-8 bytes)", smartEvidence: "External retest artifact SHA-256 (self-reported; not independently checked)",
+      smartKind: "Activity type", smartPractice: "Practice attempt", smartBlocked: "Blocked", smartRetest: "External retest attempt",
+      smartDeadline: "Deadline", smartNoProgress: "Not started; deadlines are relative until you begin.",
+      smartNoProof: "No independently verified improvement. Fresh authorized retesting is required.",
       commHeading: "Communication evidence · C01–C06 (unrated)",
       commNotice: "Speech labels and sequence are evidence candidates, not proof of quality. No rating is assigned. Proposed 60/40 weights are not applied.",
       commRecorded: "Candidate events", commReplies: "Interviewer replies",
@@ -277,6 +283,12 @@
       nativeTrainerReview: "PENDING_HUMAN_REVIEW — 请核对原始证据后再采纳。",
       nativeTrainerModel: "模型提出的假设", nativeTrainerAction: "建议训练行动",
       nativeTrainerAcceptance: "建议完成标准", nativeTrainerUncertainty: "局限与不确定性",
+      smartHeading: "七天 SMART 练习冲刺", smartNotice: "目标来自冻结证据；练习日志仅为自我申报，不能证明能力提升。",
+      smartStart: "启动七天训练计划", smartLog: "记录练习（自报）",
+      smartNote: "记录实际做过的事（UTF-8 最多 500 字节）", smartEvidence: "外部复测文件 SHA-256（仅自报，未独立核验）",
+      smartKind: "记录类型", smartPractice: "练习尝试", smartBlocked: "遇到阻碍", smartRetest: "外部复测尝试",
+      smartDeadline: "截止时间", smartNoProgress: "尚未启动，截止时间从正式启动算起。",
+      smartNoProof: "能力改善尚未获得独立验证。需要全新且获授权的复测。",
       commHeading: "沟通证据账本 · C01–C06（不评分）",
       commNotice: "事件类别与先后顺序只是候选证据，并非沟通质量的证明。60/40 为待校准假设，当前不计算分数。",
       commRecorded: "候选人事件", commReplies: "面试官回复",
@@ -957,6 +969,70 @@
     return section;
   }
 
+  function smartPlanPanel() {
+    const plan = state.smart_plan;
+    if (!plan || plan.schema !== "tia-smart-improvement-plan/v1") return null;
+    const section = node("section", null, "receipt-card"); section.id = "smartPlanPanel";
+    add(section, node("h2", t("smartHeading")), node("p", t("smartNotice"), "notice"),
+      node("p", `SMART · ${plan.days_in_sprint} days · ${plan.improvement_certification} · ${plan.numeric_competency_score}`, "field-help"));
+    if (plan.status !== "READY_TO_START") return section;
+    const progress = state.smart_progress;
+    if (!progress) {
+      add(section, node("p", t("smartNoProgress"), "field-help"),
+          button("startSmart", t("smartStart"), () => act("smart_start"), "primary"));
+    }
+    const summary = state.smart_progress_summary || {};
+    for (const goal of plan.goals || []) {
+      const info = (summary.goals || []).find(x => x.id === goal.id);
+      const detail = node("details", null, "question-review");
+      if (goal.id === plan.goals?.[0]?.id) detail.open = true;
+      const due = info ? new Date(info.due_wall_seconds * 1000).toLocaleString() :
+        `Day ${goal.time_bound.days_after_explicit_start} after start`;
+      add(detail, node("summary", `${goal.id} · ${goal.skill_tag} · ${due}`),
+        node("p", goal.specific),
+        node("p", `S: ${goal.specific}`, "field-help"),
+        node("p", `M: ${goal.measurable}`, "field-help"),
+        node("p", `A: ${goal.achievable}`, "field-help"),
+        node("p", `R: ${goal.relevant}`, "field-help"),
+        node("p", `T: ${goal.time_bound.duration_minutes_suggested} min; ${t("smartDeadline")}: ${due}`, "field-help"),
+        node("p", `Evidence IDs: ${(goal.source.candidate_event_ids || []).join(", ") || "NONE"}`, "field-help"),
+        node("p", `${info?.attempts || 0} recorded · ${info?.latest_activity || "NOT_ATTEMPTED"} · AWAITING_INDEPENDENT_RETEST`, "notice"));
+      if (progress) {
+        const kindLabel = node("label", t("smartKind"));
+        const kind = node("select"); kind.id = `smartKind-${goal.id}`;
+        for (const [value, title] of [["PRACTICED", t("smartPractice")], ["BLOCKED", t("smartBlocked")], ["RETEST_RECORDED", t("smartRetest")]]) {
+          const opt = node("option", title); opt.value = value; kind.appendChild(opt);
+        }
+        const noteLabel = node("label", t("smartNote"));
+        const note = node("textarea"); note.id = `smartNote-${goal.id}`; note.rows = 2;
+        const artifactLabel = node("label", t("smartEvidence"));
+        const artifact = node("input"); artifact.id = `smartArtifact-${goal.id}`; artifact.placeholder = "64 lowercase hex";
+        const save = button(`smartSave-${goal.id}`, t("smartLog"), () => {
+          const hash = kind.value === "RETEST_RECORDED" ? artifact.value.trim() : null;
+          act("smart_record", {task_id:goal.id,kind:kind.value,note:note.value,artifact_sha256:hash});
+        }, "secondary");
+        const validate = () => {
+          const noteOK = note.value.trim().length >= 3 && new TextEncoder().encode(note.value).length <= 500;
+          const artifactOK = kind.value !== "RETEST_RECORDED" || /^[0-9a-f]{64}$/.test(artifact.value.trim());
+          const un = !(noteOK && artifactOK);
+          save.dataset.unavailable = String(un); save.disabled = busy || un;
+          artifact.disabled = kind.value !== "RETEST_RECORDED";
+        };
+        note.addEventListener("input", validate); artifact.addEventListener("input", validate);
+        kind.addEventListener("change", validate); validate();
+        add(detail, kindLabel, kind, noteLabel, note, artifactLabel, artifact, save);
+      }
+      section.appendChild(detail);
+    }
+    if (progress) {
+      add(section, node("p", `${summary.recorded_attempts || 0} recorded activity/activities · SELF_REPORTED_UNVERIFIED`, "field-help"));
+      for (const e of progress.entries || [])
+        add(section, node("p", `#${e.ordinal} · ${e.task_id} · ${e.kind} · ${e.note} · ${e.verification}`, "field-help"));
+    }
+    add(section, node("p", t("smartNoProof"), "notice"), node("code", plan.sha256, "digest"));
+    return section;
+  }
+
   function evidenceScorecard() {
     const card = state.evidence_scorecard;
     if (!card || card.schema !== "tia-evidence-scorecard/v1") return null;
@@ -1008,7 +1084,7 @@
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
-    add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer(), nativeTrainerPanel());
+    add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel());
     // Old raw receipts are preserved, including prior SQL versions. For current
     // correctness refer to the source-bound E3 scorecard above instead.
     (rs.results || []).forEach((r, i) => {

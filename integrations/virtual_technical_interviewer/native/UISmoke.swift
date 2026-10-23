@@ -26,7 +26,8 @@ final class TIAUISmoke {
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
     private var rehearsalTesting: Bool { CommandLine.arguments.contains("--ui-rehearsal-test") }
-    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") || trainerTesting }
+    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") || trainerTesting || smartTesting }
+    private var smartTesting: Bool { CommandLine.arguments.contains("--ui-smart-test") }
     private var trainerTesting: Bool { CommandLine.arguments.contains("--ui-trainer-test") }
     private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
     private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
@@ -133,7 +134,62 @@ final class TIAUISmoke {
             &&panel.textContent.includes(first.id)&&panel.textContent.includes('NOT_SCORED')
             &&s.activation.requests_used===2};
         """),
-    ] + (trainerTesting ? [
+    ] + (smartTesting ? [
+        Step(label: "E3D SMART plan is source-bound, relative and unstarted by default", code: """
+          await screen('REHEARSAL_COMPLETE');
+          const s=await snap(),p=s.smart_plan,section=el('smartPlanPanel');
+          const old=s.evidence_scorecard.sha256;
+          return {ok:!!section&&p?.schema==='tia-smart-improvement-plan/v1'
+            &&p.status==='READY_TO_START'&&p.trainer_sha256===s.grounded_trainer.sha256
+            &&p.numeric_competency_score==='NOT_SCORED'&&p.improvement_certification==='NOT_ESTABLISHED'
+            &&s.smart_progress===null&&!!el('startSmart')&&p.goals.length>0
+            &&s.smart_progress_summary.status==='NOT_STARTED'&&s.evidence_scorecard.sha256===old};
+        """),
+        Step(label: "E3D explicit start creates Host-owned deadlines and no model requests", code: """
+          const before=(await snap()).activation.requests_used;
+          await press('startSmart');
+          await until(()=>window.tiaState?.smart_progress?.schema==='tia-smart-progress/v1');
+          const s=await snap(),p=s.smart_plan,progress=s.smart_progress;
+          const expected=p.goals[0].id;
+          window.smartTask=expected;window.smartInitialScore=s.evidence_scorecard.sha256;
+          return {ok:!el('startSmart')&&progress.plan_sha256===p.sha256
+            &&progress.started_wall_seconds>0&&progress.entries.length===0
+            &&progress.deadlines[expected]>progress.started_wall_seconds
+            &&s.activation.requests_used===before};
+        """),
+        Step(label: "E3D WebKit records practice, restores evidence status without pretending improvement", code: """
+          const task=window.smartTask;
+          const note=el('smartNote-'+task),save=el('smartSave-'+task);
+          if(!note||!save||!save.disabled)return {ok:false};
+          note.value='I reviewed one independently selected NULL case and documented expectations.';
+          note.dispatchEvent(new Event('input',{bubbles:true}));
+          if(save.disabled)return {ok:false};save.click();
+          await until(()=>window.tiaState?.smart_progress?.entries?.length===1);
+          const s=await snap(),e=s.smart_progress.entries[0];
+          return {ok:e.kind==='PRACTICED'&&e.task_id===task
+            &&e.verification==='SELF_REPORTED_UNVERIFIED'
+            &&s.smart_progress_summary.recorded_attempts===1
+            &&s.smart_progress_summary.independently_verified_improvements===0
+            &&s.evidence_scorecard.sha256===window.smartInitialScore
+            &&el('smartPlanPanel').textContent.includes('NOT_ESTABLISHED')};
+        """),
+        Step(label: "E3D external retest cannot be logged without a hash or promoted to official PASS", code: """
+          const task=window.smartTask,kind=el('smartKind-'+task),hash=el('smartArtifact-'+task);
+          kind.value='RETEST_RECORDED';kind.dispatchEvent(new Event('change',{bubbles:true}));
+          const note=el('smartNote-'+task),save=el('smartSave-'+task);
+          note.value='An external second fixture was run; awaiting independent review.';
+          note.dispatchEvent(new Event('input',{bubbles:true}));
+          if(!save.disabled)return {ok:false};
+          hash.value='d'.repeat(64);hash.dispatchEvent(new Event('input',{bubbles:true}));
+          if(save.disabled)return {ok:false};save.click();
+          await until(()=>window.tiaState?.smart_progress?.entries?.length===2);
+          const s=await snap();const e=s.smart_progress.entries[1];
+          return {ok:e.kind==='RETEST_RECORDED'&&e.artifact_sha256==='d'.repeat(64)
+            &&e.verification==='SELF_REPORTED_UNVERIFIED'
+            &&s.smart_progress_summary.independently_verified_improvements===0
+            &&s.evidence_scorecard.sha256===window.smartInitialScore};
+        """),
+    ] : []) + (trainerTesting ? [
         Step(label: "E3CB native mock paid Trainer uses approved citations and exposes only human-review feedback", code: """
           await screen('REHEARSAL_COMPLETE');
           const original=await snap();const requests=original.activation.requests_used;
