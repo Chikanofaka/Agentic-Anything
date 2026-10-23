@@ -96,6 +96,20 @@ final class TIAUISmoke {
             &&s.rehearsal.results[2].execution_status==='NOT_RUN'
             &&s.rehearsal.technical==='NOT_SCORED'};
         """),
+        Step(label: "E3A completed rehearsal renders source-bound scorecard with no fabricated capability score", code: """
+          await screen('REHEARSAL_COMPLETE');const s=await snap(),card=s.evidence_scorecard;
+          const panel=el('evidenceScorecard'),text=panel?.textContent||'';
+          return {ok:!!panel&&card?.schema==='tia-evidence-scorecard/v1'
+            &&card?.summary?.latest_sql_locally_verified_questions===1
+            &&card?.summary?.latest_sql_passed_local_fixtures===1
+            &&card?.summary?.questions_without_current_sql_verification===2
+            &&card?.summary?.overall_grade==='NOT_SCORED'
+            &&card?.questions?.[0]?.accuracy?.status==='PASSED'
+            &&card?.questions?.[1]?.accuracy?.status==='NOT_VERIFIED'
+            &&card?.questions?.[2]?.accuracy?.status==='NOT_VERIFIED'
+            &&panel.querySelectorAll('details').length===3
+            &&text.includes('NOT_SCORED')&&!text.includes('100%')};
+        """),
     ] : rehearsalTesting ? [
         Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');

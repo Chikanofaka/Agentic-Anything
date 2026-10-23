@@ -307,3 +307,28 @@ The test's native confirmation click is simulated **only** in isolated
 still needs to be run and verified on macOS before the increment may be
 committed/released. Generated verification screenshots, logs, personal
 transcripts and local review data should not be automatically published.
+
+## S03-E3A — evidence-based technical scorecard (not an ability grade)
+
+A completed three-question rehearsal displays a read-only **Evidence Scorecard**
+from already journalled Host evidence: for each question the current SQL
+submission's approved-local-Fixture verification status (if any), candidate
+clarification/help/code event counts with evidence IDs, and untrusted local
+time. It shows local Fixture coverage, **not a success percentage for the full
+problem**. If SQL was modified after a passed local test, only the earlier
+version is known to have passed; the latest implementation is `NOT_VERIFIED`.
+
+The scorecard is also included in the explicit local export. Reopening old
+sessions does not run PostgreSQL or change saved replay digests. Technical,
+Communication, Overall and formal exam status remain `NOT_SCORED`/blocked.
+This is not a Trainer evaluation, official hidden test, or proctored exam.
+
+Mac automated verification (mock model HTTP; live ephemeral local Postgres):
+
+```sh
+python3 -B integrations/virtual_technical_interviewer/scripts/verify_app.py --increment S03-E3A --ui --regressions
+```
+
+See `engineering/s03e_evidence_scorecard/README_E3A.md` for evidence-policy
+boundaries and final Human Gate. Generated `verification_E3A` is not intended
+for public commit until reviewed for private information.

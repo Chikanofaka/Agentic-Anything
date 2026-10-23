@@ -114,6 +114,16 @@
       rehearsalSubmit: "Finish question → Next", rehearsalSkip: "Skip question → Next",
       rehearsalFinish: "Finish interview & freeze record", rehearsalComplete: "Three-question rehearsal complete",
       rehearsalNote: "Three confirmed questions, up to four candidate turns each. PostgreSQL SQL can be tested only against separately approved local fixtures; Pandas and competency grading remain unavailable.",
+      evidenceHeading: "Evidence-based technical scorecard · no competency grade",
+      evidenceNotice: "Host-derived observations only. Approved local fixtures are not official hidden tests or technical ability percentages.",
+      evidenceCovered: "Latest SQL locally verified", evidencePassed: "Latest SQL passed local fixture",
+      evidenceClosed: "Questions closed", evidenceActions: "Observed candidate actions",
+      evidenceQuestion: "Question evidence", evidenceRuntime: "Elapsed / model wait",
+      evidenceUnknown: "No current verified SQL result", evidenceSource: "Source evidence and checksums",
+      evidenceCert: "Uncertified local time; Technical / Communication / Overall: NOT_SCORED",
+      evidenceTurns: "turns", evidenceClarify: "clarifications", evidenceHelp: "help requests", evidenceSQL: "SQL submissions",
+      evidenceTestedPrior: "Prior SQL was tested, but final SQL differs. Current submission: NOT_VERIFIED.",
+      evidenceSaved: "Derived from saved Host records; opening this report does not run SQL or call AI.",
       sourceChoice: "Source", reviewGuidance: "Review and edit extracted fields. Image-only schemas must be entered manually until image import is implemented.",
       reviewIncomplete: "Missing or uncertain fields remain unverified. Final SQL scoring is unavailable.",
       importTooLarge: "This question exceeds the 8192 UTF-8-byte cap. Shorten it before importing.",
@@ -223,6 +233,16 @@
       rehearsalSubmit: "结束本题并进入下一题", rehearsalSkip: "跳过本题并进入下一题",
       rehearsalFinish: "完成面试并冻结记录", rehearsalComplete: "三题模拟面试已完成",
       rehearsalNote: "三道确认题，每题最多四次交互。SQL 可单独批准本地 PostgreSQL Fixture 执行；Pandas 及综合能力评分仍未开放。",
+      evidenceHeading: "技术面试证据成绩单 · 不生成能力分数",
+      evidenceNotice: "仅根据 Host 记录生成。审核过的本地 Fixture 不等于官方隐藏测试，也不代表能力百分比。",
+      evidenceCovered: "最终 SQL 已经本地验证的题目", evidencePassed: "最终 SQL 通过本地 Fixture 的题目",
+      evidenceClosed: "已关闭题目", evidenceActions: "已记录候选人行为",
+      evidenceQuestion: "逐题证据", evidenceRuntime: "已用时间 / 模型等待",
+      evidenceUnknown: "最终 SQL 尚无可信执行结果", evidenceSource: "来源事件与校验摘要",
+      evidenceCert: "本地计时未认证；技术 / 沟通 / 总评均为 NOT_SCORED",
+      evidenceTurns: "交互次数", evidenceClarify: "澄清次数", evidenceHelp: "求助次数", evidenceSQL: "SQL 提交次数",
+      evidenceTestedPrior: "此前 SQL 经过测试，但最终提交发生变化；当前 SQL 为 NOT_VERIFIED。",
+      evidenceSaved: "仅从 Host 存档派生；打开报告不会执行 SQL，也不会调用 AI。",
       sourceChoice: "来源", reviewGuidance: "请核对并修改提取字段。纯图片表结构在图片导入上线前需手动填写。",
       reviewIncomplete: "缺失或不确定字段仍未验证。正式 SQL 评分尚不可用。",
       importTooLarge: "此题超过 8192 UTF-8 字节上限，请缩短后再导入。",
@@ -796,21 +816,66 @@
       actions(preview.closed ? button("realInterview", t("portalStep"), () => act("choose_real")) :
         button("closePreview", t("closePreview"), () => act("preview_close"), "primary")));
   }
+  function evidenceScorecard() {
+    const card = state.evidence_scorecard;
+    if (!card || card.schema !== "tia-evidence-scorecard/v1") return null;
+    const totals = card.summary || {};
+    const section = node("section", null, "receipt-card");
+    section.id = "evidenceScorecard";
+    add(section, node("h2", t("evidenceHeading")), node("p", t("evidenceNotice"), "notice"),
+      node("p", t("evidenceSaved"), "field-help"),
+      node("p", `${t("evidenceClosed")}: ${totals.closed_questions || 0} / ${totals.total_questions || 3}`, "field-help"),
+      node("p", `${t("evidenceCovered")}: ${totals.latest_sql_locally_verified_questions || 0} / ${totals.total_questions || 3}`, "field-help"),
+      node("p", `${t("evidencePassed")}: ${totals.latest_sql_passed_local_fixtures || 0}`, "field-help"));
+    const acts = totals.observed_closed_question_actions || {};
+    add(section, node("p", `${t("evidenceActions")}: ${acts.candidate_turns || 0} ${t("evidenceTurns")}, ` +
+      `${acts.clarifications || 0} ${t("evidenceClarify")}, ${acts.help_requests || 0} ${t("evidenceHelp")}, ` +
+      `${acts.sql_submissions || 0} ${t("evidenceSQL")}`, "field-help"),
+      node("p", t("evidenceCert"), "notice"));
+    // Deliberately no percentage, weighted grade, AI evaluation or claim that
+    // one local example represents LeetCode official hidden-test coverage.
+    for (const question of card.questions || []) {
+      const accuracy = question.accuracy || {};
+      const detail = node("details", null, "question-review");
+      add(detail, node("summary", `${question.index + 1}. ${question.title} · ${accuracy.status || "NOT_VERIFIED"}`),
+        node("p", `${question.outcome || question.state} · ${accuracy.reason || "NOT_VERIFIED"}`, "field-help"));
+      if (accuracy.reason === "TESTED_PRIOR_SQL_VERSION")
+        add(detail, node("p", t("evidenceTestedPrior"), "notice"));
+      if (accuracy.fixture_total !== null && accuracy.fixture_total !== undefined)
+        add(detail, node("p", `${accuracy.fixture_passed} / ${accuracy.fixture_total} approved local fixture(s)`, "field-help"));
+      else add(detail, node("p", t("evidenceUnknown"), "field-help"));
+      if (question.behavior) {
+        const b = question.behavior;
+        add(detail, node("p", `${b.candidate_turns} ${t("evidenceTurns")}, ${b.clarifications} ${t("evidenceClarify")}, ` +
+          `${b.help_requests} ${t("evidenceHelp")}, ${b.sql_submissions} ${t("evidenceSQL")}`, "field-help"),
+          node("p", `${t("evidenceSource")}: ${(b.evidence_event_ids || []).join(", ")}`, "field-help"));
+      }
+      if (question.time && question.time.elapsed_seconds !== null)
+        add(detail, node("p", `${t("evidenceRuntime")}: ${formatElapsed(question.time.elapsed_seconds)} / ` +
+          `${question.time.model_wait_seconds === null ? "NOT_AVAILABLE" : formatElapsed(question.time.model_wait_seconds)}`, "field-help"));
+      if (accuracy.fixture_sha256) add(detail, node("code", accuracy.fixture_sha256, "digest"));
+      if (accuracy.candidate_sql_sha256) add(detail, node("code", accuracy.candidate_sql_sha256, "digest"));
+      section.appendChild(detail);
+    }
+    add(section, node("p", `${t("evidenceSource")}: ${card.source}`, "field-help"),
+      node("code", card.sha256 || "", "digest"));
+    return section;
+  }
   function rehearsalComplete(main) {
     const rs = state.rehearsal || {};
     const finalTitle = rs.status === "TIMED_OUT" ? "rehearsalTimeout" :
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
+    add(main, evidenceScorecard());
+    // Old raw receipts are preserved, including prior SQL versions. For current
+    // correctness refer to the source-bound E3 scorecard above instead.
     (rs.results || []).forEach((r, i) => {
       const question = rs.questions?.[i] || {};
+      const verified = state.evidence_scorecard?.questions?.[i]?.accuracy?.status || "NOT_VERIFIED";
       add(main, add(node("section", null, "receipt-card"),
         node("h2", `${i + 1}. ${question.title || "Question"}`),
-        node("p", `${r.outcome} · ${r.execution_status || "NOT_RUN"} · NOT_SCORED`),
-        r.time_metrics ? node("p", `${t("rehearsalElapsed")}: ${formatElapsed(r.time_metrics.elapsed_seconds)} · ${t("rehearsalWaitTime")}: ${formatElapsed(r.time_metrics.model_wait_seconds)}`, "field-help") : null,
-        r.behavior_metrics ? node("p", `${r.behavior_metrics.candidate_turn_count} candidate turns · ${r.behavior_metrics.clarification_requests} clarifications · ${r.behavior_metrics.help_requests} help requests · ${r.behavior_metrics.code_submissions} code submissions · ${r.behavior_metrics.correctness || "NOT_VERIFIED"}`, "field-help") : null,
-        node("p", `${r.session?.events?.filter(e => e.actor === "candidate").length || 0} candidate turns`),
-        r.sql_accuracy ? node("p", `${t("gradeStatus")}: ${r.sql_accuracy.result?.status || "NOT_VERIFIED"} · ${r.sql_accuracy.passed_fixtures || 0}/${r.sql_accuracy.total_approved_fixtures || 0} local fixture(s)`, "notice") : node("p", t("gradeUnverified"), "field-help"),
+        node("p", `${r.outcome} · ${verified} · NOT_SCORED`),
         r.session?.receipt?.sha256 ? node("code", r.session.receipt.sha256, "digest") : null));
     });
     add(main, button("exportRehearsal", t("export"), () => act("export"), "primary"));

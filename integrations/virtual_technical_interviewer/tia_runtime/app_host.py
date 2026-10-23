@@ -31,6 +31,7 @@ from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, va
 from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEARSAL_TURNS, RehearsalError
 from .grading_binding import (GradingBindingError, inspect_binding, verify_grade_receipt, find_approved_pg_config)
 from .sql_accuracy import AccuracyError, grade_fixture
+from .evidence_scorecard import build_scorecard
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
 
@@ -213,6 +214,7 @@ class TutorialHost:
             result['practice_question'] = self._practice_snapshot()
         if self._rehearsal is not None:
             result['rehearsal'] = public_plan(self._rehearsal)
+            result['evidence_scorecard'] = build_scorecard(self._rehearsal)
             if self._grading_review is not None and self._rehearsal['status'] == 'ACTIVE':
                 result['grading_review'] = {key: copy.deepcopy(value) for key, value in self._grading_review.items()
                                             if key != 'fixture_json'}
@@ -244,6 +246,9 @@ class TutorialHost:
         # Storage availability is not interview authority or replayed evidence.
         public.pop("saved_locally")
         public.pop("recovery_error")
+        # E3 is an additive read-only projection, not new replay authority.
+        # Excluding it preserves all E1/E2/E25B saved state digests verbatim.
+        public.pop("evidence_scorecard", None)
         # Additive S03-B fields have no authority when no draft exists. Omitting
         # their empty defaults preserves the digest of existing S03-A v1 saves.
         if self._setup_config is None:
@@ -1083,6 +1088,7 @@ class TutorialHost:
         }
         if self._rehearsal is not None:
             result.update(rehearsal=public_plan(self._rehearsal),
+                          evidence_scorecard=build_scorecard(self._rehearsal),
                           timing=final_metrics(self._rehearsal),
                           live_preview_history=copy.deepcopy(self._preview_history),
                           provenance=('THREE_QUESTION_REHEARSAL_LOCAL_SQL_VERIFIED'
