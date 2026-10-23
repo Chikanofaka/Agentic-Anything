@@ -1,0 +1,169 @@
+PASS accessibility fragment retains bridge
+PASS query cannot change document origin
+PASS external page rejected
+PASS neighbor file rejected
+PASS allow exact command choose_real
+PASS reject extra params choose_real
+PASS allow exact command api_portal
+PASS reject extra params api_portal
+PASS allow exact command tutorial_next
+PASS reject extra params tutorial_next
+PASS allow exact command tutorial_back
+PASS reject extra params tutorial_back
+PASS allow exact command tutorial_replay
+PASS reject extra params tutorial_replay
+PASS allow exact command reset
+PASS reject extra params reset
+PASS allow exact command setup_launch
+PASS reject extra params setup_launch
+PASS allow exact command rehearsal_start
+PASS reject extra params rehearsal_start
+PASS allow exact command preview_verify
+PASS reject extra params preview_verify
+PASS allow exact command rehearsal_submit
+PASS reject extra params rehearsal_submit
+PASS allow exact command preview_cancel
+PASS reject extra params preview_cancel
+PASS allow exact command rehearsal_skip
+PASS reject extra params rehearsal_skip
+PASS allow exact command tutorial_start
+PASS reject extra params tutorial_start
+PASS allow exact command disconnect
+PASS reject extra params disconnect
+PASS allow exact command tutorial_complete
+PASS reject extra params tutorial_complete
+PASS allow exact command preview_close
+PASS reject extra params preview_close
+PASS allow exact command rehearsal_tick
+PASS reject extra params rehearsal_tick
+PASS allow exact command snapshot
+PASS reject extra params snapshot
+PASS allow exact command setup_continue
+PASS reject extra params setup_continue
+PASS allow exact command export
+PASS reject extra params export
+PASS allow exact command setup_back
+PASS reject extra params setup_back
+PASS no arbitrary process execution
+PASS no host phase mutation
+PASS no renderer credentials
+PASS bounded id
+PASS exact envelope
+PASS language allowlist
+PASS unknown language
+PASS candidate clarify
+PASS candidate plan
+PASS candidate implement
+PASS candidate test
+PASS candidate help
+PASS empty candidate rejected
+PASS UTF8 byte bound
+PASS no score command
+PASS typed setup accepted
+PASS boolean duration rejected
+PASS independent question count rejected
+PASS Easy configuration rejected
+PASS bounded question slots
+PASS bounded pasted bytes
+PASS S03D raw question accepted
+PASS S03D source must be approved
+PASS S03D boolean index rejected
+PASS S03D exact 8192-byte source accepted
+PASS S03D excessive UTF8 source rejected
+PASS S03D no extra authority in import
+PASS S03D human-reviewed fields accepted
+PASS S03D fields cannot grant scores
+PASS S03D practice digest accepted
+PASS S03D practice cannot override role
+PASS S03D exact finish command
+PASS S03D finish rejects extra fields
+PASS native-only handshake native_prepare_preview
+PASS native-only handshake native_commit_preview
+PASS native-only handshake native_cancel_preview
+PASS bounded preview input
+PASS preview cannot issue test execution
+PASS preview cannot inject mechanism or authority
+PASS E25B inspect bounded fixture
+PASS E25B inspect rejects empty
+PASS E25B inspect rejects over-limit UTF8
+PASS E25B inspect cannot grant authority
+PASS E25B execute exact SHA
+PASS E25B execute rejects invalid SHA
+PASS E25B execute rejects path injection
+PASS E25B native-only execution commit rejected
+PASS offline initially
+PASS empty key not activated
+PASS no consent not activated
+PASS newline credential rejected
+PASS bounded credential
+PASS local fixture explicitly unverified
+PASS credential never serialized
+PASS no authentication claim
+PASS live calls disabled
+PASS disconnect clears activation
+PASS export private before publication
+PASS export exact contents
+PASS export refuses symlink
+PASS export symlink target unchanged
+Native tests: 107 passed, 0 failed; provider requests: 0
+PASS provider fixed HTTPS endpoint
+PASS provider bounded timeout
+PASS provider key only native Authorization header
+PASS provider provider storage disabled
+PASS provider bounded token output
+PASS provider no provider tools
+PASS provider TIA-specific reply schema
+PASS provider trainer distinct schema
+PASS provider endpoint-shaped model rejected
+PASS provider invalid key rejected
+PASS provider Witness schemas rejected
+PASS provider unapproved output budget rejected
+PASS provider boolean budget rejected
+PASS provider ambiguous input rejected
+PASS provider provenance path traversal rejected
+PASS provider effective instructions digest verified natively
+PASS provider extra request keys rejected
+PASS provider actual supplied usage retained
+PASS provider missing usage remains unknown
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider nested depth bounded
+PASS provider duplicate envelope rejected
+PASS provider response size bounded
+PASS provider usage cannot fabricate totals
+PASS provider mock HTTP roundtrip returns exact response
+PASS provider 401 invalid key truthfully rejected
+PASS provider 404 model unavailable
+PASS provider 429 rate limit no retry
+PASS provider quota distinct from rate limit
+PASS provider timeout truthfully classified
+PASS provider network error sanitized
+PASS provider redirect rejected
+PASS provider refusal never accepted as reply
+PASS provider malformed HTTP body rejected
+PASS provider credential reflection blocked
+PASS provider oversized HTTP body rejected
+PASS provider redirect delegate never forwards Authorization
+PASS provider paid consent mandatory
+PASS provider credential cannot become public model identifier
+PASS provider maximum request limit enforced
+PASS provider activation makes zero calls
+PASS provider invalid request body consumes no HTTP budget
+PASS provider structured success verifies provider
+PASS provider duplicate request cannot be sent
+PASS provider missing usage not manufactured
+PASS provider budget blocks additional HTTP request
+PASS provider disconnect clears credential but keeps usage evidence
+PASS provider former credential unusable after disconnect
+PASS provider public state never contains key
+PASS provider cancel suppresses late native completion
+PASS provider cancel invalidates former generation
+PASS provider disconnect suppresses late completion
+PASS provider failed key cannot become verified
+PASS provider 401 clears former credential
+PASS provider mock transport exhausted plan fails closed
+Provider tests: 59 passed, 0 failed; real provider requests: 0; transport: MOCK_HTTP
+Built local development App: <repo>/integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app

@@ -40,6 +40,16 @@
       previewRecorded: "Model reply committed by the trusted controller.", previewInput: "Your preview response", previewPrivacy: "Submitted text and the approved question are sent to the selected provider only after native paid-request consent. The local transcript includes your submitted text.",
       requestsTotal: "Requests in this App process", unmeasuredRequests: "Requests without measured usage", model: "Model", requestLimit: "Request limit", tokenUsage: "Reported tokens", usageUnknown: "Not supplied by provider", usageScope: "Usage is provider-reported, not a cost estimate.",
       previewFrozen: "The frozen record preserves response provenance and submitted text. Technical and Communication are not scored; no SQL was executed.",
+      gradeTitle: "Local PostgreSQL fixture validation · unscored",
+      gradeNote: "Review an independent local test fixture before executing the submitted PostgreSQL query. This is not an official LeetCode hidden test.",
+      gradeResultDisclaimer: "Passing a local fixture does not certify all hidden tests or establish a competency score.",
+      gradeCurrentQuestion: "Current question · SHA-256",
+      gradeRequiresSQL: "Submit a PostgreSQL SQL implementation to enable reviewed local fixture validation.",
+      gradeStatus: "Local fixture execution result",
+      gradeInspect: "Inspect fixture (no execution)",
+      gradeExpected: "I reviewed the test inputs and expected result and authorize one execution of this exact fixture against my latest SQL.",
+      gradeExecute: "Run approved local PostgreSQL fixture",
+      gradePending: "Nothing executes without a separate fixture inspection and your explicit approval.",
       providerConsentRequired: "Open the native API Portal to authorize paid requests before verifying access.",
       invalidCredential: "The provider rejected the credential. Reopen the native API Portal to replace it.",
       modelUnavailable: "The selected model is unavailable for this credential. Choose an accessible model in the native API Portal.",
@@ -186,6 +196,16 @@
       previewRecorded: "可信控制器已提交模型回复。", previewInput: "你的预览回答", previewPrivacy: "仅在原生窗口明确同意付费请求后，已提交文本和已批准题目才会发送给所选服务商。本地记录包含你提交的文本。",
       requestsTotal: "本次 App 进程的请求总数", unmeasuredRequests: "用量未知的请求", model: "模型", requestLimit: "请求上限", tokenUsage: "已报告 Token", usageUnknown: "服务商未提供", usageScope: "用量来自服务商报告，不代表费用估算。",
       previewFrozen: "冻结记录保留回复来源和已提交文本。技术能力与沟通未评分；未执行 SQL。",
+      gradeTitle: "本地 PostgreSQL 测试验证 · 不评定能力分数",
+      gradeNote: "执行已提交的 PostgreSQL SQL 前，必须单独审阅本地测试数据。这不是 LeetCode 官方隐藏测试。",
+      gradeResultDisclaimer: "通过单个本地测试不代表通过全部隐藏测试，也不能据此推断综合能力分数。",
+      gradeCurrentQuestion: "当前题目 · SHA-256",
+      gradeRequiresSQL: "先提交 PostgreSQL SQL 答案，才能申请审阅本地测试数据。",
+      gradeStatus: "本地测试执行结果",
+      gradeInspect: "检查测试数据（不运行 SQL）",
+      gradeExpected: "我已经审阅测试输入、预期输出和最新提交的 SQL，同意对此测试数据进行一次本地执行。",
+      gradeExecute: "执行已批准的本地 PostgreSQL 测试",
+      gradePending: "只有单独检查测试数据并明确批准后才会执行；不会自动运行 SQL。",
       providerConsentRequired: "请在原生 API Portal 中授权付费请求后，再验证访问。",
       invalidCredential: "服务商拒绝了此凭证。请重新打开原生 API Portal 更换凭证。",
       modelUnavailable: "此凭证无法访问所选模型。请在原生 API Portal 中选择可用模型。",
@@ -937,6 +957,15 @@
 
   function livePreview(main) {
     const preview = state.live_preview || {};
+    // This is a Host-derived heuristic after submission, not a code verdict.
+    const issue = state.language_reviews?.active;
+    if (issue?.status === "LANGUAGE_MISMATCH_REVIEW_REQUIRED") {
+      const warning = node("p", state.language === "zh"
+        ? `语言不匹配：题目环境是 ${issue.expected_environment}，提交内容看起来是 ${issue.observed_style}。请人工确认语言；未执行代码或评分。`
+        : `Language mismatch: expected ${issue.expected_environment}; submission appears ${issue.observed_style}. Review language before proceeding. No execution or grading occurred in this check.`, "notice");
+      warning.id = "languageMismatchLive";
+      add(main, warning);
+    }
     add(main, add(node("div", null, "title-row"), heading(t("livePreview")), badge(modelLabel(), "accent")),
       node("p", t("livePreviewNote"), "lead"), providerDetails());
     const columns = node("div", null, "room-grid");
@@ -1235,6 +1264,15 @@
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
     add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel());
+    // Saved interview evidence is immutable. Show only derived, unscored warnings.
+    for (const review of state.language_reviews?.completed || []) {
+      if (review.status !== "LANGUAGE_MISMATCH_REVIEW_REQUIRED") continue;
+      const warning = node("p", state.language === "zh"
+        ? `问题 ${review.question_index + 1}：预期 ${review.expected_environment}，提交内容疑似 ${review.observed_style}。需要人工确认；没有执行或判分。`
+        : `Question ${review.question_index + 1}: expected ${review.expected_environment}; submission appears ${review.observed_style}. Human review required; no execution or correctness assessment.`, "notice");
+      warning.id = `languageMismatchQ${review.question_index + 1}`;
+      add(main, warning);
+    }
     // Old raw receipts are preserved, including prior SQL versions. For current
     // correctness refer to the source-bound E3 scorecard above instead.
     (rs.results || []).forEach((r, i) => {
@@ -1516,6 +1554,32 @@
     const config = state.setup_config || configValues();
     add(main, heading(t("reviewTitle")));
     setupNotice(main);
+    // E4-C0: purely derived readiness. No solving, model or SQL execution.
+    const pf = state.preflight_readiness;
+    if (pf?.schema === "tia-preflight-readiness/v1") {
+      const zh = state.language === "zh";
+      const section = node("section", null, "receipt-card");
+      section.id = "preflightReadiness";
+      add(section, node("h2", zh ? "面试备课就绪检查 · E4-C0" : "Pre-interview readiness · E4-C0"),
+        node("p", zh
+          ? "仅核对已确认的题目及来源校验。尚未生成参考解法、运行代码或调用模型。"
+          : "Checks confirmed question provenance only. No solutions generated, code run or paid model calls.", "notice"),
+        node("p", `${pf.confirmed_count}/${pf.required_count ?? "?"} ${zh ? "道题已确认" : "questions confirmed"} · ${pf.status}`, "field-help"));
+      for (const q of pf.questions || []) {
+        add(section, node("p", `Q${q.question_index + 1} · ${q.environment} · ${q.status} · ${q.reference_status}`, "field-help"));
+      }
+      if (pf.required_count === 4) add(section, node("p", zh
+        ? "四题备课结构可检查，但目前四题 Live 面试尚未实现。"
+        : "Four-question source review supported; four-question LIVE launch not implemented.", "notice"));
+      if (pf.status === "READY_FOR_FUTURE_PRIVATE_PREPARATION") {
+        const prep = state.native_private_preparer;
+        const completed = prep?.status === "REFERENCE_UNVERIFIED_AI_PROPOSAL";
+        add(section, node("p", `${zh ? "原生私有备课" : "Native private preparation"} · ${prep?.status || "NOT_PREPARED"}`, "field-help"));
+        if (!completed) add(section, button("preparerRequest", zh ? "私有备课全部题目 · 1 次付费请求" : "Prepare all questions privately · 1 paid request", () => act("preparer_request", {}), "secondary"));
+        if (completed) add(section, node("p", zh ? "仅在原生内存保存未验证方案；没有执行代码或评分。" : "Unverified proposals are held in Native memory only; no code execution or scoring.", "notice"));
+      }
+      add(main, section);
+    }
     const table = node("table", null, "review-table");
     const body = node("tbody");
     const rows = [

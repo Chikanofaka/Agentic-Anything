@@ -8,7 +8,7 @@ mkdir -p "$CACHE" "$APP/Contents/MacOS"
 /usr/bin/swiftc -target "$(uname -m)-apple-macosx12.0" -swift-version 5 \
   -module-cache-path "$CACHE" \
   "$TIA_ROOT/native/Bridge.swift" "$TIA_ROOT/native/Worker.swift" \
-  "$TIA_ROOT/native/OpenAI.swift" "$TIA_ROOT/native/StrictJSON.swift" \
+  "$TIA_ROOT/native/OpenAI.swift" "$TIA_ROOT/native/NativePreparer.swift" "$TIA_ROOT/native/StrictJSON.swift" \
   "$TIA_ROOT/native/NativeProvider.swift" "$TIA_ROOT/native/ProviderTests.swift" \
   "$TIA_ROOT/native/SelfTests.swift" "$TIA_ROOT/native/UISmoke.swift" "$TIA_ROOT/native/main.swift" \
   -framework AppKit -framework WebKit -o "$APP/Contents/MacOS/TechnicalInterviewLab"

@@ -1,0 +1,219 @@
+{
+  "checks": [
+    {
+      "command": [
+        "/opt/anaconda3/bin/python3",
+        "-B",
+        "integrations/virtual_technical_interviewer/run_tests.py"
+      ],
+      "elapsed_seconds": 3.23,
+      "exit_code": 0,
+      "name": "python",
+      "status": "PASSED",
+      "unittest_count": 277
+    },
+    {
+      "command": [
+        "bash",
+        "integrations/virtual_technical_interviewer/scripts/build_app.sh"
+      ],
+      "elapsed_seconds": 5.166,
+      "exit_code": 0,
+      "name": "native-build",
+      "native_failed": 0,
+      "native_passed": 114,
+      "provider_failed": 0,
+      "provider_passed": 59,
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-self-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-ui-1792737350289406000"
+      ],
+      "elapsed_seconds": 27.705,
+      "exit_code": 0,
+      "name": "webkit",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-recovery-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-ui-1792737350289406000"
+      ],
+      "elapsed_seconds": 1.255,
+      "exit_code": 0,
+      "name": "app-recovery",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-setup-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-setup-1792737379252340000"
+      ],
+      "elapsed_seconds": 5.613,
+      "exit_code": 0,
+      "name": "setup-webkit",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-live-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-live-1792737384873380000"
+      ],
+      "elapsed_seconds": 3.529,
+      "exit_code": 0,
+      "name": "mock-live-webkit",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-live-recovery-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-live-1792737384873380000"
+      ],
+      "elapsed_seconds": 1.128,
+      "exit_code": 0,
+      "name": "mock-live-recovery",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-provider-failure-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-failures-1792737389532384000"
+      ],
+      "elapsed_seconds": 5.265,
+      "exit_code": 0,
+      "name": "mock-provider-failures",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-rehearsal-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-rehearsal-1792737394797901000"
+      ],
+      "elapsed_seconds": 3.764,
+      "exit_code": 0,
+      "name": "mock-rehearsal-webkit",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab",
+        "--ui-trainer-test",
+        "--test-output",
+        "integrations/virtual_technical_interviewer/.build-cache/verified-grading-1792737398563122000"
+      ],
+      "elapsed_seconds": 6.831,
+      "exit_code": 0,
+      "name": "native-byok-trainer-webkit",
+      "status": "PASSED"
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/verify_witness_local.sh"
+      ],
+      "elapsed_seconds": 14.339,
+      "exit_code": 0,
+      "name": "witness-hal",
+      "status": "PASSED",
+      "unittest_count": 287
+    }
+  ],
+  "completed_utc": "2026-10-23T06:36:59.741438+00:00",
+  "human_uat": "NOT_RUN",
+  "increment": "S03-E3CB",
+  "live_api_uat": "NOT_RUN",
+  "real_provider_requests_attempted": 0,
+  "schema": "tia-verification/v1",
+  "source_parent": "849a917af9de4fcd8d36a562b997c6104d309b0f",
+  "source_sha256": {
+    "agents/.DS_Store": "a5fe1acc3cd898ed679e3446328080d5e5230204f0a6cbdfe19acef9e2f88576",
+    "agents/interviewer/AGENTS.md": "c58c9e75fb2b6fd2ce8e7fdc7d239b3a00ff8c3e09e54f0fca69c2cd913e9ac5",
+    "agents/interviewer/identity.md": "45f9209e057ce9f0e3ef8babb9332ab720f915e4882c23a4558091d2aabd48eb",
+    "agents/interviewer/soul.md": "b94a933a94430966c0a8810e40421a114b8d6611556bf589e17cf1281729b03e",
+    "agents/mechanisms/professional_supportive/AGENTS.md": "bf7eecc50db8c3a8825a366c4a3d20303f95827b0d61e687f07507ce7d0412fb",
+    "agents/mechanisms/professional_supportive/identity.md": "67527bd36c6117a098f981d702cd1d4455917c096d0fc9afd175c7e32d533472",
+    "agents/mechanisms/professional_supportive/skills.md": "250ade5ae133365e70ebcf2ddc6627715fa18ff6be08e377fe90e0c9f484043a",
+    "agents/mechanisms/professional_supportive/soul.md": "451526e9b4e4c7a233823cee35cb9cf4c238344a8c78ac83d695e5160222156b",
+    "agents/mechanisms/strict_challenging/AGENTS.md": "fba4773079039046fe9a7a9de63c05f1d922e1f09c28fd55a5fe7b2b3fad85ae",
+    "agents/mechanisms/strict_challenging/identity.md": "dc4985a109b6e92d16932f50a35a86ddf533807651a68883c7264543d9ae25dc",
+    "agents/mechanisms/strict_challenging/skills.md": "4c3cc03bb644e06c78ad0a2e68627f03d31b794985c0536988a1a8e51a8ca82f",
+    "agents/mechanisms/strict_challenging/soul.md": "9f7c3142ab2d0ab1300297d01d7fcf35781c90cb9e553691a9e59f3ea660f4ec",
+    "agents/roles.json": "b77c405323db3a765ec7294009c7a584e71f3fef9646d01f13056de228c2c32f",
+    "agents/trainer/AGENTS.md": "f78f720f9ee6ef10171393e63b27f1c0e5e3bab6c98ee8d99ca4fdd666160e61",
+    "agents/trainer/identity.md": "77d53935561e2af189c1319c177995e7a6f6d31a93093b45ab469ee7d57bbf59",
+    "agents/trainer/skills.md": "21b85fc8839465cbd2599e24cc914056a71911fe832d6f0377604fcb84785ebb",
+    "agents/trainer/soul.md": "9577ad44051fbbc4756970b5dec6f7aa2c4d493b208d68f8f8d582140f63156a",
+    "native/Bridge.swift": "3a3de6ed79b3b2c0d568b85e5d9dc3365685c23a19ab82f55657f40da39f65ac",
+    "native/NativeProvider.swift": "60e0567d70a7613b8bbdd85b0f65ac4aef380672bb79f959a718ae1dd0772167",
+    "native/OpenAI.swift": "a0ad16e08dea5ddf449ac1c22ff962e28566b922552c79219b218b770aa1b76e",
+    "native/ProviderTests.swift": "b2715a2cfeff8c115a90f95f5b48e09b17d819f99babd7b5c2fb3ebd3c703880",
+    "native/SelfTests.swift": "4682f68319dd4f7d4e801ec40d89493720a30d75934208abaf08870413a48974",
+    "native/StrictJSON.swift": "e3959481c66db86b5a007dc0a78010075d7357f3356e4d809b391a12f0a4cd19",
+    "native/UISmoke.swift": "de4e136471a7a0d30eb370b942995a4bad95002a216eba667484513dffa44f6b",
+    "native/Worker.swift": "d26c5a68f4821fe90c8d72e1afed4e776e42b1c700312e5e5e60401d981670ca",
+    "native/main.swift": "a6f76af397cb84454bd6755141cb6dc53f3fa37168910d949844a5f6b7891327",
+    "policy/interview_mechanisms_v1.json": "a1f4b2001d0e7fae184b8904eaa47a938a3e33e00465e0eb8ed4a67b944f0d66",
+    "policy/prompt_manifest_v1.json": "26359eacfeb8b1c714b9b98ae3813bb9407ada5acb12e1d84adaa93d5fbf826c",
+    "scripts/build_app.sh": "33f511f45b16b5e395099a0b3160fbe79099c0d772b51c487f0ffcac4a31b762",
+    "scripts/check_build_paths.py": "a1ae837ff1e17937a939bd3d963db1f3c343cf42adf1fcd1a1af27ab8a7df60d",
+    "scripts/package_app.py": "b511a73c64b7ed255fece3c9855f91d77a8fc47875900c5a89516f45c60fa068",
+    "scripts/run_sql_accuracy.py": "c8535c8572189d2dac7350e4635d558638cadba056c953fea86659d33605af3c",
+    "scripts/verify_app.py": "f1ec3d69da7217d29502f24e424a0a18a007fa43ae345d96ba87559ea28e6a53",
+    "tests/test_app_host.py": "5b5b4cfde79efc9b457a63cf5f8aadd164eac312f1c6930e1bc115e939daa06b",
+    "tests/test_contracts.py": "02bde79ba7e8ec7beceec461cf1f8b477964db226b88b6aa8ff2feb7c2238f2d",
+    "tests/test_controller.py": "432d4d338ad855eceb2a71a984109ad6f490c64598dcb64794274c1f5fafd245",
+    "tests/test_freeform_import.py": "2440571d5d78d4bd7da981abdade05d337ee217264b0f75df33ef09a49e1143f",
+    "tests/test_native_preview.py": "825ada71103a627a8051184d56196d8083da3398a5147355b867bd2cd3cb3aab",
+    "tests/test_prompt_profiles.py": "f3d2ba994222d0486c58faf5c9b0d8e55058d875c305cdfcd1ff99b0bc332086",
+    "tests/test_provider.py": "159973f35d497b3e07681f91cc02df875bf360898913c479abb661757749e7a7",
+    "tests/test_s03d_integration.py": "90898681613a4ce6077f4a90d1ebae1ed3aabb8e6626b866b07ded0d60a450ff",
+    "tests/test_s03e_app_grading.py": "914d15a9f606d1d5140e63b9b4896ce4bfc9e18dcb7dd806e1ea72bbeeec8b49",
+    "tests/test_s03e_communication_rubric.py": "72531774e5211cef692b29f190748de8114f2785863b40830047103a32d87bdb",
+    "tests/test_s03e_evidence_scorecard.py": "c1895e654f9888eaa4d2863e679866c3064a556944dd3bc1093da1084088299b",
+    "tests/test_s03e_execution_truth_guard.py": "c8fda0a7a311500ee1dc219337c3adeb63fee2a87f02555d0518e5ad63271e28",
+    "tests/test_s03e_grounded_trainer.py": "b5619654893b6f348f2627318b4cdf47e43cd48ffba9a241c31094e12aba8584",
+    "tests/test_s03e_native_trainer.py": "79ccc4d0e8715cab0e445a506e2fb489cd092b614de5db04fdc09778607d6b9e",
+    "tests/test_s03e_rehearsal.py": "adf5e0e797c575b487b8a91dc1dc6af41d37dcee6d78f2afbf5d1311237628a8",
+    "tests/test_s03e_sql_accuracy.py": "a7f3512f357792d11eaaaa4e2a64ebf1593d863405b0e1a919b2794c0d3a2238",
+    "tests/test_s03e_time_intelligence.py": "2b461e7cbb374955390c060e93dca2755dcb87ee936f04d7dce5d4f96ca45d0e",
+    "tests/test_setup.py": "35fff5f072b164a9e723b10a93f7b54527ab0d74a55d3fc7098640ad53a157d6",
+    "tia_runtime/__init__.py": "fdc49ef908898a39ffae91cc6e34e4e12416c2e420feddcd17ee58f3929714cb",
+    "tia_runtime/app_host.py": "af63414ad7f7ca58374390b4782fe6947291f8fbe91ab9776c3f9aa37cd18e48",
+    "tia_runtime/communication_rubric.py": "f45e2bf1b45bf5029afa3f2bef54fcbdc3172d59357b83ef42f7bb5d7b0e7cb9",
+    "tia_runtime/contracts.py": "5093c9545a8b57512cb3cf1f4f05d5e1c4cef13b24f21826c9de241e1e8144f8",
+    "tia_runtime/controller.py": "b78b4035a3884db22ee124ffa69b4815c88ef072c9a705cada619a48394d66d9",
+    "tia_runtime/evidence_scorecard.py": "1efb33f28927adb46a0359b8fad8c8546ad8e4e99898e2e9f5d943da20675e67",
+    "tia_runtime/freeform_import.py": "8294a33cdbad827f068bfacc8fd31764f86f5533083976425c19cc8797a5944b",
+    "tia_runtime/grading_binding.py": "d1473326b059feecdaf2e8b0be7b516506b6a844acf8027eb56eeef02f7dfd0a",
+    "tia_runtime/grounded_trainer.py": "a08f3f977988ddeff1fbb51f141e9f778c4558368d9ea84e669789cb5c009646",
+    "tia_runtime/native_contract.py": "a323d60572e13789d49fa4ff0c9031562d7ab62fa6e3a6f6190ffa9b75f0974e",
+    "tia_runtime/native_trainer.py": "ae69abfdfc613c36e4d183bb629956953634671ba2cf0458f9d80703425e1fd3",
+    "tia_runtime/persistence.py": "2a2bef6f81ed4fd66c5842fd11ce259c0bf1880fa6b9eec78f8a82f0d8d6b7ce",
+    "tia_runtime/prompt_profiles.py": "ccff0a919a3ef5501dd9b9ceec2bfa852e421758928d22aa459242645d1eaee6",
+    "tia_runtime/provider.py": "875b4e6f6ba86887800f3aa2bcc1a8f5d877caac018633c20e9cd7ad56140471",
+    "tia_runtime/rehearsal.py": "878b6835182dd92545baf89e71cd0f64e3067a4eb567430a800f9d71a5a0da2f",
+    "tia_runtime/setup.py": "afaf42ad49962d7fc5b818f41656134eeca62906a3dea4942042578946985c6c",
+    "tia_runtime/sql_accuracy.py": "74030ea4a553f1ca27d00e1a1ea63f23f32a9d4c66615ca10f90d0cd6ed90372",
+    "tia_runtime/time_intelligence.py": "2a05c71555ff3263019a7e5293360b5e8b6f9466cc6f760cf7760cbe32cbf768",
+    "ui/app.js": "e5a7d2ff928ede59f1d6fb5a038584787d88d7c994c57baddd183b9eb285548d",
+    "ui/index.html": "281647638d4211c05311bc54e56e3097558686dca635ee4970e023e4df9675e4",
+    "ui/style.css": "0587e6392e372249f92263a4b2a684748be1a2fa17ba8993760124812b742a3e"
+  },
+  "started_utc": "2026-10-23T06:35:41.877098+00:00"
+}

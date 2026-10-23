@@ -78,12 +78,13 @@ struct TIAModelRequest {
               let transactionID = value["transaction_id"] as? String, validID(transactionID),
               let requestID = value["request_id"] as? String, validID(requestID),
               let generation = value["generation"] as? String, validID(generation),
-              let role = value["role"] as? String, ["interviewer", "trainer"].contains(role),
+              let role = value["role"] as? String, ["interviewer", "trainer", "preparer"].contains(role),
               let instructions = value["instructions"] as? String, !instructions.isEmpty, instructions.utf8.count <= 32768,
               let input = value["input"] as? String, input.utf8.count <= 16000,
               let encoded = input.data(using: .utf8), (try? StrictJSON.object(encoded)) is [String: Any],
               let name = value["schema_name"] as? String, name == "tia_" + role + "_reply",
-              let tokens = value["max_output_tokens"] as? NSNumber, CFGetTypeID(tokens) != CFBooleanGetTypeID(), tokens.doubleValue == 600,
+              let tokens = value["max_output_tokens"] as? NSNumber, CFGetTypeID(tokens) != CFBooleanGetTypeID(),
+              tokens.doubleValue == Double(role == "preparer" ? 8192 : 600),
               let promptSHA = value["prompt_sha256"] as? String, digest(promptSHA),
               promptSHA == SHA256.hash(data: Data(instructions.utf8)).map({ String(format: "%02x", $0) }).joined(),
               let sourceSHA = value["source_sha256"] as? [String: String], (1...32).contains(sourceSHA.count),
@@ -94,7 +95,8 @@ struct TIAModelRequest {
               }) else { throw TIAProviderFailure.invalidRequest }
         self.transactionID = transactionID; self.requestID = requestID; self.generation = generation
         self.role = role; self.instructions = instructions; self.input = input
-        self.schemaName = name; self.outputTokens = 600; self.promptSHA = promptSHA; self.sourceSHA = sourceSHA
+        self.schemaName = name; self.outputTokens = role == "preparer" ? 8192 : 600
+        self.promptSHA = promptSHA; self.sourceSHA = sourceSHA
     }
 }
 
@@ -118,6 +120,7 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
     private var received = Data()
     private var status = 0
     private var activeKey: String?
+    private var activeResponseRole: String?
 
     init(configuration: URLSessionConfiguration = .ephemeral) {
         self.configuration = configuration.copy() as! URLSessionConfiguration
@@ -155,8 +158,9 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
         if (300...399).contains(status) { return .redirect }
         return .httpStatus(status)
     }
-    static func parse(_ data: Data, status: Int) throws -> TIAProviderReply {
-        guard data.count <= maximumResponseBytes else { throw TIAProviderFailure.oversized }
+    static func parse(_ data: Data, status: Int, role: String = "interviewer") throws -> TIAProviderReply {
+        guard ["interviewer", "trainer", "preparer"].contains(role),
+              data.count <= maximumResponseBytes else { throw TIAProviderFailure.oversized }
         guard status == 200 else { throw httpFailure(data, status: status) }
         guard let body = try StrictJSON.object(data) as? [String: Any],
               let state = body["status"] as? String else { throw TIAProviderFailure.invalidResponse }
@@ -174,10 +178,14 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
                 texts.append(text)
             }
         }
-        guard texts.count == 1, let text = texts.first, text.utf8.count <= 16384,
+        let maxEncoded = role == "preparer" ? 131072 : 16384
+        let maxChars = role == "preparer" ? 32768 : 2000
+        let maxBytes = role == "preparer" ? 65536 : 8000
+        guard texts.count == 1, let text = texts.first, text.utf8.count <= maxEncoded,
               let encoded = text.data(using: .utf8), let object = try StrictJSON.object(encoded) as? [String: Any],
               Set(object.keys) == ["reply"], let reply = object["reply"] as? String,
-              !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, reply.count <= 2000, reply.utf8.count <= 8000 else { throw TIAProviderFailure.invalidResponse }
+              !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              reply.count <= maxChars, reply.utf8.count <= maxBytes else { throw TIAProviderFailure.invalidResponse }
         var usage: [String: Int]?
         if let raw = body["usage"], !(raw is NSNull) {
             guard let values = raw as? [String: Any] else { throw TIAProviderFailure.invalidResponse }
@@ -204,7 +212,8 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
         catch { DispatchQueue.main.async { completion(.failure((error as? TIAProviderFailure) ?? .invalidRequest)) }; return }
         lock.lock()
         guard self.completion == nil else { lock.unlock(); DispatchQueue.main.async { completion(.failure(.invalidRequest)) }; return }
-        self.completion = completion; activeKey = key; received = Data(); status = 0
+        self.completion = completion; activeKey = key; activeResponseRole = spec.role
+        received = Data(); status = 0
         configuration.urlCache = nil; configuration.httpCookieStorage = nil; configuration.urlCredentialStorage = nil
         configuration.httpShouldSetCookies = false; configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 30; configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -215,7 +224,8 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
     func cancel() {
         lock.lock()
         let current = task; let currentSession = session
-        completion = nil; task = nil; session = nil; activeKey = nil; received = Data()
+        completion = nil; task = nil; session = nil; activeKey = nil; activeResponseRole = nil
+        received = Data()
         lock.unlock(); current?.cancel(); currentSession?.invalidateAndCancel()
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
@@ -243,14 +253,16 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
         if tooLarge { dataTask.cancel(); finish(.failure(.oversized), session: session) }
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        lock.lock(); let data = received; let code = status; let key = activeKey; let current = self.session === session; lock.unlock()
+        lock.lock(); let data = received; let code = status; let key = activeKey
+        let role = activeResponseRole; let current = self.session === session; lock.unlock()
         guard current else { return }
         if let error = error as NSError? {
             let failure: TIAProviderFailure = error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut ? .timeout : .transport
             finish(.failure(failure), session: session); return
         }
         do {
-            let value = try Self.parse(data, status: code)
+            guard let role = role else { throw TIAProviderFailure.invalidResponse }
+            let value = try Self.parse(data, status: code, role: role)
             guard let key = key, !String(decoding: data, as: UTF8.self).contains(key),
                   !Self.containsSecret(value.dictionary, secret: key) else { throw TIAProviderFailure.invalidResponse }
             finish(.success(value), session: session)
@@ -266,7 +278,8 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
         lock.lock()
         guard self.session === session else { lock.unlock(); return }
         let callback = completion
-        completion = nil; task = nil; self.session = nil; activeKey = nil; received = Data()
+        completion = nil; task = nil; self.session = nil; activeKey = nil; activeResponseRole = nil
+        received = Data()
         lock.unlock(); session.invalidateAndCancel()
         DispatchQueue.main.async { callback?(result) }
     }

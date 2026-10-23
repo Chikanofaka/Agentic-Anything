@@ -31,6 +31,8 @@ from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, va
 from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEARSAL_TURNS, RehearsalError
 from .grading_binding import (GradingBindingError, inspect_binding, verify_grade_receipt, find_approved_pg_config)
 from .sql_accuracy import AccuracyError, grade_fixture
+from .submission_language import project_language_reviews
+from .preflight_preparer import build_preflight_readiness
 from .evidence_scorecard import build_scorecard
 from .communication_rubric import build_communication_evidence
 from .grounded_trainer import build_grounded_trainer
@@ -223,10 +225,18 @@ class TutorialHost:
             "setup_profiles": copy.deepcopy(self.setup_profiles),
             "setup_blockers": list(self.setup_blockers),
         }
+        # C0 is setup-only: legacy S03-A tutorial state/digest stays unchanged.
+        # Read-only projection is excluded from the sealed state digest.
+        if self._setup_config is not None:
+            result['preflight_readiness'] = build_preflight_readiness(
+                self._setup_config, self.setup_questions)
         if self._practice_question is not None:
             result['practice_question'] = self._practice_snapshot()
         if self._rehearsal is not None:
             result['rehearsal'] = public_plan(self._rehearsal)
+            result['language_reviews'] = project_language_reviews(
+                self._rehearsal,
+                self._live_controller.snapshot() if self._live_controller is not None else None)
             result['evidence_scorecard'] = build_scorecard(self._rehearsal)
             result['communication_evidence'] = build_communication_evidence(self._rehearsal)
             result['grounded_trainer'] = build_grounded_trainer(self._rehearsal)
@@ -273,6 +283,9 @@ class TutorialHost:
         public.pop("evidence_scorecard", None)
         public.pop("grounded_trainer", None)
         public.pop("smart_plan", None)
+        # E4-B1 language indicators are presentation-only: no digest migration.
+        public.pop("language_reviews", None)
+        public.pop("preflight_readiness", None)
         public.pop("smart_progress_summary", None)
         if self._smart_progress is None:
             # Preserve exact legacy save digests before the user starts a plan.

@@ -1,0 +1,466 @@
+{"version": "witness-character/v1", "digest": "5d44d5bd96b2e60b197cc859713225d36382774abe2348d822c7770320af9035", "canonical": "integrations/witness_loop/source", "duplicate_drift": [], "full_director_story_bundled": false}
+Workspace: <repo>
+Python 3.12.4
+{
+  "contract_schema": "hal-domain/v1",
+  "domain_id": "research-diagnostics",
+  "elapsed_ms": 0.54,
+  "events": [
+    {
+      "code": "PACKAGE_INSPECTED"
+    },
+    {
+      "code": "FEATURE_RESOLVED"
+    },
+    {
+      "code": "INPUT_VALIDATED"
+    },
+    {
+      "code": "TRUSTED_TOOL_EXECUTED"
+    },
+    {
+      "code": "OUTPUT_VALIDATED"
+    }
+  ],
+  "external_writes": false,
+  "feature": "calculate-margin",
+  "input_contract": "research-margin-input/v1",
+  "kind": "DETERMINISTIC_OFFLINE",
+  "live_model_used": false,
+  "output_contract": "research-margin-output/v1",
+  "package_digest": "f1e7edf1efa0b3bf87c1acd69edd453aa95b6a21648c415d64eadd02a8078e6f",
+  "permissions": [],
+  "result": {
+    "margin_pct": 40.0,
+    "profit": 600.0,
+    "rule": "margin-v1",
+    "unit": "user_supplied_units"
+  },
+  "run_id": "ef4df21d-b315-41bc-a6f4-d0f2807e92fe",
+  "status": "SUCCESS",
+  "tool_id": "calculate-margin"
+}
+{
+  "contract_schema": "hal-domain/v1",
+  "domain_id": "returns-operations",
+  "elapsed_ms": 0.58,
+  "events": [
+    {
+      "code": "PACKAGE_INSPECTED"
+    },
+    {
+      "code": "FEATURE_RESOLVED"
+    },
+    {
+      "code": "INPUT_VALIDATED"
+    },
+    {
+      "code": "TRUSTED_TOOL_EXECUTED"
+    },
+    {
+      "code": "OUTPUT_VALIDATED"
+    }
+  ],
+  "external_writes": false,
+  "feature": "triage-return",
+  "input_contract": "returns-triage-input/v1",
+  "kind": "DETERMINISTIC_OFFLINE",
+  "live_model_used": false,
+  "output_contract": "returns-triage-output/v1",
+  "package_digest": "fb11240fdbb983a29456b5f80eaefe7791fcb7ed5ca1e3a4b4c30d26410ec0ac",
+  "permissions": [],
+  "result": {
+    "classification": "STANDARD_RETURN",
+    "not_a_real_business_policy": true,
+    "rule": "fictional-returns-v1"
+  },
+  "run_id": "47de5ccf-4b8f-4eb8-ad52-64f7a84c5c8f",
+  "status": "SUCCESS",
+  "tool_id": "triage-return"
+}
+{
+  "checks": [
+    {
+      "capabilities": [
+        "calculate"
+      ],
+      "port": "LOCAL_CALCULATE",
+      "state": "AVAILABLE_CURATED_LOCAL",
+      "tool": "calculate-margin"
+    }
+  ],
+  "declared_capabilities": [
+    {
+      "capabilities": [
+        "tool_calling"
+      ],
+      "port": "LLM_DIRECT"
+    },
+    {
+      "capabilities": [
+        "calculate"
+      ],
+      "port": "LOCAL_CALCULATE"
+    }
+  ],
+  "live_model_verified": false,
+  "missing_permissions": [],
+  "missing_ports": [
+    "MANAGED_AGENT_PORT_MISMATCH"
+  ],
+  "provider": "manus",
+  "status": "BLOCKED",
+  "tool": "calculate-margin",
+  "tool_contract_verified": true
+}
+VERIFIED: CLI inspection, both domain results, and Manus denial (exit 2).
+DONE: offline local verification complete; no model API calls were attempted.
+{"version": "witness-character/v1", "digest": "5d44d5bd96b2e60b197cc859713225d36382774abe2348d822c7770320af9035", "canonical": "integrations/witness_loop/source", "duplicate_drift": [], "full_director_story_bundled": false}
+{"version": "witness-character/v1", "digest": "5d44d5bd96b2e60b197cc859713225d36382774abe2348d822c7770320af9035", "canonical": "integrations/witness_loop/source", "duplicate_drift": [], "full_director_story_bundled": false}
+PASS fixed HTTPS endpoint / POST
+PASS credential only in native authorization header
+PASS store false / strict schema / bounded output
+PASS string context input accepted
+PASS header newline injection rejected
+PASS empty credential rejected
+PASS oversized credential rejected
+PASS endpoint-shaped model rejected
+PASS model CRLF rejected
+PASS arbitrary output budget rejected
+PASS oversized input rejected
+PASS valid topic parsed
+PASS valid reply parsed
+PASS incomplete provider response rejected
+PASS provider failure rejected
+PASS redirect status rejected
+PASS malformed response rejected
+PASS structured array rejected
+PASS nonfinite structured number rejected
+PASS refusal rejected
+PASS multiple output text blocks rejected
+PASS oversized provider response rejected
+PASS key echo blocked recursively
+PASS ordinary text not a key echo
+PASS bridge confirmed turn accepted
+PASS bridge free turn accepted
+PASS bridge missing confirmation rejected
+PASS bridge numeric confirmation rejected
+PASS bridge readonly preview accepted
+PASS bridge inspect accepts bounded id
+PASS bridge inspect accepts numbered historical event id
+PASS bridge inspect path injection denied
+PASS bridge forged evidence rejected
+PASS bridge language choice accepted
+PASS bridge arbitrary language payload denied
+PASS bridge authored phase injection denied
+PASS bridge unknown action rejected
+PASS bridge model result injection rejected
+PASS bridge arbitrary path rejected
+PASS bridge credential submission rejected
+PASS bridge identifier script injection rejected
+PASS bridge oversized input rejected
+PASS bridge extra top-level key rejected
+PASS duplicate structured JSON keys rejected
+PASS escaped duplicate JSON keys rejected
+PASS duplicate envelope keys rejected
+PASS excessive JSON nesting rejected
+PASS valid escaped JSON string accepted
+PASS mock provider response traverses native adapter
+PASS mock provider echoed credential blocked before renderer
+PASS mock provider rate limit has no automatic retry
+PASS redirect delegate refuses credential forwarding
+Native self-tests: 52 passed; 0 failed. No GUI, network, or real credentials used.
+Built local unsigned prototype: <repo>/integrations/witness_loop/dist/Witness Loop.app
+VERIFIED: Core regressions and native mock-provider checks. No live inference. GUI integration is a separate opt-in command.
+test_adapter_exception_text_is_not_in_receipt (test_capabilities.CapabilityContractTests.test_adapter_exception_text_is_not_in_receipt) ... ok
+test_boolean_budget_does_not_count_as_one_tool_call (test_capabilities.CapabilityContractTests.test_boolean_budget_does_not_count_as_one_tool_call) ... ok
+test_feature_permission_requests_never_grant_effects (test_capabilities.CapabilityContractTests.test_feature_permission_requests_never_grant_effects) ... ok
+test_finite_inputs_cannot_produce_infinite_success_output (test_capabilities.CapabilityContractTests.test_finite_inputs_cannot_produce_infinite_success_output) ... ok
+test_huge_integer_is_blocked_without_crash (test_capabilities.CapabilityContractTests.test_huge_integer_is_blocked_without_crash) ... ok
+test_input_contract_mismatch_blocks (test_capabilities.CapabilityContractTests.test_input_contract_mismatch_blocks) ... ok
+test_legacy_ai_feature_has_available_local_tool (test_capabilities.CapabilityContractTests.test_legacy_ai_feature_has_available_local_tool) ... ok
+test_nested_secret_payload_not_echoed (test_capabilities.CapabilityContractTests.test_nested_secret_payload_not_echoed) ... ok
+test_new_feature_reuses_registered_tool (test_capabilities.CapabilityContractTests.test_new_feature_reuses_registered_tool) ... ok
+test_nonfinite_and_boolean_numeric_inputs_block_before_tool (test_capabilities.CapabilityContractTests.test_nonfinite_and_boolean_numeric_inputs_block_before_tool) ... ok
+test_output_contract_mismatch_blocks (test_capabilities.CapabilityContractTests.test_output_contract_mismatch_blocks) ... ok
+test_registry_ports_are_typed (test_capabilities.CapabilityContractTests.test_registry_ports_are_typed) ... ok
+test_returns_boolean_days_are_rejected (test_capabilities.CapabilityContractTests.test_returns_boolean_days_are_rejected) ... ok
+test_tool_api_does_not_grant_an_unmatched_domain_tool (test_capabilities.CapabilityContractTests.test_tool_api_does_not_grant_an_unmatched_domain_tool) ... ok
+test_tool_permission_request_mismatches_host_contract (test_capabilities.CapabilityContractTests.test_tool_permission_request_mismatches_host_contract) ... ok
+test_tool_port_mismatch_blocks (test_capabilities.CapabilityContractTests.test_tool_port_mismatch_blocks) ... ok
+test_unexpected_adapter_output_never_becomes_result (test_capabilities.CapabilityContractTests.test_unexpected_adapter_output_never_becomes_result) ... ok
+test_unimplemented_local_capability_blocks (test_capabilities.CapabilityContractTests.test_unimplemented_local_capability_blocks) ... ok
+test_unimplemented_port_families_block (test_capabilities.CapabilityContractTests.test_unimplemented_port_families_block) ... ok
+test_unknown_contract_is_inspectable_but_not_executable (test_capabilities.CapabilityContractTests.test_unknown_contract_is_inspectable_but_not_executable) ... ok
+test_unknown_feature_returns_complete_blocked_status (test_capabilities.CapabilityContractTests.test_unknown_feature_returns_complete_blocked_status) ... ok
+test_unknown_tool_is_inspectable_but_not_executable (test_capabilities.CapabilityContractTests.test_unknown_tool_is_inspectable_but_not_executable) ... ok
+test_v1_managed_agent_cannot_activate_direct_model (test_capabilities.CapabilityContractTests.test_v1_managed_agent_cannot_activate_direct_model) ... ok
+test_v1_research_golden_and_typed_receipt (test_capabilities.CapabilityContractTests.test_v1_research_golden_and_typed_receipt) ... ok
+test_v1_returns_golden (test_capabilities.CapabilityContractTests.test_v1_returns_golden) ... ok
+test_witness_model_feature_still_requires_native_activation (test_capabilities.CapabilityContractTests.test_witness_model_feature_still_requires_native_activation) ... ok
+test_witness_uses_shared_engine_and_typed_domain_contract (test_capabilities.CapabilityContractTests.test_witness_uses_shared_engine_and_typed_domain_contract) ... ok
+test_all_five_sources_have_defined_projected_purpose (test_character_context.CharacterContextTests.test_all_five_sources_have_defined_projected_purpose) ... ok
+test_archive_drift_is_reported_and_never_becomes_a_runtime_input (test_character_context.CharacterContextTests.test_archive_drift_is_reported_and_never_becomes_a_runtime_input) ... ok
+test_artifact_tamper_digest_fails_closed (test_character_context.CharacterContextTests.test_artifact_tamper_digest_fails_closed) ... ok
+test_case_director_body_is_hashed_but_never_projected (test_character_context.CharacterContextTests.test_case_director_body_is_hashed_but_never_projected) ... ok
+test_committed_artifact_matches_all_five_canonical_sources (test_character_context.CharacterContextTests.test_committed_artifact_matches_all_five_canonical_sources) ... ok
+test_effective_digest_is_in_actual_reply_context (test_character_context.CharacterContextTests.test_effective_digest_is_in_actual_reply_context) ... ok
+test_missing_archival_duplicate_is_reported_without_changing_artifact (test_character_context.CharacterContextTests.test_missing_archival_duplicate_is_reported_without_changing_artifact) ... ok
+test_missing_section_or_canon_marker_requires_review (test_character_context.CharacterContextTests.test_missing_section_or_canon_marker_requires_review) ... ok
+test_profile_source_and_player_save_are_separate (test_character_context.CharacterContextTests.test_profile_source_and_player_save_are_separate) ... ok
+test_projection_omits_unreleased_private_knowledge (test_character_context.CharacterContextTests.test_projection_omits_unreleased_private_knowledge) ... ok
+test_public_projection_copies_cannot_mutate_future_context (test_character_context.CharacterContextTests.test_public_projection_copies_cannot_mutate_future_context) ... ok
+test_reviewed_personality_edit_changes_compiled_effective_context (test_character_context.CharacterContextTests.test_reviewed_personality_edit_changes_compiled_effective_context) ... ok
+test_selected_section_injection_is_rejected_not_executed (test_character_context.CharacterContextTests.test_selected_section_injection_is_rejected_not_executed) ... ok
+test_symlink_and_oversized_authoring_sources_fail_closed (test_character_context.CharacterContextTests.test_symlink_and_oversized_authoring_sources_fail_closed) ... ok
+test_duplicate_payload_key_is_static_json_error (test_cli.CliContractTests.test_duplicate_payload_key_is_static_json_error) ... ok
+test_malformed_payload_is_static_json_error (test_cli.CliContractTests.test_malformed_payload_is_static_json_error) ... ok
+test_malformed_zip_inspection_and_run_are_structured_failures (test_cli.CliContractTests.test_malformed_zip_inspection_and_run_are_structured_failures) ... ok
+test_managed_agent_denial_preserves_local_capability_evidence (test_cli.CliContractTests.test_managed_agent_denial_preserves_local_capability_evidence) ... ok
+test_nonfinite_payload_numbers_are_static_json_errors (test_cli.CliContractTests.test_nonfinite_payload_numbers_are_static_json_errors) ... ok
+test_normalized_inspection_emits_v1_without_modifying_source (test_cli.CliContractTests.test_normalized_inspection_emits_v1_without_modifying_source) ... ok
+test_oversized_integer_payload_is_static_json_error (test_cli.CliContractTests.test_oversized_integer_payload_is_static_json_error) ... ok
+test_research_golden_run_has_finite_json_receipt (test_cli.CliContractTests.test_research_golden_run_has_finite_json_receipt) ... ok
+test_returns_golden_run_has_finite_json_receipt (test_cli.CliContractTests.test_returns_golden_run_has_finite_json_receipt) ... ok
+test_digests_different (test_hal.HalContractTests.test_digests_different) ... ok
+test_do_not_run_ai (test_hal.HalContractTests.test_do_not_run_ai) ... ok
+test_duplicate_feature (test_hal.HalContractTests.test_duplicate_feature) ... ok
+test_extra_fields_blocked (test_hal.HalContractTests.test_extra_fields_blocked) ... ok
+test_inspect_research (test_hal.HalContractTests.test_inspect_research) ... ok
+test_inspect_returns (test_hal.HalContractTests.test_inspect_returns) ... ok
+test_invalid_revenue (test_hal.HalContractTests.test_invalid_revenue) ... ok
+test_invalid_zip_secret (test_hal.HalContractTests.test_invalid_zip_secret) ... ok
+test_invalid_zip_traversal (test_hal.HalContractTests.test_invalid_zip_traversal) ... ok
+test_missing_manifest (test_hal.HalContractTests.test_missing_manifest) ... ok
+test_missing_readme (test_hal.HalContractTests.test_missing_readme) ... ok
+test_missing_skill (test_hal.HalContractTests.test_missing_skill) ... ok
+test_nan_revenue (test_hal.HalContractTests.test_nan_revenue) ... ok
+test_negative_days (test_hal.HalContractTests.test_negative_days) ... ok
+test_no_spoofed_local_port (test_hal.HalContractTests.test_no_spoofed_local_port) ... ok
+test_no_unknown_domain_exec (test_hal.HalContractTests.test_no_unknown_domain_exec) ... ok
+test_permission_declined (test_hal.HalContractTests.test_permission_declined) ... ok
+test_port_local (test_hal.HalContractTests.test_port_local) ... ok
+test_port_managed_agent (test_hal.HalContractTests.test_port_managed_agent) ... ok
+test_port_no_model (test_hal.HalContractTests.test_port_no_model) ... ok
+test_port_unknown_domain (test_hal.HalContractTests.test_port_unknown_domain) ... ok
+test_port_unverified_not_active (test_hal.HalContractTests.test_port_unverified_not_active) ... ok
+test_reject_symlink (test_hal.HalContractTests.test_reject_symlink) ... ok
+test_research_real (test_hal.HalContractTests.test_research_real) ... ok
+test_returns_negative (test_hal.HalContractTests.test_returns_negative) ... ok
+test_returns_real (test_hal.HalContractTests.test_returns_real) ... ok
+test_secret_field (test_hal.HalContractTests.test_secret_field) ... ok
+test_secret_payload_blocked (test_hal.HalContractTests.test_secret_payload_blocked) ... ok
+test_tool_budget (test_hal.HalContractTests.test_tool_budget) ... ok
+test_untrusted_source_not_executed (test_hal.HalContractTests.test_untrusted_source_not_executed) ... ok
+test_zip (test_hal.HalContractTests.test_zip) ... ok
+test_inspection_persists_and_does_not_consume_case_actions (test_interactive.CinematicSessionTests.test_inspection_persists_and_does_not_consume_case_actions) ... ok
+test_invalid_legacy_receipt_does_not_create_or_overwrite_any_save (test_interactive.CinematicSessionTests.test_invalid_legacy_receipt_does_not_create_or_overwrite_any_save) ... ok
+test_invalid_model_identity_is_replaced_before_memory_commit (test_interactive.CinematicSessionTests.test_invalid_model_identity_is_replaced_before_memory_commit) ... ok
+test_model_topic_cannot_spend_case_action_without_confirmation (test_interactive.CinematicSessionTests.test_model_topic_cannot_spend_case_action_without_confirmation) ... ok
+test_new_session_has_no_premature_evidence_or_witness (test_interactive.CinematicSessionTests.test_new_session_has_no_premature_evidence_or_witness) ... ok
+test_original_v1_save_is_preserved_byte_for_byte_during_migration (test_interactive.CinematicSessionTests.test_original_v1_save_is_preserved_byte_for_byte_during_migration) ... ok
+test_readonly_preview_and_case_confirmation_are_authoritative (test_interactive.CinematicSessionTests.test_readonly_preview_and_case_confirmation_are_authoritative) ... ok
+test_receipt_source_paths_and_output_error_text_are_bounded (test_interactive.CinematicSessionTests.test_receipt_source_paths_and_output_error_text_are_bounded) ... ok
+test_rejection_receipt_cannot_disagree_with_saved_validation (test_interactive.CinematicSessionTests.test_rejection_receipt_cannot_disagree_with_saved_validation) ... ok
+test_turn_before_witness_entrance_is_denied_even_when_confirmed (test_interactive.CinematicSessionTests.test_turn_before_witness_entrance_is_denied_even_when_confirmed) ... ok
+test_v1_state_cannot_bypass_migration_in_v2_envelope (test_interactive.CinematicSessionTests.test_v1_state_cannot_bypass_migration_in_v2_envelope) ... ok
+test_incomplete_frame_is_rejected (test_interactive.InteractiveProtocolTests.test_incomplete_frame_is_rejected) ... ok
+test_large_valid_unicode_save_has_complete_bounded_snapshot_and_export_frames (test_interactive.InteractiveProtocolTests.test_large_valid_unicode_save_has_complete_bounded_snapshot_and_export_frames) ... ok
+test_malformed_input_returns_static_error_and_channel_continues (test_interactive.InteractiveProtocolTests.test_malformed_input_returns_static_error_and_channel_continues) ... ok
+test_oversized_frame_closes_channel_with_one_static_error (test_interactive.InteractiveProtocolTests.test_oversized_frame_closes_channel_with_one_static_error) ... ok
+test_private_worker_accepts_snapshot_request_without_network_or_credentials (test_interactive.InteractiveProtocolTests.test_private_worker_accepts_snapshot_request_without_network_or_credentials) ... ok
+test_unknown_request_fields_cannot_inject_state (test_interactive.InteractiveProtocolTests.test_unknown_request_fields_cannot_inject_state) ... ok
+test_cancelled_transaction_cannot_later_commit (test_interactive.InteractiveSessionTests.test_cancelled_transaction_cannot_later_commit) ... ok
+test_classification_context_does_not_mutate_or_save_state (test_interactive.InteractiveSessionTests.test_classification_context_does_not_mutate_or_save_state) ... ok
+test_commit_cannot_smuggle_arbitrary_game_state (test_interactive.InteractiveSessionTests.test_commit_cannot_smuggle_arbitrary_game_state) ... ok
+test_committed_transaction_cannot_be_replayed (test_interactive.InteractiveSessionTests.test_committed_transaction_cannot_be_replayed) ... ok
+test_developer_assets_are_available_without_model_or_credentials (test_interactive.InteractiveSessionTests.test_developer_assets_are_available_without_model_or_credentials) ... ok
+test_export_is_data_only_and_contains_current_state (test_interactive.InteractiveSessionTests.test_export_is_data_only_and_contains_current_state) ... ok
+test_failed_save_cannot_advance_in_memory_state (test_interactive.InteractiveSessionTests.test_failed_save_cannot_advance_in_memory_state) ... ok
+test_malformed_reply_leaves_saved_and_authoritative_state_unchanged (test_interactive.InteractiveSessionTests.test_malformed_reply_leaves_saved_and_authoritative_state_unchanged) ... ok
+test_nonobject_action_parameters_are_rejected (test_interactive.InteractiveSessionTests.test_nonobject_action_parameters_are_rejected) ... ok
+test_old_transaction_cannot_commit_after_reset_or_forget (test_interactive.InteractiveSessionTests.test_old_transaction_cannot_commit_after_reset_or_forget) ... ok
+test_only_model_committed_turn_records_live_inference (test_interactive.InteractiveSessionTests.test_only_model_committed_turn_records_live_inference) ... ok
+test_persona_conversation_preserves_case_action_budget (test_interactive.InteractiveSessionTests.test_persona_conversation_preserves_case_action_budget) ... ok
+test_prepare_can_be_cancelled_without_committing_or_saving (test_interactive.InteractiveSessionTests.test_prepare_can_be_cancelled_without_committing_or_saving) ... ok
+test_promise_and_following_conversation_survive_restart (test_interactive.InteractiveSessionTests.test_promise_and_following_conversation_survive_restart) ... ok
+test_provider_failure_cancel_rolls_back_then_allows_retry (test_interactive.InteractiveSessionTests.test_provider_failure_cancel_rolls_back_then_allows_retry) ... ok
+test_reset_preserves_profile_but_forget_removes_it_from_storage (test_interactive.InteractiveSessionTests.test_reset_preserves_profile_but_forget_removes_it_from_storage) ... ok
+test_saved_envelope_uses_fixed_schema_and_private_file_mode (test_interactive.InteractiveSessionTests.test_saved_envelope_uses_fixed_schema_and_private_file_mode) ... ok
+test_scene_change_is_denied_while_model_turn_is_pending (test_interactive.InteractiveSessionTests.test_scene_change_is_denied_while_model_turn_is_pending) ... ok
+test_second_prepare_is_rejected_while_one_turn_is_pending (test_interactive.InteractiveSessionTests.test_second_prepare_is_rejected_while_one_turn_is_pending) ... ok
+test_snapshot_is_not_a_mutable_reference_into_authoritative_state (test_interactive.InteractiveSessionTests.test_snapshot_is_not_a_mutable_reference_into_authoritative_state) ... ok
+test_snapshot_names_domain_reality_and_receipt (test_interactive.InteractiveSessionTests.test_snapshot_names_domain_reality_and_receipt) ... ok
+test_start_and_restore_preserve_exact_domain_state (test_interactive.InteractiveSessionTests.test_start_and_restore_preserve_exact_domain_state) ... ok
+test_unknown_actions_and_extra_fields_are_rejected_without_state_change (test_interactive.InteractiveSessionTests.test_unknown_actions_and_extra_fields_are_rejected_without_state_change) ... ok
+test_unrecognized_inference_mode_cannot_claim_activation (test_interactive.InteractiveSessionTests.test_unrecognized_inference_mode_cannot_claim_activation) ... ok
+test_wrong_transaction_does_not_commit_pending_turn (test_interactive.InteractiveSessionTests.test_wrong_transaction_does_not_commit_pending_turn) ... ok
+test_corrupt_json_fails_closed_without_overwriting_file (test_interactive.SessionStorageSecurityTests.test_corrupt_json_fails_closed_without_overwriting_file) ... ok
+test_directory_in_place_of_save_file_is_rejected (test_interactive.SessionStorageSecurityTests.test_directory_in_place_of_save_file_is_rejected) ... ok
+test_duplicate_json_fields_cannot_restore (test_interactive.SessionStorageSecurityTests.test_duplicate_json_fields_cannot_restore) ... ok
+test_extra_envelope_or_state_fields_cannot_restore (test_interactive.SessionStorageSecurityTests.test_extra_envelope_or_state_fields_cannot_restore) ... ok
+test_invalid_receipt_cannot_restore_untrusted_payload (test_interactive.SessionStorageSecurityTests.test_invalid_receipt_cannot_restore_untrusted_payload) ... ok
+test_local_action_receipt_cannot_fabricate_live_inference (test_interactive.SessionStorageSecurityTests.test_local_action_receipt_cannot_fabricate_live_inference) ... ok
+test_oversized_save_is_rejected (test_interactive.SessionStorageSecurityTests.test_oversized_save_is_rejected) ... ok
+test_receipt_revision_must_match_restored_state_revision (test_interactive.SessionStorageSecurityTests.test_receipt_revision_must_match_restored_state_revision) ... ok
+test_symlinked_save_cannot_read_or_overwrite_target (test_interactive.SessionStorageSecurityTests.test_symlinked_save_cannot_read_or_overwrite_target) ... ok
+test_symlinked_session_directory_is_rejected (test_interactive.SessionStorageSecurityTests.test_symlinked_session_directory_is_rejected) ... ok
+test_unknown_schema_and_domain_cannot_restore (test_interactive.SessionStorageSecurityTests.test_unknown_schema_and_domain_cannot_restore) ... ok
+test_archive_container_size_limit (test_package_security.PackageSecurityTests.test_archive_container_size_limit) ... ok
+test_case_colliding_zip_paths_are_rejected (test_package_security.PackageSecurityTests.test_case_colliding_zip_paths_are_rejected) ... ok
+test_corrupt_member_crc_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_corrupt_member_crc_is_a_safe_contract_error) ... ok
+test_directory_child_symlink_is_rejected (test_package_security.PackageSecurityTests.test_directory_child_symlink_is_rejected) ... ok
+test_directory_empty_restricted_subdirectory_is_rejected (test_package_security.PackageSecurityTests.test_directory_empty_restricted_subdirectory_is_rejected) ... ok
+test_directory_entry_count_limit_includes_empty_directories (test_package_security.PackageSecurityTests.test_directory_entry_count_limit_includes_empty_directories) ... ok
+test_directory_fifo_is_rejected_without_reading (test_package_security.PackageSecurityTests.test_directory_fifo_is_rejected_without_reading) ... ok
+test_directory_root_symlink_is_rejected (test_package_security.PackageSecurityTests.test_directory_root_symlink_is_rejected) ... ok
+test_directory_secret_filename_is_rejected (test_package_security.PackageSecurityTests.test_directory_secret_filename_is_rejected) ... ok
+test_directory_single_file_size_limit (test_package_security.PackageSecurityTests.test_directory_single_file_size_limit) ... ok
+test_directory_total_size_limit (test_package_security.PackageSecurityTests.test_directory_total_size_limit) ... ok
+test_duplicate_manifest_json_keys_are_rejected (test_package_security.PackageSecurityTests.test_duplicate_manifest_json_keys_are_rejected) ... ok
+test_duplicate_zip_path_is_rejected (test_package_security.PackageSecurityTests.test_duplicate_zip_path_is_rejected) ... ok
+test_encrypted_member_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_encrypted_member_is_a_safe_contract_error) ... ok
+test_file_directory_zip_collision_is_rejected (test_package_security.PackageSecurityTests.test_file_directory_zip_collision_is_rejected) ... ok
+test_github_wrapper_matches_root_zip_and_directory (test_package_security.PackageSecurityTests.test_github_wrapper_matches_root_zip_and_directory) ... ok
+test_inspection_does_not_extract_archive (test_package_security.PackageSecurityTests.test_inspection_does_not_extract_archive) ... ok
+test_invalid_manifest_encoding_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_invalid_manifest_encoding_is_a_safe_contract_error) ... ok
+test_invalid_raw_zip_paths_fail_before_wrapper_normalization (test_package_security.PackageSecurityTests.test_invalid_raw_zip_paths_fail_before_wrapper_normalization) ... ok
+test_invalid_utf8_zip_member_name_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_invalid_utf8_zip_member_name_is_a_safe_contract_error) ... ok
+test_malformed_manifest_json_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_malformed_manifest_json_is_a_safe_contract_error) ... ok
+test_multiple_wrapped_packages_are_ambiguous (test_package_security.PackageSecurityTests.test_multiple_wrapped_packages_are_ambiguous) ... ok
+test_nested_manifest_is_not_recursively_discovered (test_package_security.PackageSecurityTests.test_nested_manifest_is_not_recursively_discovered) ... ok
+test_nested_secret_field_is_rejected_without_reflection (test_package_security.PackageSecurityTests.test_nested_secret_field_is_rejected_without_reflection) ... ok
+test_nonfinite_manifest_json_numbers_are_rejected (test_package_security.PackageSecurityTests.test_nonfinite_manifest_json_numbers_are_rejected) ... ok
+test_overdeep_manifest_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_overdeep_manifest_is_a_safe_contract_error) ... ok
+test_path_depth_limit_is_shared_by_zip_and_directory (test_package_security.PackageSecurityTests.test_path_depth_limit_is_shared_by_zip_and_directory) ... ok
+test_restricted_directory_entry_is_rejected_even_when_empty (test_package_security.PackageSecurityTests.test_restricted_directory_entry_is_rejected_even_when_empty) ... ok
+test_root_and_wrapped_manifests_are_ambiguous (test_package_security.PackageSecurityTests.test_root_and_wrapped_manifests_are_ambiguous) ... ok
+test_root_zip_matches_directory_for_both_domains (test_package_security.PackageSecurityTests.test_root_zip_matches_directory_for_both_domains) ... ok
+test_secret_filenames_are_rejected (test_package_security.PackageSecurityTests.test_secret_filenames_are_rejected) ... ok
+test_surrogate_manifest_string_is_rejected_before_public_receipt (test_package_security.PackageSecurityTests.test_surrogate_manifest_string_is_rejected_before_public_receipt) ... ok
+test_truncated_zip_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_truncated_zip_is_a_safe_contract_error) ... ok
+test_unsupported_compression_is_a_safe_contract_error (test_package_security.PackageSecurityTests.test_unsupported_compression_is_a_safe_contract_error) ... ok
+test_wrapper_with_outside_file_is_ambiguous (test_package_security.PackageSecurityTests.test_wrapper_with_outside_file_is_ambiguous) ... ok
+test_zip_compression_ratio_limit (test_package_security.PackageSecurityTests.test_zip_compression_ratio_limit) ... ok
+test_zip_directory_named_symlink_is_rejected (test_package_security.PackageSecurityTests.test_zip_directory_named_symlink_is_rejected) ... ok
+test_zip_fifo_is_rejected (test_package_security.PackageSecurityTests.test_zip_fifo_is_rejected) ... ok
+test_zip_member_count_limit (test_package_security.PackageSecurityTests.test_zip_member_count_limit) ... ok
+test_zip_root_swapped_to_symlink_before_open_is_rejected (test_package_security.PackageSecurityTests.test_zip_root_swapped_to_symlink_before_open_is_rejected) ... ok
+test_zip_single_file_size_limit (test_package_security.PackageSecurityTests.test_zip_single_file_size_limit) ... ok
+test_zip_symlink_file_is_rejected (test_package_security.PackageSecurityTests.test_zip_symlink_file_is_rejected) ... ok
+test_zip_total_uncompressed_size_limit (test_package_security.PackageSecurityTests.test_zip_total_uncompressed_size_limit) ... ok
+test_all_referenced_assets_must_exist (test_schema.PackageSchemaTests.test_all_referenced_assets_must_exist) ... ok
+test_asset_references_must_be_strings_and_regular_files (test_schema.PackageSchemaTests.test_asset_references_must_be_strings_and_regular_files) ... ok
+test_duplicate_declarations_are_rejected (test_schema.PackageSchemaTests.test_duplicate_declarations_are_rejected) ... ok
+test_duplicate_required_port_is_rejected (test_schema.PackageSchemaTests.test_duplicate_required_port_is_rejected) ... ok
+test_duplicate_tool_and_feature_ids_are_rejected (test_schema.PackageSchemaTests.test_duplicate_tool_and_feature_ids_are_rejected) ... ok
+test_invalid_identifiers_and_contract_versions_are_rejected (test_schema.PackageSchemaTests.test_invalid_identifiers_and_contract_versions_are_rejected) ... ok
+test_legacy_duplicate_and_unknown_ports_are_rejected (test_schema.PackageSchemaTests.test_legacy_duplicate_and_unknown_ports_are_rejected) ... ok
+test_legacy_migration_requires_agents_asset (test_schema.PackageSchemaTests.test_legacy_migration_requires_agents_asset) ... ok
+test_legacy_migration_requires_exactly_one_supported_local_port (test_schema.PackageSchemaTests.test_legacy_migration_requires_exactly_one_supported_local_port) ... ok
+test_legacy_model_requirement_false_or_omitted_is_explicit (test_schema.PackageSchemaTests.test_legacy_model_requirement_false_or_omitted_is_explicit) ... ok
+test_legacy_normalization_preserves_source_bytes_and_content_digest (test_schema.PackageSchemaTests.test_legacy_normalization_preserves_source_bytes_and_content_digest) ... ok
+test_legacy_unknown_fields_and_bad_model_requirements_are_rejected (test_schema.PackageSchemaTests.test_legacy_unknown_fields_and_bad_model_requirements_are_rejected) ... ok
+test_lists_do_not_accept_objects_or_strings (test_schema.PackageSchemaTests.test_lists_do_not_accept_objects_or_strings) ... ok
+test_missing_nested_fields_are_rejected (test_schema.PackageSchemaTests.test_missing_nested_fields_are_rejected) ... ok
+test_missing_required_v1_fields_are_rejected (test_schema.PackageSchemaTests.test_missing_required_v1_fields_are_rejected) ... ok
+test_native_v1_inspection_has_no_legacy_migration_warning (test_schema.PackageSchemaTests.test_native_v1_inspection_has_no_legacy_migration_warning) ... ok
+test_nested_objects_do_not_accept_scalar_or_list_types (test_schema.PackageSchemaTests.test_nested_objects_do_not_accept_scalar_or_list_types) ... ok
+test_nonexistent_package_returns_static_diagnostic (test_schema.PackageSchemaTests.test_nonexistent_package_returns_static_diagnostic) ... ok
+test_nonobject_manifest_is_rejected (test_schema.PackageSchemaTests.test_nonobject_manifest_is_rejected) ... ok
+test_permission_policy_cannot_be_weakened_or_extended (test_schema.PackageSchemaTests.test_permission_policy_cannot_be_weakened_or_extended) ... ok
+test_required_lists_cannot_be_empty (test_schema.PackageSchemaTests.test_required_lists_cannot_be_empty) ... ok
+test_text_fields_do_not_coerce_invalid_values (test_schema.PackageSchemaTests.test_text_fields_do_not_coerce_invalid_values) ... ok
+test_tool_port_must_appear_in_feature_requirements (test_schema.PackageSchemaTests.test_tool_port_must_appear_in_feature_requirements) ... ok
+test_undeclared_and_nonstring_feature_tools_are_rejected (test_schema.PackageSchemaTests.test_undeclared_and_nonstring_feature_tools_are_rejected) ... ok
+test_unknown_or_malformed_capabilities_and_permissions_are_rejected (test_schema.PackageSchemaTests.test_unknown_or_malformed_capabilities_and_permissions_are_rejected) ... ok
+test_unknown_or_malformed_ports_are_rejected (test_schema.PackageSchemaTests.test_unknown_or_malformed_ports_are_rejected) ... ok
+test_unknown_top_level_and_nested_fields_are_rejected (test_schema.PackageSchemaTests.test_unknown_top_level_and_nested_fields_are_rejected) ... ok
+test_unsupported_and_missing_schema_versions_fail_closed (test_schema.PackageSchemaTests.test_unsupported_and_missing_schema_versions_fail_closed) ... ok
+test_unsupported_or_malformed_host_is_rejected (test_schema.PackageSchemaTests.test_unsupported_or_malformed_host_is_rejected) ... ok
+test_action_unknown_fields_cannot_inject_state (test_witness_domain.WitnessDomainTests.test_action_unknown_fields_cannot_inject_state) ... ok
+test_actions_and_turns_never_mutate_original_state (test_witness_domain.WitnessDomainTests.test_actions_and_turns_never_mutate_original_state) ... ok
+test_classifier_schema_is_fresh_and_cannot_mutate_domain_topics (test_witness_domain.WitnessDomainTests.test_classifier_schema_is_fresh_and_cannot_mutate_domain_topics) ... ok
+test_classify_context_is_data_only_and_has_no_locked_lore (test_witness_domain.WitnessDomainTests.test_classify_context_is_data_only_and_has_no_locked_lore) ... ok
+test_coat_evidence_is_released_only_through_reviewed_transition (test_witness_domain.WitnessDomainTests.test_coat_evidence_is_released_only_through_reviewed_transition) ... ok
+test_context_input_bounded_even_with_maximum_unicode_history (test_witness_domain.WitnessDomainTests.test_context_input_bounded_even_with_maximum_unicode_history) ... ok
+test_duplicate_link_cannot_farm_trust (test_witness_domain.WitnessDomainTests.test_duplicate_link_cannot_farm_trust) ... ok
+test_duplicate_statement_does_not_duplicate_memory (test_witness_domain.WitnessDomainTests.test_duplicate_statement_does_not_duplicate_memory) ... ok
+test_empty_oversized_controls_surrogates_and_wrong_types_fail_closed (test_witness_domain.WitnessDomainTests.test_empty_oversized_controls_surrogates_and_wrong_types_fail_closed) ... ok
+test_ended_case_rejects_new_turn_but_allows_reset (test_witness_domain.WitnessDomainTests.test_ended_case_rejects_new_turn_but_allows_reset) ... ok
+test_explicit_promises_commit_but_repetition_does_not_farm_trust (test_witness_domain.WitnessDomainTests.test_explicit_promises_commit_but_repetition_does_not_farm_trust) ... ok
+test_first_phone_question_does_not_unlock (test_witness_domain.WitnessDomainTests.test_first_phone_question_does_not_unlock) ... ok
+test_hard_topic_overrides_model_guess (test_witness_domain.WitnessDomainTests.test_hard_topic_overrides_model_guess) ... ok
+test_initial_state_roundtrips_strict_json (test_witness_domain.WitnessDomainTests.test_initial_state_roundtrips_strict_json) ... ok
+test_invalid_locked_or_arbitrary_link_never_changes_state (test_witness_domain.WitnessDomainTests.test_invalid_locked_or_arbitrary_link_never_changes_state) ... ok
+test_memory_capacity_preserves_admitted_facts_and_commitment (test_witness_domain.WitnessDomainTests.test_memory_capacity_preserves_admitted_facts_and_commitment) ... ok
+test_memory_raw_excerpt_and_source_distinction (test_witness_domain.WitnessDomainTests.test_memory_raw_excerpt_and_source_distinction) ... ok
+test_model_reply_cannot_supply_state_or_new_memory (test_witness_domain.WitnessDomainTests.test_model_reply_cannot_supply_state_or_new_memory) ... ok
+test_model_topic_can_resolve_nonkeyword_but_not_supply_state (test_witness_domain.WitnessDomainTests.test_model_topic_can_resolve_nonkeyword_but_not_supply_state) ... ok
+test_negated_conditional_and_model_only_promises_do_not_commit (test_witness_domain.WitnessDomainTests.test_negated_conditional_and_model_only_promises_do_not_commit) ... ok
+test_original_magic_loop_has_recalled_promise_and_truth (test_witness_domain.WitnessDomainTests.test_original_magic_loop_has_recalled_promise_and_truth) ... ok
+test_output_contract_rejects_extra_state_routes_and_context_instructions (test_witness_domain.WitnessDomainTests.test_output_contract_rejects_extra_state_routes_and_context_instructions) ... ok
+test_phone_takes_precedence_over_timestamp (test_witness_domain.WitnessDomainTests.test_phone_takes_precedence_over_timestamp) ... ok
+test_player_name_cannot_impersonate_system_or_witness_role (test_witness_domain.WitnessDomainTests.test_player_name_cannot_impersonate_system_or_witness_role) ... ok
+test_player_prompt_injection_is_data_not_instructions (test_witness_domain.WitnessDomainTests.test_player_prompt_injection_is_data_not_instructions) ... ok
+test_player_repeating_admission_cannot_block_canonical_admission (test_witness_domain.WitnessDomainTests.test_player_repeating_admission_cannot_block_canonical_admission) ... ok
+test_premature_verdict_rejected (test_witness_domain.WitnessDomainTests.test_premature_verdict_rejected) ... ok
+test_public_persona_contains_no_hidden_lore (test_witness_domain.WitnessDomainTests.test_public_persona_contains_no_hidden_lore) ... ok
+test_repeat_timeline_admits_lie_without_revealing_call_source (test_witness_domain.WitnessDomainTests.test_repeat_timeline_admits_lie_without_revealing_call_source) ... ok
+test_run_contract_and_profile_wrappers (test_witness_domain.WitnessDomainTests.test_run_contract_and_profile_wrappers) ... ok
+test_scene_two_can_advance_without_link_but_false_accusation_has_consequence (test_witness_domain.WitnessDomainTests.test_scene_two_can_advance_without_link_but_false_accusation_has_consequence) ... ok
+test_secret_shaped_text_never_reaches_state_or_context (test_witness_domain.WitnessDomainTests.test_secret_shaped_text_never_reaches_state_or_context) ... ok
+test_seventh_plot_attempt_rejected_side_chat_and_verdict_still_available (test_witness_domain.WitnessDomainTests.test_seventh_plot_attempt_rejected_side_chat_and_verdict_still_available) ... ok
+test_side_conversation_does_not_use_case_turns_or_farm_trust (test_witness_domain.WitnessDomainTests.test_side_conversation_does_not_use_case_turns_or_farm_trust) ... ok
+test_state_rejects_oversized_or_invalid_history (test_witness_domain.WitnessDomainTests.test_state_rejects_oversized_or_invalid_history) ... ok
+test_state_rejects_unknown_or_unearned_admissions (test_witness_domain.WitnessDomainTests.test_state_rejects_unknown_or_unearned_admissions) ... ok
+test_strict_state_fields_types_and_invariants (test_witness_domain.WitnessDomainTests.test_strict_state_fields_types_and_invariants) ... ok
+test_unrevealed_brother_and_coat_owner_not_in_initial_context (test_witness_domain.WitnessDomainTests.test_unrevealed_brother_and_coat_owner_not_in_initial_context) ... ok
+test_user_markdown_keeps_attribution_and_quotes_player_instructions (test_witness_domain.WitnessDomainTests.test_user_markdown_keeps_attribution_and_quotes_player_instructions) ... ok
+test_all_hotspots_record_only_deliberate_observation (test_witness_v2.WitnessV2Tests.test_all_hotspots_record_only_deliberate_observation) ... ok
+test_authorized_historical_call_disclosure_keeps_events_distinct (test_witness_v2.WitnessV2Tests.test_authorized_historical_call_disclosure_keeps_events_distinct) ... ok
+test_authorized_source_fact_reaches_model_only_after_gate (test_witness_v2.WitnessV2Tests.test_authorized_source_fact_reaches_model_only_after_gate) ... ok
+test_case_narration_empty_observation_precedes_character (test_witness_v2.WitnessV2Tests.test_case_narration_empty_observation_precedes_character) ... ok
+test_casual_conversation_does_not_spend_actions_or_change_trust (test_witness_v2.WitnessV2Tests.test_casual_conversation_does_not_spend_actions_or_change_trust) ... ok
+test_context_bounded_and_memory_source_separated (test_witness_v2.WitnessV2Tests.test_context_bounded_and_memory_source_separated) ... ok
+test_director_location_departure_and_murder_assertions_replaced (test_witness_v2.WitnessV2Tests.test_director_location_departure_and_murder_assertions_replaced) ... ok
+test_duplicate_and_unsupported_links_do_not_farm_trust (test_witness_v2.WitnessV2Tests.test_duplicate_and_unsupported_links_do_not_farm_trust) ... ok
+test_ended_v1_save_migrates_without_reset (test_witness_v2.WitnessV2Tests.test_ended_v1_save_migrates_without_reset) ... ok
+test_exact_clock_and_ticket_names_are_observations_not_departure_proof (test_witness_v2.WitnessV2Tests.test_exact_clock_and_ticket_names_are_observations_not_departure_proof) ... ok
+test_hard_intent_overrides_model_and_model_cannot_invent_promise (test_witness_v2.WitnessV2Tests.test_hard_intent_overrides_model_and_model_cannot_invent_promise) ... ok
+test_hidden_hotspot_unknown_field_and_injected_state_rejected (test_witness_v2.WitnessV2Tests.test_hidden_hotspot_unknown_field_and_injected_state_rejected) ... ok
+test_identity_denial_and_wrong_family_replaced_before_transcript (test_witness_v2.WitnessV2Tests.test_identity_denial_and_wrong_family_replaced_before_transcript) ... ok
+test_ignore_all_objects_can_finish_without_silent_discovery (test_witness_v2.WitnessV2Tests.test_ignore_all_objects_can_finish_without_silent_discovery) ... ok
+test_injection_remains_attributed_data_and_context_contains_invariants (test_witness_v2.WitnessV2Tests.test_injection_remains_attributed_data_and_context_contains_invariants) ... ok
+test_inspectable_registry_exposes_safe_local_assets_and_normalized_bounds (test_witness_v2.WitnessV2Tests.test_inspectable_registry_exposes_safe_local_assets_and_normalized_bounds) ... ok
+test_language_preference_persists_without_spending_case_action (test_witness_v2.WitnessV2Tests.test_language_preference_persists_without_spending_case_action) ... ok
+test_malformed_state_and_fabricated_knowledge_fail_closed (test_witness_v2.WitnessV2Tests.test_malformed_state_and_fabricated_knowledge_fail_closed) ... ok
+test_missing_objects_remain_recoverable_after_entrance (test_witness_v2.WitnessV2Tests.test_missing_objects_remain_recoverable_after_entrance) ... ok
+test_model_proposal_is_gated_and_cannot_spend_unanchored_casual_chat (test_witness_v2.WitnessV2Tests.test_model_proposal_is_gated_and_cannot_spend_unanchored_casual_chat) ... ok
+test_new_session_has_no_discoveries_and_separate_phase (test_witness_v2.WitnessV2Tests.test_new_session_has_no_discoveries_and_separate_phase) ... ok
+test_no_observation_no_magic_historical_call_or_coat (test_witness_v2.WitnessV2Tests.test_no_observation_no_magic_historical_call_or_coat) ... ok
+test_npc_caption_must_be_acknowledged_before_next_turn (test_witness_v2.WitnessV2Tests.test_npc_caption_must_be_acknowledged_before_next_turn) ... ok
+test_output_contract_and_export_are_versioned (test_witness_v2.WitnessV2Tests.test_output_contract_and_export_are_versioned) ... ok
+test_preview_cost_is_read_only_and_phone_events_disjoint (test_witness_v2.WitnessV2Tests.test_preview_cost_is_read_only_and_phone_events_disjoint) ... ok
+test_raincoat_authentication_requires_observation_and_testimony (test_witness_v2.WitnessV2Tests.test_raincoat_authentication_requires_observation_and_testimony) ... ok
+test_recent_call_does_not_unlock_historical_call_even_after_promise (test_witness_v2.WitnessV2Tests.test_recent_call_does_not_unlock_historical_call_even_after_promise) ... ok
+test_reinspection_is_idempotent_for_memory_and_resources (test_witness_v2.WitnessV2Tests.test_reinspection_is_idempotent_for_memory_and_resources) ... ok
+test_repeated_different_timeline_questions_release_admission (test_witness_v2.WitnessV2Tests.test_repeated_different_timeline_questions_release_admission) ... ok
+test_resolved_verdict_freezes_discoveries_and_allows_known_evidence_review (test_witness_v2.WitnessV2Tests.test_resolved_verdict_freezes_discoveries_and_allows_known_evidence_review) ... ok
+test_safe_english_reply_kept_without_changing_state_authority (test_witness_v2.WitnessV2Tests.test_safe_english_reply_kept_without_changing_state_authority) ... ok
+test_secret_shaped_and_malformed_text_does_not_enter_memory (test_witness_v2.WitnessV2Tests.test_secret_shaped_and_malformed_text_does_not_enter_memory) ... ok
+test_seventh_case_action_rejected_but_free_chat_remains (test_witness_v2.WitnessV2Tests.test_seventh_case_action_rejected_but_free_chat_remains) ... ok
+test_shared_core_blocks_v2_preentrance_turn_and_injected_evidence (test_witness_v2.WitnessV2Tests.test_shared_core_blocks_v2_preentrance_turn_and_injected_evidence) ... ok
+test_shared_core_executes_v2_through_same_typed_curated_tool (test_witness_v2.WitnessV2Tests.test_shared_core_executes_v2_through_same_typed_curated_tool) ... ok
+test_strict_context_contract_rejects_extra_fields_or_changed_projection (test_witness_v2.WitnessV2Tests.test_strict_context_contract_rejects_extra_fields_or_changed_projection) ... ok
+test_three_outcomes_are_reachable_with_at_most_six_case_actions (test_witness_v2.WitnessV2Tests.test_three_outcomes_are_reachable_with_at_most_six_case_actions) ... ok
+test_two_call_conflation_replaced (test_witness_v2.WitnessV2Tests.test_two_call_conflation_replaced) ... ok
+test_unauthorized_caller_coat_and_lie_replaced (test_witness_v2.WitnessV2Tests.test_unauthorized_caller_coat_and_lie_replaced) ... ok
+test_unreleased_director_facts_and_timestamps_absent_from_initial_projection (test_witness_v2.WitnessV2Tests.test_unreleased_director_facts_and_timestamps_absent_from_initial_projection) ... ok
+test_v1_migration_preserves_save_semantics_without_claiming_inspection (test_witness_v2.WitnessV2Tests.test_v1_migration_preserves_save_semantics_without_claiming_inspection) ... ok
+test_wrong_language_is_replaced_with_selected_language (test_witness_v2.WitnessV2Tests.test_wrong_language_is_replaced_with_selected_language) ... ok
+
+----------------------------------------------------------------------
+Ran 287 tests in 9.660s
+
+OK

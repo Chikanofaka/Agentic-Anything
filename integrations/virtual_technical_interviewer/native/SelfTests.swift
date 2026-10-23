@@ -31,6 +31,8 @@ func runNativeTests() -> Int32 {
     check("E3D invalid SMART task id rejected", BridgePolicy.validate(request("smart_record", smartSample.merging(["task_id": "../../fixture"]) { _, extra in extra })) == nil)
     check("E3D oversized SMART note rejected", BridgePolicy.validate(request("smart_record", smartSample.merging(["note": String(repeating: "中", count: 168)]) { _, extra in extra })) == nil)
     check("E3CB exact user trainer request", BridgePolicy.validate(request("trainer_request")) != nil)
+    check("E4C1B exact Native preparer request", BridgePolicy.validate(request("preparer_request")) != nil)
+    check("E4C1B renderer cannot forge private proposal", BridgePolicy.validate(request("preparer_request", ["code": "SELECT secret"])) == nil)
     check("E3CB renderer cannot send trainer feedback", BridgePolicy.validate(request("trainer_request", ["proposal": "approved"])) == nil)
     check("no arbitrary process execution", BridgePolicy.validate(request("exec", ["command": "true"])) == nil)
     check("no host phase mutation", BridgePolicy.validate(request("set_phase", ["phase": "COMPLETE"])) == nil)
@@ -90,6 +92,42 @@ func runNativeTests() -> Int32 {
     check("E25B execute rejects invalid SHA", BridgePolicy.validate(request("grade_execute", ["fixture_sha256": "not-a-hash"])) == nil)
     check("E25B execute rejects path injection", BridgePolicy.validate(request("grade_execute", ["fixture_sha256": digest, "fixture_path": "/tmp/other.db"])) == nil)
     check("E25B native-only execution commit rejected", BridgePolicy.validate(request("native_commit_grade", ["status": "PASSED"])) == nil)
+    // C1B Native-parser tests: 3 bound questions, wrong SHA, and injected grades.
+    let syntheticHashes = [String(repeating: "a", count: 64), String(repeating: "b", count: 64), String(repeating: "c", count: 64)]
+    let prepFields: [String: String] = ["problem_statement": "Find rows", "task": "Return ids",
+        "schema": "Orders(id INT)", "example_input": "(1)", "expected_output": "1",
+        "environment": "POSTGRESQL", "source": "OWNER"]
+    let prepReports: [[String: Any]] = syntheticHashes.enumerated().map { index, hash in
+        ["question_index": index, "question_sha256": hash, "environment": "POSTGRESQL", "status": "SOURCE_BOUND_CONFIRMED"]
+    }
+    let prepReviews: [[String: Any]] = syntheticHashes.map { hash in
+        ["human_confirmed": true, "practice_eligible": true, "content_sha256": hash, "fields": prepFields]
+    }
+    let prepState: [String: Any] = ["screen": "REVIEW", "preflight_readiness": [
+        "schema": "tia-preflight-readiness/v1", "status": "READY_FOR_FUTURE_PRIVATE_PREPARATION",
+        "required_count": 3, "questions": prepReports], "setup_questions": prepReviews]
+    let prep = try? TIAPreparerPackage(state: prepState)
+    check("E4C1B source-bound 3 question preflight", prep?.questionCount == 3)
+    if let prep = prep {
+        let approach: [String: Any] = ["label": "group", "code": "SELECT id FROM Orders",
+            "rationale": "Aggregate rows", "invariants": ["one row"],
+            "edge_cases": ["empty"], "complexity": "linear"]
+        let items: [[String: Any]] = syntheticHashes.map { hash in
+            ["question_sha256": hash, "language": "POSTGRESQL", "approaches": [approach]]
+        }
+        let proposed: [String: Any] = ["schema": "tia-preparer-model-proposal/v1",
+            "question_set_sha256": prep.questionSetSHA, "items": items]
+        let candidate = try? TIAPreparerPackage.encoded(proposed)
+        let validated = candidate.flatMap { try? prep.validate($0) }
+        check("E4C1B native private proposal validated", validated?.safeStatus["question_count"] as? Int == 3)
+        var forged = proposed; forged["technical_score"] = 100
+        let forgedText = try? TIAPreparerPackage.encoded(forged)
+        check("E4C1B forbids proposed grades", forgedText.flatMap { try? prep.validate($0) } == nil)
+        var altered = proposed; altered["question_set_sha256"] = String(repeating: "f", count: 64)
+        let alteredText = try? TIAPreparerPackage.encoded(altered)
+        check("E4C1B rejects stale question digest", alteredText.flatMap { try? prep.validate($0) } == nil)
+        check("E4C1B no code in public status", !String(describing: validated?.safeStatus ?? [:]).contains("SELECT id"))
+    }
     let portal = NativePortal()
     check("offline initially", portal.state == "offline")
     check("empty key not activated", !portal.configure("", consent: true) && portal.state == "offline")
