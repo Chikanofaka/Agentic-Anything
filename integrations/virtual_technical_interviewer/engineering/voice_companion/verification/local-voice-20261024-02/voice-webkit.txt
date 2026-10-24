@@ -1,0 +1,21 @@
+PASS Voice is unavailable before provider verification
+PASS Native synthetic consent is isolated from the renderer
+PASS Three reviewed questions enter a real multi-turn controller session
+PASS Verified committed interviewer response makes the voice companion available
+PASS Chinese interface and local voice settings require no new model request
+PASS Explicit listen begins mock recognition without a provider request
+PASS Partial recognition remains an unsubmitted caption
+PASS Final recognition is editable by default and never silently submitted
+PASS Edited voice draft crosses the same guarded candidate and model path
+PASS Pause stops recognition before a delayed final transcript
+PASS Late speech after pause cannot mutate the draft or committed dialogue
+PASS Mute affects local speech playback without inventing a conversation turn
+PASS A second manual speech turn remains available while output is muted
+PASS Second spoken plan is committed with independent unscored evidence
+PASS Companion remains usable at compact window size
+PASS Native keyboard movement and focus work without scrolling the dialogue
+PASS Native Tab reaches a companion control and native mouse drag is armed
+Voice UI check detail: success({
+    ok = 0;
+})
+Native voice UI smoke: FAIL — Native mouse drag keeps the companion inside the compact window

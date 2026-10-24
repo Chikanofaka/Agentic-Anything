@@ -43,7 +43,9 @@ enum BridgePolicy {
               JSONSerialization.isValidJSONObject(body),
               let data = try? JSONSerialization.data(withJSONObject: body),
               data.count <= 32768 else { return nil }
-        if emptyActions.contains(action) {
+        if action.hasPrefix("voice_") {
+            guard TIAVoiceCompanion.validate(action: action, params: params) else { return nil }
+        } else if emptyActions.contains(action) {
             guard params.isEmpty else { return nil }
         } else if action == "grade_inspect" {
             guard Set(params.keys) == ["fixture_json"],

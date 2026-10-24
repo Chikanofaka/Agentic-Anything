@@ -38,6 +38,8 @@ info = {"CFBundleName": "Technical Interview Lab", "CFBundleDisplayName": "Techn
         "CFBundleExecutable": "TechnicalInterviewLab", "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": "0.3.0", "CFBundleVersion": "3",
         "TIADevelopmentBuild": True, "LSMinimumSystemVersion": "12.0",
+        "NSMicrophoneUsageDescription": "Use your microphone for local interview captions only when you turn listening on. / 仅在开启收音时将语音转为本地字幕。",
+        "NSSpeechRecognitionUsageDescription": "Recognize interview speech on this device. Unsupported local languages stay disabled; no cloud speech fallback. / 仅使用设备端语音识别。",
         "NSHighResolutionCapable": True, "NSPrincipalClass": "NSApplication",
         "NSAppTransportSecurity": {"NSAllowsArbitraryLoads": False}}
 with (app / "Contents/Info.plist").open("wb") as handle:

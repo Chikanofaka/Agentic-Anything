@@ -1,0 +1,23 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 0,
+  "passed" : 2,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "2 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : false,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "reopened native App restores saved screen and completed S02 session"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "reopened App retains candidate SQL and immutable reviewed Trainer evidence"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

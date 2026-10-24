@@ -359,7 +359,7 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send", "grade_execute", "trainer_request"]);
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request"]);
   const interruptActions = new Set(["preview_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
@@ -405,7 +405,7 @@
       const id = `ui-${++serial}`;
       // Native confirmation and file/credential sheets await the user's decision.
       // Their lifetime is not a provider/worker timeout.
-      const awaitsHuman = ["api_portal", "reset", "tutorial_replay", "export"].includes(action);
+      const awaitsHuman = ["api_portal", "reset", "tutorial_replay", "export", "voice_handsfree", "voice_listen"].includes(action);
       // Native code bounds prepare, HTTP and commit individually. A renderer timer
       // must not abandon a paid request while native code may still commit it.
       const timer = awaitsHuman || liveRequestActions.has(action) ? null : setTimeout(() => {
@@ -428,6 +428,7 @@
     });
   }
   window.request = request;
+  window.TIAVoice?.mount({send: request});
   window.tiaReceive = response => {
     if (!response || typeof response !== "object") return;
     const item = pending.get(response.id);
@@ -1693,6 +1694,8 @@
     if (state.transport_mode === "MOCK_HTTP") add(shell, node("p", "AUTOMATED TEST · MOCK HTTP · NO REAL PROVIDER CALLS", "setup-warning"));
     add(shell, progress, livePending, main, footer);
     app.replaceChildren(shell);
+    window.TIAVoice?.update(state, state.activation);
+    window.TIAVoice?.receive(state.voice || {});
     updateClockDisplay();
     setBusy(pending.size > 0);
     if (previousScreen !== state.screen) {

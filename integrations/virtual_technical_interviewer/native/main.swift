@@ -12,12 +12,22 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         // the older tutorial tests. No test flag can spend a real credential.
         NativePortal(adapter: TIAOpenAIAdapter(configuration: uiTesting ? TIATestHTTPProtocol.configuration() : .ephemeral))
     }()
+    lazy var voice: TIAVoiceCompanion = {
+        let companion = TIAVoiceCompanion(testing: uiTesting)
+        companion.onChange = { [weak self] value in self?.emitVoice(value) }
+        companion.onSubmit = { [weak self] kind, text in self?.submitVoice(kind: kind, text: text) }
+        return companion
+    }()
+    private var voiceSmoke: TIAVoiceUISmoke?
+    private var voiceActionID: String?
+    private var voiceSubmission = false
+    private var voiceUnsolicited = false
     private var busy = false
     private var seenIDs = Set<String>()
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-voice-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
@@ -31,7 +41,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         do {
             guard let resources = Bundle.main.resourceURL else { throw CocoaError(.fileNoSuchFile) }
             indexURL = resources.appendingPathComponent("ui/index.html").standardizedFileURL
-            for name in ["index.html", "app.js", "style.css"] {
+            for name in ["index.html", "app.js", "style.css", "voice.js", "voice.css"] {
                 guard FileManager.default.isReadableFile(atPath: resources.appendingPathComponent("ui/" + name).path)
                 else { throw CocoaError(.fileNoSuchFile) }
             }
@@ -85,6 +95,14 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                         .reply("Explain your own diagnosis before asking for another hint.")
                     ])
                 }
+                if CommandLine.arguments.contains("--ui-voice-test") {
+                    TIATestHTTPProtocol.reset([
+                        .reply("Explain the current question before choosing an approach."),
+                        .reply("Which assumption will you verify next?"),
+                        .reply("Which edge case will you check independently?"),
+                        .reply("State your own diagnosis before requesting a permitted hint.")
+                    ])
+                }
                 // Optional output location is native argv, never a renderer parameter.
                 if let i = CommandLine.arguments.firstIndex(of: "--test-output"), CommandLine.arguments.count > i + 1 {
                     smokeDirectory = URL(fileURLWithPath: CommandLine.arguments[i + 1], isDirectory: true)
@@ -99,7 +117,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             worker = try TIAWorker(runtime: resources.appendingPathComponent("runtime"), dataDirectory: dataDirectory)
             worker?.onFailure = { [weak self] in
                 guard let self = self else { return }
-                self.portal.disconnect()
+                self.voice.stop(); self.portal.disconnect()
                 self.finishLive(ok: false, error: "LOCAL_CONTROLLER_UNAVAILABLE")
                 self.busy = false
                 self.emit(["ok": false, "state": self.lastState, "error": "LOCAL_CONTROLLER_UNAVAILABLE"])
@@ -144,10 +162,15 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         NSApp.mainMenu = menu
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
-    func applicationWillTerminate(_ notification: Notification) { portal.disconnect(); worker?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { voice.stop(); portal.disconnect(); worker?.stop() }
+    func applicationDidResignActive(_ notification: Notification) {
+        // OS permission sheets may temporarily resign activation. The audio
+        // backend checks actual App activation again before starting capture.
+        if voice.publicState["status"] as? String != "PERMISSION" { voice.stop() }
+    }
 
     func failure(_ message: String) {
-        portal.disconnect()
+        voice.stop(); portal.disconnect()
         if uiTesting { print("FAIL native UI startup"); exit(4) }
         let alert = NSAlert(); alert.messageText = "Technical Interview Lab"; alert.informativeText = message
         alert.runModal(); NSApp.terminate(nil)
@@ -169,7 +192,17 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { failure("The screen process stopped. Restart to recover saved progress.") }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loaded = true
-        guard uiTesting, smoke == nil else { return }
+        guard uiTesting, smoke == nil, voiceSmoke == nil else { return }
+        if CommandLine.arguments.contains("--ui-voice-test") {
+            voiceSmoke = TIAVoiceUISmoke(app: self, directory: smokeDirectory,
+                voiceState: { [weak self] in self?.voice.publicState ?? [:] },
+                injectTranscript: { [weak self] text, final in self?.voice.injectSyntheticTranscript(text, final: final) },
+                finish: { [weak self] code in
+                    self?.voice.stop(); self?.portal.disconnect(); self?.worker?.stop()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { exit(code) }
+                })
+            voiceSmoke?.run(); return
+        }
         smoke = TIAUISmoke(app: self, directory: smokeDirectory) { [weak self] code in
             self?.portal.disconnect(); self?.worker?.stop()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { exit(code) }
@@ -185,6 +218,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         guard seenIDs.count < 10000, seenIDs.insert(id).inserted else {
             emit(["id": id, "ok": false, "error": "DUPLICATE_OR_EXHAUSTED_REQUEST"]); return
+        }
+        if action.hasPrefix("voice_") {
+            handleVoice(id: id, action: action, params: params); return
         }
         // Cancellation remains available while a paid request is pending. The
         // renderer can request cancellation but cannot call prepare/commit itself.
@@ -234,7 +270,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
 
     private func forward(id: String, action: String, params: [String: Any]) {
+        if ["preview_close", "rehearsal_submit", "rehearsal_skip", "reset", "tutorial_replay"].contains(action) { voice.stop() }
         busy = true
+        if action == "grade_execute" { voice.update(host: lastState, provider: portal.publicState, busy: true) }
         worker?.request(action, params: params) { [weak self] reply in
             guard let self = self else { return }
             self.busy = false
@@ -274,6 +312,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         let generation = portal.generation
         let requestID = UUID().uuidString
         busy = true; liveRequestID = id; liveGeneration = generation; liveStage = "preparing"
+        voice.update(host: lastState, provider: portal.publicState, busy: true)
         let preparedParams: [String: Any] = [
             "request_id": requestID, "generation": generation,
             "operation": action == "preview_verify" ? "verify" : "reply",
@@ -441,6 +480,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
 
     private func cancelLive(id: String, disconnect: Bool) {
+        voice.stop()
         if disconnect { privatePreparation = nil; portal.disconnect() } else { portal.cancel() }
         if liveStage == "preparer_calling" {
             cancellationIDs.append(id)
@@ -477,11 +517,61 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private func finishLive(ok: Bool, error: String?) {
         guard let id = liveRequestID else { return }
         liveRequestID = nil; liveGeneration = nil; liveStage = "idle"; busy = false
+        let isVoice = voiceSubmission, unsolicitedVoice = voiceUnsolicited
+        voiceSubmission = false; voiceUnsolicited = false
+        if isVoice { voice.submissionFinished(ok: ok) }
         var result: [String: Any] = ["id": id, "ok": ok, "state": lastState]
+        if unsolicitedVoice { result.removeValue(forKey: "id") }
         if let error = error { result["error"] = error }
         emit(result)
         let cancelled = cancellationIDs; cancellationIDs.removeAll()
         for cancellation in cancelled { respondWithState(cancellation) }
+    }
+
+    private func handleVoice(id: String, action: String, params: [String: Any]) {
+        // Never start or change capture while a native credential/consent sheet
+        // is open. Pause and mute remain available even during those sheets.
+        if portalSheet != nil && action != "voice_pause" && action != "voice_mute" {
+            emit(["id": id, "ok": false, "state": lastState, "error": "VOICE_NATIVE_SHEET_ACTIVE"]); return
+        }
+        // Audio controls remain interruptible while the provider is working.
+        voice.update(host: lastState, provider: portal.publicState, busy: busy)
+        if action == "voice_handsfree", params["enabled"] as? Bool == true {
+            guard !busy, portalSheet == nil, voice.publicState["eligible"] as? Bool == true else {
+                emit(["id": id, "ok": false, "state": lastState, "error": "VOICE_ROOM_UNAVAILABLE"]); return
+            }
+            confirm("Enable hands-free voice turns? / 开启免手动发送？\n\nEach completed utterance will be submitted to the existing interviewer and can use ONE paid model request within your native approved request cap. Audio stays on this Mac; submitted text follows the existing transcript and provider policy. Silence of 1.5 seconds may end a turn. There are no automatic paid retries. Pause stops listening, not the interview clock. / 每段语音转写可能消耗一次已授权模型请求；暂停收音不会暂停面试计时。") { accepted in
+                let error = accepted ? self.voice.perform(action: action, params: params) : nil
+                self.emit(["id": id, "ok": error == nil, "state": self.lastState, "error": error as Any? ?? NSNull()])
+            }
+            return
+        }
+        if action == "voice_send" { voiceActionID = id }
+        let error = voice.perform(action: action, params: params)
+        voiceActionID = nil
+        // A send completion follows the existing asynchronous prepare/call/commit.
+        if action == "voice_send", voiceSubmission, error == nil { return }
+        emit(["id": id, "ok": error == nil, "state": lastState, "error": error as Any? ?? NSNull()])
+    }
+
+    private func submitVoice(kind: String, text: String) {
+        let id = voiceActionID ?? "voice-" + UUID().uuidString
+        guard !busy, portalSheet == nil, portal.publicState["authenticated"] as? Bool == true,
+              portal.publicState["live_enabled"] as? Bool == true,
+              lastState["screen"] as? String == "LIVE_PREVIEW",
+              (lastState["live_preview"] as? [String: Any])?["can_send"] as? Bool == true,
+              BridgePolicy.validate(["id": id, "action": "preview_send", "params": ["kind": kind, "text": text]]) != nil else {
+            voice.submissionFinished(ok: false)
+            emit(["ok": false, "state": lastState, "error": "VOICE_SEND_UNAVAILABLE"]); return
+        }
+        voiceSubmission = true; voiceUnsolicited = voiceActionID == nil
+        beginLive(id: id, action: "preview_send", params: ["kind": kind, "text": text])
+    }
+
+    private func emitVoice(_ state: [String: Any]) {
+        guard let webView = webView, loaded else { return }
+        webView.callAsyncJavaScript("window.TIAVoice?.receive(value)", arguments: ["value": state],
+                                   in: nil, in: .page, completionHandler: nil)
     }
 
     private func respondWithState(_ id: String) { emit(["id": id, "ok": true, "state": lastState]) }
@@ -490,6 +580,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         if var state = result["state"] as? [String: Any] {
             state["native_private_preparer"] = privatePreparation?.safeStatus ?? ["status": "NOT_PREPARED", "interviewer_reference_access": false]
             state["activation"] = portal.publicState
+            voice.update(host: state, provider: portal.publicState, busy: busy)
+            state["voice"] = voice.publicState
             if portal.publicState["authenticated"] as? Bool == true,
                let blockers = state["setup_blockers"] as? [String] {
                 state["setup_blockers"] = blockers.filter { $0 != "PROVIDER_AUTHENTICATION_REQUIRED" }
@@ -506,6 +598,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
 
     private func confirm(_ text: String, completion: @escaping (Bool) -> Void) {
+        voice.perform(action: "voice_pause", params: [:])
         let alert = NSAlert(); alert.messageText = "Local data / 本机数据"; alert.informativeText = text
         alert.addButton(withTitle: "Confirm / 确认"); alert.addButton(withTitle: "Cancel / 取消")
         portalSheet = alert
@@ -514,8 +607,11 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         // Test-only: simulate a real native confirmation click, never in a
         // normal App or in any provider-capable test. All data are synthetic.
-        if uiTesting && ((CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test")) && text.contains("Execute current candidate SQL") ||
-            (CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI"))) {
+        let syntheticVoiceConsent = CommandLine.arguments.contains("--ui-voice-test") && text.contains("Enable hands-free voice turns")
+        let syntheticGradeConsent = ["--ui-grading-test", "--ui-smart-test", "--ui-trainer-test", "--ui-adaptive-test", "--ui-adaptive-stale-test"]
+            .contains(where: { CommandLine.arguments.contains($0) }) && text.contains("Execute current candidate SQL")
+        let syntheticTrainerConsent = CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI")
+        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)
             }
@@ -621,6 +717,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
 
     func openPortal(completion: @escaping () -> Void) {
+        voice.stop() // Never capture speech around native credential entry.
         let alert = NSAlert()
         alert.messageText = "API Portal · OpenAI"
         alert.informativeText = """
@@ -698,6 +795,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         } else if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
+        if CommandLine.arguments.contains("--ui-voice-test") {
+            alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
+        }
         consent.state = .on; delegate.changed()
         guard alert.buttons[0].isEnabled else { return false }
         window.endSheet(alert.window, returnCode: .alertFirstButtonReturn)
@@ -746,7 +846,8 @@ final class CredentialFieldDelegate: NSObject, NSTextFieldDelegate {
 if CommandLine.arguments.contains("--self-test") {
     let core = runNativeTests()
     let provider = runProviderTests()
-    exit(core == 0 && provider == 0 ? 0 : 1)
+    let audio = runVoiceTests()
+    exit(core == 0 && provider == 0 && audio == 0 ? 0 : 1)
 }
 let application = NSApplication.shared
 application.setActivationPolicy(.regular)

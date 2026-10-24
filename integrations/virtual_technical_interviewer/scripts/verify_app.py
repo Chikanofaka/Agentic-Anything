@@ -17,8 +17,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--ui", action="store_true", help="Open actual native windows with isolated synthetic data.")
 parser.add_argument("--regressions", action="store_true", help="Build/test Witness and shared HAL.")
 parser.add_argument("--increment", choices=["S03-A", "S03-B", "S03-C", "S03-E1", "S03-E2", "S03-E25B", "S03-E3A", "S03-E3B", "S03-E3C", "S03-E3CB", "S03-E3D"], default="S03-C")
+parser.add_argument("--voice", action="store_true", help="Include local voice UI with synthetic audio and mocked HTTP; requires --ui.")
+parser.add_argument("--run-label", help="Preserve this run in a new labelled subdirectory.")
 args = parser.parse_args()
+if args.voice and not args.ui:
+    parser.error("--voice requires --ui")
+if args.run_label and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", args.run_label):
+    parser.error("Invalid run label")
 out = root / ("engineering/s03e_smart_plan/verification_E3D" if args.increment == "S03-E3D" else "engineering/s03e_grounded_trainer/verification_E3CB" if args.increment == "S03-E3CB" else "engineering/s03e_grounded_trainer/verification_E3C" if args.increment == "S03-E3C" else "engineering/s03e_communication_rubric/verification_E3B" if args.increment == "S03-E3B" else "engineering/s03e_evidence_scorecard/verification_E3A" if args.increment == "S03-E3A" else "engineering/s03e_postgres_accuracy/verification_E25B" if args.increment == "S03-E25B" else "engineering/s03e_time_intelligence/verification" if args.increment == "S03-E2" else "engineering/s03e_three_question/verification" if args.increment == "S03-E1" else ("engineering/s03c_live_byok/verification" if args.increment == "S03-C" else "engineering/s03_first_playable/verification/" + args.increment))
+if args.voice:
+    out = root / "engineering/voice_companion/verification"
+if args.run_label:
+    out = out / args.run_label
+    if out.exists():
+        parser.error("Run label exists; choose another label to preserve evidence")
 out.mkdir(parents=True, exist_ok=True)
 app = root / "dist/Technical Interview Lab.app/Contents/MacOS/TechnicalInterviewLab"
 receipt = {"schema": "tia-verification/v1", "increment": args.increment,
@@ -53,6 +65,9 @@ def run(label, command, timeout=180):
     provider = re.search(r"Provider tests: (\d+) passed, (\d+) failed", text)
     if provider:
         check["provider_passed"], check["provider_failed"] = map(int, provider.groups())
+    voice = re.search(r"Voice tests: (\d+) passed, (\d+) failed", text)
+    if voice:
+        check["voice_passed"], check["voice_failed"] = map(int, voice.groups())
     receipt["checks"].append(check)
     (out / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")
     print(label, check["status"], check["elapsed_seconds"], "seconds", flush=True)
@@ -93,6 +108,23 @@ if args.ui and args.increment in ("S03-E1", "S03-E2", "S03-E25B", "S03-E3A", "S0
         grade_dir = root / ".build-cache" / ("verified-grading-" + str(time.time_ns()))
         run("native-smart-plan-webkit" if args.increment == "S03-E3D" else "native-byok-trainer-webkit" if args.increment == "S03-E3CB" else "native-grounded-trainer-webkit" if args.increment == "S03-E3C" else "native-communication-rubric-webkit" if args.increment == "S03-E3B" else "native-evidence-scorecard-webkit" if args.increment == "S03-E3A" else "native-postgres-grading-webkit", [str(app), "--ui-smart-test" if args.increment == "S03-E3D" else "--ui-trainer-test" if args.increment == "S03-E3CB" else "--ui-grading-test", "--test-output", str(grade_dir)], timeout=240)
         shutil.copyfile(grade_dir / "ui-grading-receipt.json", out / "ui-grading-receipt.json")
+if args.voice:
+    voice_dir = root / ".build-cache" / ("verified-voice-" + str(time.time_ns()))
+    run("voice-webkit", [str(app), "--ui-voice-test", "--test-output", str(voice_dir)])
+    for name in ("ui-voice-receipt.json", "voice-room.png", "voice-compact.png"):
+        shutil.copyfile(voice_dir / name, out / name)
+if args.voice:
+    adaptive_dir = root / ".build-cache" / ("voice-adaptive-" + str(time.time_ns()))
+    stale_dir = root / ".build-cache" / ("voice-stale-" + str(time.time_ns()))
+    preparer_dir = root / ".build-cache" / ("voice-preparer-" + str(time.time_ns()))
+    for label, flag, directory, name in (
+        ("adaptive-webkit", "--ui-adaptive-test", adaptive_dir, "ui-adaptive-receipt.json"),
+        ("adaptive-stale", "--ui-adaptive-stale-test", stale_dir, "ui-adaptive-stale-receipt.json"),
+        ("adaptive-recovery", "--ui-adaptive-recovery-test", adaptive_dir, "ui-adaptive-recovery-receipt.json"),
+        ("private-preparer", "--ui-preparer-test", preparer_dir, "ui-preparer-receipt.json"),
+    ):
+        run(label, [str(app), flag, "--test-output", str(directory)], timeout=240)
+        shutil.copyfile(directory / name, out / name)
 if args.regressions:
     run("witness-hal", ["bash", str(repo / "scripts/verify_witness_local.sh")], timeout=240)
 receipt["completed_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
