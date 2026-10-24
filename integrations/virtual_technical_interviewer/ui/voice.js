@@ -286,7 +286,7 @@
     for (let i = 0; i < refs.rate.options.length; i += 1) text(refs.rate.options[i], t(["slow", "normal", "fast"][i]));
     refs.kind.value = ["clarify", "plan", "test", "help"].includes(voice.kind) ? voice.kind : "plan";
     refs.language.value = voice.language === "zh-CN" ? "zh-CN" : "en-US";
-    refs.rate.value = [0.8, 1, 1.2].includes(voice.rate) ? String(voice.rate) : "1";
+    refs.rate.value = [0.8, 1, 1.2].includes(voice.rate) ? String(voice.rate) : "1.2";
     refs.handsfree.checked = voice.handsfree === true;
     refs.draft.placeholder = t("placeholder");
     if (refs.draft.value !== localDraft && !composing) refs.draft.value = localDraft;

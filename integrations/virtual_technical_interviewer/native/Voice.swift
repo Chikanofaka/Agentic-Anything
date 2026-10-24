@@ -193,7 +193,7 @@ final class TIAVoiceCompanion {
     private var handsfree = false
     private var submitting = false
     private var language = "en-US"
-    private var rate = 1.0
+    private var rate = 1.2
     private var kind = "clarify"
     private var draft = ""
     private var partial = ""
