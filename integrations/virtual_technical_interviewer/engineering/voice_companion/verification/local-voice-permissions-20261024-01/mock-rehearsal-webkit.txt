@@ -1,0 +1,10 @@
+PASS E1 native rehearsal portal uses synthetic consent only
+PASS E1 three distinct question imports and confirmations render start action
+PASS E1 start through WebKit and verify first native mocked question
+PASS E4 source-bound examples render in real WebKit room without grading
+PASS E2 timer starts on first presented question, exposes local-only clock
+PASS E1 two successive turns use guarded mocked native requests
+PASS E1 finish Q1, skip Q2, open Q3 without extra calls
+PASS E1 Q3 uses original question context and freezes unscored three-question outcome
+PASS E2 score-free three-question time ledger remains exportable
+Native UI smoke: PASS — 9 real UI checks; 5 mocked HTTP requests; zero real provider requests

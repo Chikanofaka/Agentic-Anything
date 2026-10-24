@@ -55,6 +55,7 @@ func runVoiceTests() -> Int32 {
         companion.update(host: host(), provider: provider(), busy: false)
         // Existing manual-mode regressions explicitly select paused/manual mode.
         companion.stop()
+        companion.perform(action: "voice_handsfree", params: ["enabled": false])
         companion.update(host: host(), provider: provider(), busy: false)
         backend.listenCount = 0; backend.stopCount = 0; backend.said = []
         return (companion, backend)
@@ -140,7 +141,7 @@ func runVoiceTests() -> Int32 {
         check("explicit handsfree resumes after speech", bool(voice, "listening") && backend.listenCount == 2)
         backend.transcript?("Second plan", true)
         voice.submissionFinished(ok: false)
-        check("request failure preserves review draft and disables auto retry", sends.count == 2 && string(voice, "draft") == "Second plan" && !bool(voice, "handsfree") && !bool(voice, "listening") && string(voice, "error") == "VOICE_SUBMISSION_FAILED")
+        check("request failure preserves review draft and disables auto retry", sends.count == 2 && string(voice, "draft") == "Second plan" && bool(voice, "handsfree") && !bool(voice, "listening") && string(voice, "error") == "VOICE_SUBMISSION_FAILED")
         voice.submissionFinished(ok: true)
         check("late completion cannot restart failed recording", !bool(voice, "listening"))
         voice.stop()
@@ -301,9 +302,9 @@ func runVoiceTests() -> Int32 {
         voice.submissionFinished(ok: false)
         voice.update(host: host(reply: 2), provider: provider("unavailable", authenticated: true), busy: false)
         check("recoverable unavailable preserves editable voice draft", bool(voice, "eligible") && string(voice, "draft") == "Retryable second draft" && string(voice, "error") == "VOICE_SUBMISSION_FAILED")
-        check("unavailable stops auto submit and new recording", sends == 2 && !bool(voice, "handsfree") && !bool(voice, "listening") && voice.perform(action: "voice_listen", params: [:]) == "VOICE_TURN_UNAVAILABLE")
+        check("unavailable stops auto submit and new recording", sends == 2 && bool(voice, "handsfree") && !bool(voice, "listening") && voice.perform(action: "voice_listen", params: [:]) == "VOICE_TURN_UNAVAILABLE")
         voice.update(host: host(reply: 2), provider: provider("unavailable", authenticated: false), busy: false)
-        check("invalid credential still clears all ephemeral voice data", !bool(voice, "eligible") && string(voice, "draft").isEmpty && !bool(voice, "handsfree"))
+        check("invalid credential still clears all ephemeral voice data", !bool(voice, "eligible") && string(voice, "draft").isEmpty && bool(voice, "handsfree"))
         voice.onSubmit = nil; voice.stop()
     }
     do {
@@ -320,13 +321,36 @@ func runVoiceTests() -> Int32 {
         voice.submissionFinished(ok: true)
         voice.perform(action: "voice_pause", params: [:])
         voice.update(host: host(), provider: provider(), busy: false)
-        check("snapshot never reverses manual pause", !bool(voice, "listening") && !bool(voice, "handsfree"))
+        check("snapshot never reverses manual pause", !bool(voice, "listening") && bool(voice, "handsfree"))
         voice.update(host: host("question-2"), provider: provider(), busy: false)
         check("new question resets automatic mode", bool(voice, "handsfree") && bool(voice, "speaking"))
         backend.finished?()
         backend.failed?("VOICE_MIC_PERMISSION_DENIED")
         voice.update(host: host("question-2"), provider: provider(), busy: false)
-        check("permission failure never retries on snapshot", !bool(voice, "listening") && !bool(voice, "handsfree"))
+        check("permission failure never retries on snapshot", !bool(voice, "listening") && bool(voice, "handsfree"))
+        voice.stop()
+    }
+    do {
+        let gate = TIAVoiceActivationGate()
+        var starts = 0
+        gate.wait(active: false) { starts += 1 }
+        check("permission grant while inactive waits for foreground", starts == 0)
+        gate.becameActive(); gate.becameActive()
+        check("foreground after permission starts exactly once", starts == 1)
+        gate.wait(active: false) { starts += 1 }; gate.cancel(); gate.becameActive()
+        check("pause cancels deferred permission activation", starts == 1)
+        gate.wait(active: true) { starts += 1 }
+        check("already active permission starts immediately", starts == 2)
+        let backend = TIAVoiceMock(); backend.autoReady = false
+        let voice = TIAVoiceCompanion(backend: backend)
+        voice.update(host: host(), provider: provider(), busy: false); backend.finished?()
+        check("permission pending preserves automatic preference", voice.isAwaitingPermission && bool(voice, "handsfree"))
+        backend.ready?()
+        check("permission completion continues automatic listening", bool(voice, "listening") && bool(voice, "handsfree"))
+        voice.stop()
+        check("external interruption stops audio without changing preference", !bool(voice, "listening") && bool(voice, "handsfree"))
+        voice.perform(action: "voice_listen", params: [:]); backend.ready?()
+        check("listen resumes automatic mode after interruption", bool(voice, "listening") && bool(voice, "handsfree"))
         voice.stop()
     }
     print("Voice tests: \(checks - failures) passed, \(failures) failed; microphone captures: 0; synthesized audio: 0; provider requests: 0")

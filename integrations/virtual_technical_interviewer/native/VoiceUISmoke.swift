@@ -77,6 +77,7 @@ final class TIAVoiceUISmoke {
         Step(label: "Chinese interface and local voice settings require no new model request", code: """
           // Select manual mode explicitly to retain the existing draft/edit journey.
           await press('voiceMic');
+          await request('voice_handsfree',{enabled:false});
           await request('language',{language:'zh'});await panel();
           el('voiceLanguage').closest('details').open=true;
           await choose('voiceLanguage','zh-CN');await choose('voiceRate','0.8');
@@ -185,7 +186,7 @@ final class TIAVoiceUISmoke {
         """, action: .cancelPortal),
         Step(label: "Cancelling the credential sheet requires explicit microphone restart", code: """
           await until(()=>!document.querySelector('[aria-busy="true"]'));const s=await snap();
-          return {ok:s.voice.listening===false&&s.voice.handsfree===false&&s.voice.draft===''
+          return {ok:s.voice.listening===false&&s.voice.handsfree===true&&s.voice.draft===''
             &&s.activation.requests_total===4};
         """),
         Step(label: "Leaving the question freezes dialogue and disables voice", code: """
@@ -222,7 +223,7 @@ final class TIAVoiceUISmoke {
         guard next < steps.count else {
             let v = voiceState()
             guard v["eligible"] as? Bool == false, v["listening"] as? Bool == false,
-                  v["speaking"] as? Bool == false, v["handsfree"] as? Bool == false,
+                  v["speaking"] as? Bool == false, v["handsfree"] as? Bool == true,
                   (v["draft"] as? String ?? "").isEmpty,
                   (v["partial"] as? String ?? "").isEmpty, TIATestHTTPProtocol.calls == 4 else {
                 end(false, "Final native voice cleanup or exact mock HTTP count failed"); return

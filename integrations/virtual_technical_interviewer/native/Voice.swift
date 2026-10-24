@@ -17,10 +17,24 @@ protocol TIAVoiceBackend: AnyObject {
     func stopSpeaking()
 }
 
+// Permission callbacks can arrive before macOS restores App activation.
+// Keep the authorized start pending without capturing in the background.
+final class TIAVoiceActivationGate {
+    private var pending: (() -> Void)?
+    func wait(active: Bool, start: @escaping () -> Void) {
+        pending = start
+        if active { becameActive() }
+    }
+    func becameActive() { let start = pending; pending = nil; start?() }
+    func cancel() { pending = nil }
+}
+
 // AVSpeechSynthesizerDelegate inherits Sendable in recent SDKs. All mutable
 // backend state is confined to the main thread; system callbacks re-enter it.
 // The audio tap only appends to Apple's thread-safe buffer request.
 final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizerDelegate, @unchecked Sendable {
+    private let activationGate = TIAVoiceActivationGate()
+    private var activationObserver: NSObjectProtocol?
     private let engine = AVAudioEngine()
     private let synthesizer = AVSpeechSynthesizer()
     private var task: SFSpeechRecognitionTask?
@@ -32,7 +46,13 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
     private var speechRange: ((NSRange) -> Void)?
     private var speechFinished: (() -> Void)?
 
-    override init() { super.init(); synthesizer.delegate = self }
+    override init() {
+        super.init(); synthesizer.delegate = self
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.activationGate.becameActive() }
+    }
+    deinit { if let observer = activationObserver { NotificationCenter.default.removeObserver(observer) } }
 
     func listen(language: String, ready: @escaping () -> Void,
                 transcript: @escaping (String, Bool) -> Void, failed: @escaping (String) -> Void) {
@@ -45,8 +65,10 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
         func authorized() {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.generation == token else { return }
-                guard NSApplication.shared.isActive else { failed("VOICE_APP_INACTIVE"); return }
-                self.start(local, token: token, ready: ready, transcript: transcript, failed: failed)
+                self.activationGate.wait(active: NSApplication.shared.isActive) { [weak self] in
+                    guard let self = self, self.generation == token, NSApplication.shared.isActive else { return }
+                    self.start(local, token: token, ready: ready, transcript: transcript, failed: failed)
+                }
             }
         }
         func microphonePermission() {
@@ -107,6 +129,7 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
     }
 
     func stopListening() {
+        activationGate.cancel()
         generation = UUID()
         engine.stop()
         if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
@@ -227,6 +250,8 @@ final class TIAVoiceCompanion {
         }
     }
 
+    var isAwaitingPermission: Bool { permissionPending }
+
     var publicState: [String: Any] {
         let status: String
         if !eligible { status = "OFF" }
@@ -291,7 +316,7 @@ final class TIAVoiceCompanion {
         }
         if self.busy || !canSend {
             if !partial.isEmpty && draft.isEmpty {
-                draft = partial; partial = ""; requested = false; handsfree = false
+                draft = partial; partial = ""; requested = false
             }
             suspendListening()
         }
@@ -390,7 +415,7 @@ final class TIAVoiceCompanion {
     }
     private func pause(stopSpeech: Bool = true) {
         if !partial.isEmpty && draft.isEmpty { draft = partial }
-        requested = false; handsfree = false; paused = true
+        requested = false; paused = true
         suspendListening(); if stopSpeech { cancelSpeech() }; partial = ""
     }
     private func suspendListening() {
@@ -441,14 +466,14 @@ final class TIAVoiceCompanion {
         guard generation == token, listening, eligible, !busy, !submitting else { return }
         let value = partial.trimmingCharacters(in: .whitespacesAndNewlines)
         suspendListening(); partial = ""
-        guard !value.isEmpty else { requested = false; handsfree = false; error = "VOICE_NO_SPEECH"; emit(); return }
+        guard !value.isEmpty else { requested = false; error = "VOICE_NO_SPEECH"; emit(); return }
         draft = value
         if handsfree && canSend { submit() }
         else { requested = false }
         emit()
     }
     private func submit() {
-        guard let send = onSubmit else { requested = false; handsfree = false; error = "VOICE_SUBMISSION_UNAVAILABLE"; return }
+        guard let send = onSubmit else { requested = false; error = "VOICE_SUBMISSION_UNAVAILABLE"; return }
         cancelSpeech(); suspendListening(); submitting = true
         if !handsfree { requested = false }
         let text = draft; let candidateKind = kind
@@ -457,7 +482,7 @@ final class TIAVoiceCompanion {
     private func speakLatest() {
         guard eligible, !muted, !latestReplyText.isEmpty else { return }
         if !partial.isEmpty && draft.isEmpty {
-            draft = partial; partial = ""; requested = false; handsfree = false
+            draft = partial; partial = ""; requested = false
         }
         suspendListening(); cancelSpeech(); speaking = true; caption = latestReplyText
         let token = speechGeneration

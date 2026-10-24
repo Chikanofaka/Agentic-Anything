@@ -1,0 +1,23 @@
+{
+  "adaptive_mode" : "RECOVERY",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 0,
+  "passed" : 2,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "2 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : false,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "C2C recovery restores prior local evidence and journal without a new provider call"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C2C recovered Q2 remains unverified with zero re-execution"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

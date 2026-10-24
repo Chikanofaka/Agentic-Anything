@@ -166,7 +166,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     func applicationDidResignActive(_ notification: Notification) {
         // OS permission sheets may temporarily resign activation. The audio
         // backend checks actual App activation again before starting capture.
-        if voice.publicState["status"] as? String != "PERMISSION" { voice.stop() }
+        if !voice.isAwaitingPermission { voice.stop() }
     }
 
     func failure(_ message: String) {
