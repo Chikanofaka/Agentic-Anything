@@ -178,6 +178,7 @@ final class TIAVoiceCompanion {
     private var silenceTimer: Timer?
     private var durationTimer: Timer?
     private var sessionKey: String?
+    private var enteredRooms = Set<String>()
     private var latestReplyID: String?
     private var latestReplyText = ""
     private var eligible = false
@@ -268,6 +269,8 @@ final class TIAVoiceCompanion {
         let replyID = last?["id"] as? String
         let replyText = (last?["payload"] as? [String: Any])?["text"] as? String ?? ""
         let newRoom = sessionKey != identity || !eligible
+        let freshEntry = newRoom && !enteredRooms.contains(identity) &&
+            !events.contains { $0["actor"] as? String == "candidate" }
         if !active {
             if eligible || requested || speaking || submitting { clearRoom() }
             eligible = false; canSend = false; self.busy = false; sessionKey = nil
@@ -275,10 +278,17 @@ final class TIAVoiceCompanion {
         }
         if newRoom {
             clearRoom(); paused = false; sessionKey = identity; latestReplyID = replyID
+            enteredRooms.insert(identity)
             latestReplyText = boundedReply(replyText); caption = latestReplyText
         }
         eligible = true; canSend = providerState == "live-verified" && preview["can_send"] as? Bool == true
         self.busy = busy || preview["pending"] as? Bool == true
+        // Owner-approved room default. Snapshots, reconnects and recovered
+        // conversations must not undo a pause or start capture again.
+        if freshEntry {
+            enabled = true; requested = true; handsfree = true; muted = false; kind = "clarify"
+            if !self.busy { speakLatest() }
+        }
         if self.busy || !canSend {
             if !partial.isEmpty && draft.isEmpty {
                 draft = partial; partial = ""; requested = false; handsfree = false
@@ -318,7 +328,7 @@ final class TIAVoiceCompanion {
         case "voice_handsfree":
             guard !submitting else { return "VOICE_TURN_UNAVAILABLE" }
             handsfree = params["enabled"] as! Bool
-            // Enabling is preceded by the native paid-request consent sheet.
+            // Uses the already authorized native model request budget.
             // It never starts recording or sends an existing draft by itself.
         case "voice_kind":
             guard !submitting else { return "VOICE_TURN_UNAVAILABLE" }

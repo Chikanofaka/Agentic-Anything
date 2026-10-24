@@ -72,9 +72,11 @@ final class TIAVoiceUISmoke {
           return {ok:s.activation.state==='live-verified'&&s.transport_mode==='MOCK_HTTP'
             &&s.activation.requests_used===1&&p.candidate_turn_limit===4
             &&p.execution_status==='NOT_RUN'&&p.technical==='NOT_SCORED'&&p.communication==='NOT_SCORED'
-            &&el('voiceHandsfree')?.checked===false&&el('voiceCaption')?.textContent.trim().length>0};
+            &&el('voiceHandsfree')?.checked===true&&s.voice.listening===true&&el('voiceCaption')?.textContent.trim().length>0};
         """),
         Step(label: "Chinese interface and local voice settings require no new model request", code: """
+          // Select manual mode explicitly to retain the existing draft/edit journey.
+          await press('voiceMic');
           await request('language',{language:'zh'});await panel();
           el('voiceLanguage').closest('details').open=true;
           await choose('voiceLanguage','zh-CN');await choose('voiceRate','0.8');
@@ -94,7 +96,7 @@ final class TIAVoiceUISmoke {
             &&!s.live_preview.session.events.some(e=>e.actor==='candidate')&&el('voiceHandsfree').checked===false
             &&el('previewResponse').value==='SELECT customer_id, COUNT(*) FROM VoiceItems0 GROUP BY customer_id;'};
         """, action: .transcript("Synthetic clarification from local speech", true)),
-        Step(label: "Final recognition is editable by default and never silently submitted", code: """
+        Step(label: "Manual-mode final recognition is editable and never silently submitted", code: """
           await until(()=>el('voiceDraft')?.value==='Synthetic clarification from local speech');await pause(450);
           const s=await snap();return {ok:s.activation.requests_used===1&&s.live_preview.candidate_turns_used===0
             &&!el('voiceDraft').readOnly&&!s.live_preview.session.events.some(e=>e.actor==='candidate')};

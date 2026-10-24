@@ -536,16 +536,6 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         // Audio controls remain interruptible while the provider is working.
         voice.update(host: lastState, provider: portal.publicState, busy: busy)
-        if action == "voice_handsfree", params["enabled"] as? Bool == true {
-            guard !busy, portalSheet == nil, voice.publicState["eligible"] as? Bool == true else {
-                emit(["id": id, "ok": false, "state": lastState, "error": "VOICE_ROOM_UNAVAILABLE"]); return
-            }
-            confirm("Enable hands-free voice turns? / 开启免手动发送？\n\nEach completed utterance will be submitted to the existing interviewer and can use ONE paid model request within your native approved request cap. Audio stays on this Mac; submitted text follows the existing transcript and provider policy. Silence of 1.5 seconds may end a turn. There are no automatic paid retries. Pause stops listening, not the interview clock. / 每段语音转写可能消耗一次已授权模型请求；暂停收音不会暂停面试计时。") { accepted in
-                let error = accepted ? self.voice.perform(action: action, params: params) : nil
-                self.emit(["id": id, "ok": error == nil, "state": self.lastState, "error": error as Any? ?? NSNull()])
-            }
-            return
-        }
         if action == "voice_send" { voiceActionID = id }
         let error = voice.perform(action: action, params: params)
         voiceActionID = nil
@@ -724,6 +714,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         Native secure input · 原生安全输入
         Your key stays in native memory until Disconnect or Quit. Activation makes no request and is UNVERIFIED until a valid response.
         Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. No retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
+        Each new verified question starts with local voice and automatic speech sending enabled. Completed speech can use one paid request within this cap. Pause the mic or turn off automatic sending to type at your own pace. / 每道新题默认开启本地语音及自动发送；可暂停收音或关闭自动发送。
         Model requests include the approved role instructions, your selected question, and candidate dialogue. Local SQL fixture grading, when separately authorized, NEVER sends test data or candidate SQL to OpenAI for grading. Model replies do not score SQL. Optional post-interview Trainer requests send a selected drill and short cited candidate excerpts (which may include short SQL) only after separate native consent. Cancelled requests may still be billed.
         密钥仅留在原生内存；模型请求包含题目及对话。另行授权的本机 PostgreSQL 判题不会把测试数据发送给 OpenAI，也不会由模型打正确性分数。
         """

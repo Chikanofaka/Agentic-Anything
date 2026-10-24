@@ -13,7 +13,7 @@
       kind: "Speaking as", clarify: "Clarification", plan: "Plan / think aloud", test: "Test idea", help: "Help request",
       draft: "Your voice draft", placeholder: "Speak, pause, then review your words…", partial: "Hearing…", clear: "Clear", send: "Send · 1 AI request",
       bytes: "UTF-8 bytes", tooLong: "Shorten this draft before sending (4096 UTF-8 bytes maximum).", empty: "Nothing has been sent.",
-      handsfree: "Send completed speech automatically", handsfreeNote: "Optional. Native confirmation explains paid AI usage. Pausing the mic stops listening; it does not pause interview time.",
+      handsfree: "Send completed speech automatically", handsfreeNote: "On by default for each new question. Each completed utterance can use one authorized AI request. Pause the mic or turn this off to work at your own pace.",
       helpText: "Think aloud, clarify or ask for help. Submit SQL in the code editor; voice never submits or runs code. The host still decides permitted guidance.",
       settings: "Voice settings & privacy", language: "Speech language", rate: "Speaking speed", normal: "Normal", slow: "Slower", fast: "Faster",
       privacy: "Audio stays on this Mac. On-device speech recognition must be available. Only speech you send becomes interview text sent to the already authorized AI provider. No audio API calls.",
@@ -29,7 +29,7 @@
       kind: "发言类型", clarify: "澄清问题", plan: "方案 / 口述思路", test: "测试想法", help: "请求帮助",
       draft: "你的语音草稿", placeholder: "说出想法，暂停后核对文字…", partial: "正在识别…", clear: "清空", send: "发送 · 1 次 AI 请求",
       bytes: "UTF-8 字节", tooLong: "请缩短草稿后再发送（最多 4096 UTF-8 字节）。", empty: "尚未发送任何内容。",
-      handsfree: "自动发送已完成的发言", handsfreeNote: "可选功能；原生确认窗口会说明付费 AI 用量。暂停麦克风只停止听取，不暂停面试计时。",
+      handsfree: "自动发送已完成的发言", handsfreeNote: "每道新题默认开启，每段发言可消耗一次已授权 AI 请求。可暂停收音或关闭自动发送，按自己的节奏作答。",
       helpText: "口述思路、澄清或求助。SQL 请在代码编辑器中提交；语音不会提交或执行代码。允许提供的提示仍由宿主决定。",
       settings: "语音设置与隐私", language: "识别与朗读语言", rate: "朗读速度", normal: "正常", slow: "较慢", fast: "较快",
       privacy: "音频留在这台 Mac 上，须支持设备端识别。只有你发送的文字会成为面试记录，并交给已授权的 AI 服务。没有音频 API 调用。",
@@ -306,6 +306,7 @@
     host = nextHost && typeof nextHost === "object" ? nextHost : null;
     const room = host?.live_preview ? `${host.live_preview.session?.session_id || ""}:${host.live_preview.question?.content_sha256 || ""}` : null;
     if (!roomVisible() || (lastRoom !== null && room !== lastRoom)) {
+      collapsed = true;
       resetDraft(); voice = {}; localError = ""; lastCaption = ""; lastWord = "";
       if (refs) { refs.caption.replaceChildren(); refs.partial.textContent = ""; }
     }

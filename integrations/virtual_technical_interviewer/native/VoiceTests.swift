@@ -53,6 +53,10 @@ func runVoiceTests() -> Int32 {
         let backend = TIAVoiceMock()
         let companion = TIAVoiceCompanion(backend: backend)
         companion.update(host: host(), provider: provider(), busy: false)
+        // Existing manual-mode regressions explicitly select paused/manual mode.
+        companion.stop()
+        companion.update(host: host(), provider: provider(), busy: false)
+        backend.listenCount = 0; backend.stopCount = 0; backend.said = []
         return (companion, backend)
     }
     func bool(_ voice: TIAVoiceCompanion, _ key: String) -> Bool { voice.publicState[key] as? Bool == true }
@@ -87,7 +91,7 @@ func runVoiceTests() -> Int32 {
         voice.update(host: host(screen: "ROOM"), provider: provider(), busy: false)
         check("tutorial cannot use live voice submit", !bool(voice, "eligible"))
         voice.update(host: host(), provider: provider(), busy: false)
-        check("verified room becomes ready", bool(voice, "eligible") && string(voice, "status") == "READY")
+        check("verified room becomes ready", bool(voice, "eligible") && bool(voice, "handsfree") && bool(voice, "speaking"))
         voice.stop()
     }
     do {
@@ -152,7 +156,8 @@ func runVoiceTests() -> Int32 {
         let old = backend.transcript
         voice.update(host: host("question-2"), provider: provider(), busy: false)
         old?("old question transcript", true)
-        check("question transition invalidates recording and draft", !bool(voice, "listening") && string(voice, "draft").isEmpty && !bool(voice, "handsfree"))
+        check("question transition invalidates recording and draft", !bool(voice, "listening") && string(voice, "draft").isEmpty && bool(voice, "handsfree") && bool(voice, "speaking"))
+        backend.said = []
         voice.perform(action: "voice_listen", params: [:])
         let disconnected = backend.transcript
         voice.update(host: host("question-2"), provider: provider("offline"), busy: false)
@@ -300,6 +305,29 @@ func runVoiceTests() -> Int32 {
         voice.update(host: host(reply: 2), provider: provider("unavailable", authenticated: false), busy: false)
         check("invalid credential still clears all ephemeral voice data", !bool(voice, "eligible") && string(voice, "draft").isEmpty && !bool(voice, "handsfree"))
         voice.onSubmit = nil; voice.stop()
+    }
+    do {
+        let backend = TIAVoiceMock()
+        let voice = TIAVoiceCompanion(backend: backend)
+        var sends = 0
+        voice.onSubmit = { _, _ in sends += 1 }
+        voice.update(host: host(), provider: provider(), busy: false)
+        check("fresh entry enables handsfree and speaks committed introduction", bool(voice, "handsfree") && bool(voice, "speaking") && backend.said.count == 1)
+        backend.finished?()
+        check("entry starts listening after introduction", bool(voice, "listening") && backend.listenCount == 1)
+        backend.transcript?("My clarification", true)
+        check("default completed speech sends exactly once", sends == 1)
+        voice.submissionFinished(ok: true)
+        voice.perform(action: "voice_pause", params: [:])
+        voice.update(host: host(), provider: provider(), busy: false)
+        check("snapshot never reverses manual pause", !bool(voice, "listening") && !bool(voice, "handsfree"))
+        voice.update(host: host("question-2"), provider: provider(), busy: false)
+        check("new question resets automatic mode", bool(voice, "handsfree") && bool(voice, "speaking"))
+        backend.finished?()
+        backend.failed?("VOICE_MIC_PERMISSION_DENIED")
+        voice.update(host: host("question-2"), provider: provider(), busy: false)
+        check("permission failure never retries on snapshot", !bool(voice, "listening") && !bool(voice, "handsfree"))
+        voice.stop()
     }
     print("Voice tests: \(checks - failures) passed, \(failures) failed; microphone captures: 0; synthesized audio: 0; provider requests: 0")
     return failures == 0 ? 0 : 1
