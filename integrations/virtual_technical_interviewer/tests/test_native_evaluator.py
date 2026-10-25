@@ -25,6 +25,12 @@ def source(verdict='PASSED'):
          'payload': {'operation': 'reply', 'text': 'Explain the join cardinality before choosing an index.'}},
         evidence.event('followup-1', 'plan', 'I will explain each join and then check cardinality.'),
     ))
+    # Test-only fixture: explicit requirements clarification plus a bounded
+    # assistance request. C01/C04 points below must have relevant evidence.
+    first['session']['events'][0]['payload']['text'] = (
+        'Could you clarify the expected output and assumptions? '
+        'I am unsure about join cardinality; can you help me check constraints?'
+    )
     second = evidence.score_record(1)
     second['session']['events'][0]['id'] = 'other-question-clarification'
     return evidence.plan(first, second, {'outcome': 'SKIPPED', 'session': None})
@@ -138,26 +144,25 @@ class EvaluatorCoreTests(unittest.TestCase):
             self.assertNotIn(forbidden, spec['input'])
             self.assertNotIn(forbidden, spec['instructions'])
 
-    def test_utf8_excerpt_span_hash_and_overflow_are_truthful(self):
+    def test_utf8_oversized_event_fails_closed_without_silent_truncation(self):
         plan = source()
         text = '中🙂' * 2000
         plan['results'][0]['session']['events'][0]['payload']['text'] = text
+        with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_CONTEXT_INCOMPLETE'):
+            ev.prepare_native_evaluator(plan, RID, GEN, 'zh', 0)
+        # Short multilingual content remains whole and its source hash is exact.
+        plan['results'][0]['session']['events'][0]['payload']['text'] = '中🙂' * 20
         _, spec = ev.prepare_native_evaluator(plan, RID, GEN, 'zh', 0)
         item = json.loads(spec['input'])['candidate_evidence'][0]
-        self.assertTrue(item['excerpt_truncated'])
-        self.assertEqual(item['text_sha256'], hashlib.sha256(text.encode()).hexdigest())
-        self.assertEqual(item['span']['end'], len(item['excerpt'].encode()))
-        self.assertLessEqual(item['span']['end'], 320)
-        self.assertLessEqual(len(spec['input'].encode()), 16000)
+        self.assertFalse(item['excerpt_truncated'])
+        self.assertEqual(item['text_sha256'], hashlib.sha256(('中🙂' * 20).encode()).hexdigest())
+        self.assertEqual(item['span']['end'], len(item['excerpt'].encode('utf-8')))
 
-    def test_large_candidate_history_is_bounded_and_declares_omissions(self):
+    def test_large_candidate_history_rejected_not_silently_omitted(self):
         plan = source()
         plan['results'][0]['session']['events'] = [evidence.event(f'event-{i}', 'plan', '长内容' * 400) for i in range(70)]
-        _, spec = ev.prepare_native_evaluator(plan, RID, GEN, 'zh', 0)
-        packet = json.loads(spec['input'])
-        self.assertEqual(len(packet['candidate_evidence']), 16)
-        self.assertEqual(packet['evidence_limits']['omitted_candidate_events'], 54)
-        self.assertLessEqual(len(spec['input'].encode()), 16000)
+        with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_CONTEXT_INCOMPLETE'):
+            ev.prepare_native_evaluator(plan, RID, GEN, 'zh', 0)
 
     def test_candidate_ids_must_be_unambiguous(self):
         plan = source()

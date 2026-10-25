@@ -1294,6 +1294,12 @@
           add(citation, node("p", t("commPreview")), node("blockquote", original.text, "transcript-text"));
           if (original.partial) add(citation, node("p", t("evaluatorExcerptPartial"), "field-help"));
         } else add(citation, node("p", t("evaluatorExcerptMissing"), "field-help"));
+        if (original && typeof evidence.event_id === "string") {
+          const jump = node("button", state.language === "zh" ? "查看完整对话上下文" : "View full conversation context", "button text");
+          jump.type = "button";
+          jump.addEventListener("click", () => scrollToTranscriptEvent(question.index, evidence.event_id));
+          add(citation, jump);
+        }
         add(citation, node("code", evidence.text_sha256, "digest"));
         add(item, citation);
       }
@@ -1477,13 +1483,235 @@
       node("code", card.sha256 || "", "digest"));
     return section;
   }
+  // Read-only replay of the original saved candidate/interviewer turns.
+  // The Host already sealed each result.session.events when its question closed.
+  function fullInterviewTranscript() {
+    const section = node("section", null, "receipt-card");
+    section.id = "interviewTranscript";
+    const chinese = state.language === "zh";
+    add(section,
+      node("h2", chinese ? "完整面试对话 · 证据回放" : "Full interview transcript · evidence replay"),
+      node("p", chinese
+        ? "按每题冻结的 Host 事件顺序展示候选人与面试官完整原文。可用 Event ID 对照下方 AI Evaluator 的逐项评估；展示记录不会运行 SQL、重新请求 AI 或更改评分。"
+        : "Complete Candidate/Interviewer messages in frozen Host event order. Match Event IDs with each AI Evaluator criterion below. Viewing this archive does not execute SQL, call AI or change scoring.", "notice"));
+    const results = state.rehearsal?.results || [];
+    const questions = state.rehearsal?.questions || [];
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i] || {};
+      const all = result.session?.events;
+      const events = Array.isArray(all) ? all.filter(event =>
+        (event?.actor === "candidate" || (event?.actor === "interviewer" && event?.kind === "reply")) &&
+        typeof event?.payload?.text === "string" && event.payload.text.length > 0) : [];
+      const detail = node("details", null, "question-review");
+      detail.id = `interviewTranscriptQ${i + 1}`;
+      detail.open = i === 0;
+      const title = questions[i]?.title || (chinese ? "题目" : "Question");
+      add(detail, node("summary", `Q${i + 1} · ${title} · ${events.length} ${chinese ? "条消息" : "messages"}`));
+      if (!Array.isArray(all)) {
+        add(detail, node("p", chinese
+          ? "该题冻结记录中没有可回放的 session.events；不能从评分引用推断不存在的对话。"
+          : "No replayable session.events in this frozen question record; do not infer missing dialogue from scoring citations.", "field-help"));
+      } else if (!events.length) {
+        add(detail, node("p", chinese ? "此题没有已记录的双方消息。" : "No recorded dialogue for this question.", "field-help"));
+      }
+      for (let n = 0; n < events.length; n++) {
+        const event = events[n];
+        const candidate = event.actor === "candidate";
+        const entry = node("div", null, `transcript-entry ${candidate ? "candidate" : "interviewer"}`);
+        entry.id = `interviewTranscriptQ${i + 1}Event${n + 1}`;
+        entry.dataset.eventId = typeof event.id === "string" ? event.id : "";
+        entry.tabIndex = -1;
+        const elapsed = Number.isFinite(event.elapsed_seconds)
+          ? ` · ${formatElapsed(event.elapsed_seconds)}` : "";
+        const speaker = candidate ? (chinese ? "候选人" : "Candidate")
+          : (chinese ? "面试官" : "Senior Interviewer");
+        const metadata = `${speaker} · ${event.kind || "unknown"}${elapsed} · ${event.provenance || "UNKNOWN"}`;
+        const body = node(event.kind === "implement" ? "pre" : "p", event.payload.text, "transcript-text");
+        add(entry, node("div", metadata, "transcript-speaker"), body,
+          node("div", `Event ID: ${event.id || "UNAVAILABLE"}`, "field-help"));
+        add(detail, entry);
+      }
+      add(section, detail);
+    }
+    if (!results.length) add(section, node("p", chinese
+      ? "尚无冻结题目记录。" : "No frozen question records available.", "field-help"));
+    return section;
+  }
+
+  // Navigate only to a real event already present in the frozen transcript.
+  function scrollToTranscriptEvent(questionIndex, eventId) {
+    const group = document.getElementById(`interviewTranscriptQ${questionIndex + 1}`);
+    if (!group || typeof eventId !== "string") return false;
+    const target = Array.from(group.querySelectorAll("[data-event-id]"))
+      .find(item => item.dataset.eventId === eventId);
+    if (!target) return false;
+    group.open = true;
+    target.scrollIntoView({block: "center", behavior: "smooth"});
+    target.focus({preventScroll: true});
+    return true;
+  }
+
+  // Deterministic E3 read-only full-interview scheme. No provider calls or scoring authority.
+  function fullEvaluatorSchemePanel() {
+    const report = state.evaluator_report;
+    const scheme = report?.full_scheme;
+    if (state.screen !== "REHEARSAL_COMPLETE" || scheme?.schema !== "tia-evaluator-full-scheme/v1") return null;
+    const zh = state.language === "zh";
+    const section = node("section", null, "receipt-card");
+    section.id = "evaluatorFullScheme";
+    add(section,
+      node("h2", zh ? "完整面试评估总览 · 三题十一维" : "Full interview evaluation · three questions, eleven criteria"),
+      node("p", zh
+        ? "只汇总 Host 已记录且通过证据资格门槛的 AI 建议。未观察不是零分；未校准规则不生成正式总分。"
+        : "Host-derived provisional observations only. Missing evidence is not zero; uncalibrated weights do not produce final grades.", "notice"),
+      node("p", `${scheme.status} · ${scheme.formal_authority} · Overall: NOT_SCORED`, "field-help"));
+    const overview = node("div", null, "setup-grid");
+    for (const [key, title] of [["technical", zh ? "技术能力" : "Technical"],
+                                ["communication", zh ? "沟通能力" : "Communication"]]) {
+      const a = scheme[key] || {};
+      const tile = node("section", null, "setup-stat");
+      const pts = Number.isFinite(a.observed_provisional_points) ? a.observed_provisional_points : "NOT_EVALUATED";
+      add(tile, node("h3", title),
+        node("p", `${zh ? "已有证据建议点数" : "Evidence-backed proposed points"}: ${pts} / ${a.covered_weight || 0}`),
+        node("p", `${zh ? "三题权重覆盖" : "Three-question evidence coverage"}: ${a.covered_weight || 0} / ${a.maximum_weight || 0} (${a.coverage_percent || 0}%)`, "field-help"),
+        node("p", `${zh ? "未观察权重" : "Unobserved weight"}: ${a.unobserved_weight ?? "?"} · Grade: NOT_SCORED`, "notice"));
+      add(overview, tile);
+    }
+    add(section, overview,
+      node("p", `${zh ? "当前模型评估" : "Current assessments"}: ${scheme.evaluations_current}/3 · ` +
+        `${zh ? "历史版" : "Legacy"}: ${scheme.evaluations_legacy} · ` +
+        `${zh ? "拦截的不合格指标" : "Blocked criterion proposals"}: ${scheme.blocked_proposal_dimensions}`, "field-help"));
+    for (const question of scheme.questions || []) {
+      const group = node("details", null, "question-review");
+      group.id = `evaluatorFullSchemeQ${question.index + 1}`;
+      add(group, node("summary", `Q${question.index + 1} · ${question.title} · ${question.evaluation_status}`));
+      for (const axis of ["technical", "communication"]) {
+        const item = question[axis] || {};
+        add(group, node("p", `${axis}: ${item.observed_provisional_points ?? "NOT_EVALUATED"} / ${item.covered_weight ?? 0} ` +
+          `(${item.observed_dimensions || 0}/${item.total_dimensions || 0} dimensions) · NOT_SCORED`, "field-help"));
+      }
+      const sql = question.sql || {};
+      add(group, node("p", `${zh ? "SQL执行" : "SQL execution"}: ${sql.local_execution || "NOT_VERIFIED"} · ` +
+        `${zh ? "静态审查" : "Static SQL review"}: ${sql.static_review || "UNAVAILABLE"} · ` +
+        `T01: ${sql.correctness_grade || "NOT_SCORED"}`, "notice"));
+      if (sql.dialect_note) add(group, node("p", sql.dialect_note, "field-help"));
+      if (question.blocked_criterion_ids?.length)
+        add(group, node("p", `${zh ? "已拦截" : "Blocked"}: ${question.blocked_criterion_ids.join(", ")}`, "notice"));
+      const criterionDetails = node("details", null, "question-review");
+      add(criterionDetails, node("summary", zh ? "查看全部11项指标与证据入口" : "Inspect all 11 criteria and source links"));
+      for (const criterion of question.dimensions || []) {
+        const v = node("div", null, "field-help");
+        add(v, node("p", `${criterion.id} · ${criterion.status} · ` +
+          `${criterion.eligible_provisional_points ?? "UNOBSERVED"}/${criterion.max_points} · ${criterion.admissibility}`));
+        if (criterion.citations?.length) {
+          const jump = node("button", zh ? "查看评分原文" : "Open criterion & citations", "button text");
+          jump.type="button";
+          jump.addEventListener("click", () => {
+            evaluatorQuestionIndex = question.index;
+            render();
+            const item = document.getElementById(`evaluatorCriterion-${criterion.id}`);
+            if (item) {item.open=true; item.scrollIntoView({block:"center"});}
+          });
+          add(v, jump);
+        }
+        add(criterionDetails, v);
+      }
+      add(group, criterionDetails);
+      add(section, group);
+    }
+    if (scheme.drill_candidates?.length) {
+      const drills = node("details", null, "question-review");
+      add(drills, node("summary", zh ? "根据已有弱项证据生成的练习候选" : "Evidence-linked practice candidates"));
+      for (const drill of scheme.drill_candidates)
+        add(drills, node("p", `Q${drill.question_index+1} · ${drill.criterion_id} · ${drill.kind} · ` +
+           (drill.evidence_event_ids || []).join(", "), "field-help"));
+      add(drills, node("p", zh ? "这些是练习线索，不是已验证能力缺陷。" : "Drills are suggestions, not certified competency gaps.", "notice"));
+      add(section, drills);
+    }
+    const trace = node("details", null, "question-review");
+    add(trace, node("summary", zh ? "审计哈希与发布限制" : "Audit digest and release constraints"),
+      node("code", scheme.sha256 || "", "digest"),
+      node("p", `${(scheme.release_blockers || []).join(" · ")}`, "field-help"));
+    add(section, trace);
+    return section;
+  }
+  // E4: read-only closed-loop navigator. All source records remain Host-owned.
+  // Export and SMART actions use existing Native commands; nothing is auto-approved.
+  function evaluatorCloseoutModel(snapshot) {
+    const rehearsal = snapshot?.rehearsal || {};
+    const scheme = snapshot?.evaluator_report?.full_scheme || {};
+    const smart = snapshot?.smart_plan || {};
+    const progress = snapshot?.smart_progress_summary || {};
+    const trainer = snapshot?.grounded_trainer || {};
+    const locked = rehearsal.status === "COMPLETE" && Array.isArray(rehearsal.results) && rehearsal.results.length === 3;
+    const assessmentCount = Number.isInteger(scheme.evaluations_current) ? scheme.evaluations_current : 0;
+    const legacyCount = Number.isInteger(scheme.evaluations_legacy) ? scheme.evaluations_legacy : 0;
+    const entries = Number.isInteger(progress.recorded_attempts) ? progress.recorded_attempts : 0;
+    const drills = Array.isArray(trainer.drills) ? trainer.drills.length : 0;
+    return {
+      schema: "tia-evaluator-closeout-view/v1",
+      locked, assessmentCount, legacyCount, entries, drills,
+      schemeReady: scheme.schema === "tia-evaluator-full-scheme/v1",
+      smartReady: smart.schema === "tia-smart-improvement-plan/v1" && smart.status === "READY_TO_START",
+      evidenceStatus: locked ? "FROZEN" : "INCOMPLETE",
+      evaluationStatus: assessmentCount === 3 ? "THREE_PROVISIONAL_PROPOSALS" : "PENDING_OR_LEGACY_ONLY",
+      trainerStatus: drills ? "EVIDENCE_LINKED_DRILLS_AVAILABLE" : "NO_EVIDENCED_DRILL_YET",
+      practiceStatus: entries ? "SELF_REPORTED_ACTIVITY_ONLY" : "NO_RECORDED_PRACTICE",
+      archiveStatus: "USER_EXPORT_REQUIRED_UNATTESTED",
+      retestStatus: "AWAITING_INDEPENDENT_NEXT_SESSION",
+      grade: "NOT_SCORED",
+    };
+  }
+
+  function evaluatorCloseoutPanel() {
+    if (state.screen !== "REHEARSAL_COMPLETE") return null;
+    const model = evaluatorCloseoutModel(state);
+    const zh = state.language === "zh";
+    const section = node("section", null, "receipt-card");
+    section.id = "evaluatorCloseoutPanel";
+    add(section,
+      node("h2", zh ? "面试后行动闭环 · 证据 → 训练 → 归档 → 复测" : "Post-interview closeout · evidence → practice → archive → retest"),
+      node("p", zh ? "这个导航不改变评分和面试记录；训练是自报，导出需要用户主动保存，复测必须产生新会话。" :
+        "This navigator never alters an assessment. Practice is self-reported, archive requires your export, and retest requires a new session.", "notice"));
+    const stages = [
+      ["01", zh ? "冻结证据" : "Evidence locked", model.evidenceStatus, "interviewTranscript"],
+      ["02", zh ? "评估与审计" : "Evaluation and audit", model.evaluationStatus, "evaluatorFullScheme"],
+      ["03", zh ? "有来源的训练" : "Evidence-linked Trainer", model.trainerStatus, "groundedTrainer"],
+      ["04", zh ? "SMART 活动" : "SMART practice ledger", model.practiceStatus, "smartPlanPanel"],
+      ["05", zh ? "私人归档与下一次复测" : "Private archive and next retest", model.archiveStatus, null],
+    ];
+    for (const [number, label, status, target] of stages) {
+      const line = node("div", null, "field-help");
+      add(line, node("p", `${number} · ${label}: ${status}`));
+      if (target) {
+        const link = button(`closeoutStep${number}`, zh ? "定位到该环节" : "Open section", () => {
+          const item = document.getElementById(target);
+          if (item) item.scrollIntoView({block:"start"});
+        }, "secondary");
+        add(line, link);
+      }
+      add(section, line);
+    }
+    add(section, node("p", `${zh ? "待审核模型提案" : "Current model proposals"}: ${model.assessmentCount}/3 · ` +
+      `${zh ? "历史版" : "Legacy"}: ${model.legacyCount} · ` +
+      `${zh ? "训练活动" : "Self-reported activity"}: ${model.entries} · Overall: ${model.grade}`, "field-help"));
+    const archive = button("closeoutExport", zh ? "导出私有完整回执" : "Export private session receipt", () => act("export"), "primary");
+    add(section, archive,
+      node("p", zh ? "导出后可用随附的本地 History Ledger 命令只记录最小摘要，随后开始新会话进行独立复测。导出动作本身不代表已成功归档。" :
+        "After exporting, use the local History Ledger helper to store a minimal timeline entry, then begin a separately recorded retest. Clicking export does not attest successful archiving.", "notice"),
+      node("p", zh ? "无人工UAT；没有实际执行核验或规则校准时不能发布正式招聘能力分数。" :
+        "No human UAT. Without verified execution and calibrated scoring, formal hiring grades remain unavailable.", "field-help"));
+    return section;
+  }
+
   function rehearsalComplete(main) {
     const rs = state.rehearsal || {};
     const finalTitle = rs.status === "TIMED_OUT" ? "rehearsalTimeout" :
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
-    add(main, evidenceScorecard(), communicationEvidence(), evaluatorPanel(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel());
+    add(main, fullInterviewTranscript());
+    add(main, evidenceScorecard(), communicationEvidence(), evaluatorPanel(), fullEvaluatorSchemePanel(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel(), evaluatorCloseoutPanel());
     const offlineDemos = [evaluatorV1MvmPanel(), evaluatorV1MockPanel()].filter(Boolean);
     if (offlineDemos.length) {
       const demos = node("details", null, "question-review"); demos.id = "evaluatorOfflineDemos";

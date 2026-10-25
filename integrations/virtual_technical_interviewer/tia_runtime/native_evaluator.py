@@ -15,6 +15,8 @@ from pathlib import Path
 
 from .evidence_scorecard import build_scorecard
 from .persistence import strict_json
+from .evaluator_p0_guards import eligible_aliases, reason_self_contradicts, static_sql_signals
+from .evaluator_full_scheme import compile_full_scheme
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = 'tia-native-evaluator-assessment/v1'
@@ -52,6 +54,28 @@ def _sha(value):
 
 def _text_sha(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+def _p0_code_sources():
+    directory = Path(__file__).resolve().parent
+    return {'engine/native_evaluator.py': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            'engine/evaluator_p0_guards.py': hashlib.sha256((directory / 'evaluator_p0_guards.py').read_bytes()).hexdigest()}
+
+
+# A saved report's source hashes refer to the exact code that generated it.
+# Whitelist ONLY the known prior shipped P0 v3 pair. Do not grant authority to
+# arbitrary engine hashes, and never silently recompute old model scores.
+# P0 v4 is a previously validated host/report version. Its original proposal
+# receipts must remain source-bound and readable after this read-only extension.
+P0_V4_CODE_SOURCES = {
+    'engine/native_evaluator.py': '5d6de117bf3830f3ac265311e3ac293dfb187567ae1676b21ec821fe6bee972b',
+    'engine/evaluator_p0_guards.py': '9d0ea4b95ffda4f852b2f7ee5eb0f467d49fc82e21b31ddf5291aa011e864886',
+}
+
+P0_V3_CODE_SOURCES = {
+    'engine/native_evaluator.py': 'b6c73382e9a0463a692119aac00727df32d80ec4ef0714a2c137210e24729e49',
+    'engine/evaluator_p0_guards.py': '5a4760465f0b617a1a658cfe990752227e62d97da90b3720fc4668b2d349dc64',
+}
 
 
 def _excerpt(text, limit):
@@ -142,70 +166,60 @@ def _events(plan, index):
     return events if type(events) is list else []
 
 
-def _evidence(plan, index, excerpt_bytes=320):
-    """Retain scoped candidate references and only needed interviewer context."""
+def _evidence(plan, index, excerpt_bytes=4096):
+    """Keep full ordered bilingual dialogue in a bounded no-silent-loss packet.
+
+    The raw frozen Host session remains authoritative. Long material is rejected
+    instead of silently truncating code/context or changing evaluation meaning.
+    """
     candidates, replies, seen = [], [], set()
     for position, event in enumerate(_events(plan, index)):
         if type(event) is not dict:
             continue
         actor, kind, identifier = event.get('actor'), event.get('kind'), event.get('id')
         payload = event.get('payload')
-        if type(payload) is not dict or type(payload.get('text')) is not str or not payload['text'].strip():
+        if (type(payload) is not dict or type(payload.get('text')) is not str or
+                not payload['text'].strip()):
             continue
         if actor == 'candidate' and kind in CANDIDATE_KINDS:
             if (type(identifier) is not str or not identifier or len(identifier) > 160 or
-                    identifier in seen or len(payload['text'].encode()) > 65536):
+                    identifier in seen or len(payload['text'].encode('utf-8')) > 65536):
                 raise NativeEvaluatorError('EVALUATOR_CANDIDATE_SOURCE_INVALID')
             seen.add(identifier)
             candidates.append((position, event))
-        elif actor == 'interviewer' and event.get('provenance') == 'LIVE_MODEL' and payload.get('operation') == 'reply':
-            if type(identifier) is str and len(identifier) <= 160:
+        elif actor == 'interviewer' and kind == 'reply' and event.get('provenance') == 'LIVE_MODEL':
+            if type(identifier) is str and len(identifier) <= 160 and identifier not in seen:
+                seen.add(identifier)
                 replies.append((position, event))
-    selected = candidates[-16:]
-    candidate_output = []
-    for n, (position, event) in enumerate(selected, 1):
+    if len(candidates) > 16 or len(replies) > 24:
+        raise NativeEvaluatorError('EVALUATOR_CONTEXT_INCOMPLETE')
+    def entry(position, event, alias=None):
         content = event['payload']['text']
-        excerpt = _excerpt(content, excerpt_bytes)
-        candidate_output.append({'alias': 'e' + str(n), 'event_id': event['id'], 'kind': event['kind'],
-                                 'position': position, 'text_sha256': _text_sha(content), 'excerpt': excerpt,
-                                 'excerpt_truncated': excerpt != content,
-                                 'span': {'unit': 'UTF8_BYTES', 'start': 0, 'end': len(excerpt.encode())}})
-    # Include latest relevant reply preceding each potential follow-up, so an
-    # omitted reply cannot authorize C05 without its context being shown.
-    needed = {}
-    for candidate in candidate_output:
-        if candidate['kind'] in ('plan', 'implement', 'test'):
-            earlier = [r for r in replies if r[0] < candidate['position']]
-            if earlier:
-                needed[earlier[-1][0]] = earlier[-1][1]
-    selected_replies = sorted(needed.items())[-6:]
-    interviewer_output = []
-    for position, event in selected_replies:
-        content = event['payload']['text']
-        excerpt = _excerpt(content, 240)
-        interviewer_output.append({'event_id': event['id'], 'position': position,
-                                   'text_sha256': _text_sha(content), 'excerpt': excerpt,
-                                   'excerpt_truncated': excerpt != content})
-    return candidate_output, interviewer_output, len(candidates) - len(selected)
+        limit = excerpt_bytes if alias else 2304
+        excerpt = _excerpt(content, limit)
+        if excerpt != content:
+            raise NativeEvaluatorError('EVALUATOR_CONTEXT_INCOMPLETE')
+        row = {'event_id': event['id'], 'kind': event['kind'], 'position': position,
+               'text_sha256': _text_sha(content), 'excerpt': excerpt,
+               'excerpt_truncated': False}
+        if alias:
+            row.update(alias=alias, span={'unit': 'UTF8_BYTES', 'start': 0,
+                                         'end': len(excerpt.encode('utf-8'))})
+        return row
+    candidate_output = [entry(position, event, 'e' + str(i))
+                        for i,(position,event) in enumerate(candidates,1)]
+    interviewer_output = [entry(position,event) for position,event in replies]
+    return candidate_output, interviewer_output, 0
 
 
 def _criteria(profile, candidates, replies, accuracy):
     dimensions = []
     for identifier, title in zip(IDS, TITLES):
         axis = 'technical' if identifier[0] == 'T' else 'communication'
-        allowed = candidates
-        if identifier == 'T01':
-            allowed = ([e for e in candidates if e['event_id'] == accuracy.get('candidate_event_id')]
-                       if accuracy['status'] in ('PASSED', 'FAILED') else [])
-        elif identifier == 'C05':
-            allowed = [e for e in candidates if e['kind'] in ('plan', 'implement', 'test')
-                       and any(r['position'] < e['position'] for r in replies)]
-        elif identifier == 'C06':
-            allowed = []  # No explicit closing-speech contract in this runtime.
+        aliases = eligible_aliases(identifier, candidates, replies, accuracy)
         dimensions.append({'id': identifier, 'title': title, 'axis': axis,
                            'max_points': profile['rubric']['axes'][axis]['subscales'][identifier],
-                           'allowed_aliases': [e['alias'] for e in allowed],
-                           'can_propose_anchor': bool(allowed)})
+                           'allowed_aliases': aliases, 'can_propose_anchor': bool(aliases)})
     return dimensions
 
 
@@ -219,9 +233,14 @@ def _context(plan, index, language, profile, card):
     packet = {
         'schema': 'tia-native-evaluator-input/v1', 'question_index': index, 'language': language,
         'authority': 'UNTRUSTED_ATTRIBUTED_DATA_ONLY',
+        'admissibility_guard_version': 'tia-evaluator-p0-admissibility/v1',
         'question': {key: _excerpt(question.get(key, '') if type(question.get(key)) is str else '', limit)
                      for key, limit in (('title', 180), ('statement', 1000), ('schema', 700), ('environment', 30))},
         'criteria': criteria, 'candidate_evidence': candidates, 'interviewer_context': replies,
+        'ordered_event_ids': [dict(actor=actor, event_id=e['event_id'], position=e['position'])
+            for actor, records in (('candidate', candidates), ('interviewer', replies))
+            for e in records],
+        'static_sql_review': static_sql_signals(question, candidates),
         'local_execution': {'status': metrics['accuracy']['status'], 'reason': metrics['accuracy']['reason'],
                             'candidate_alias': next((e['alias'] for e in candidates
                                 if e['event_id'] == metrics['accuracy']['candidate_event_id']), None)},
@@ -237,10 +256,7 @@ def _context(plan, index, language, profile, card):
         packet['raw_metrics']['behavior'] = {k: v for k, v in packet['raw_metrics']['behavior'].items()
                                              if k != 'evidence_event_ids'}
     if len(_canonical(packet).encode()) > 16000:
-        candidates, replies, omitted = _evidence(plan, index, excerpt_bytes=160)
-        packet.update(candidate_evidence=candidates, interviewer_context=replies)
-    if len(_canonical(packet).encode()) > 16000:
-        raise NativeEvaluatorError('EVALUATOR_REQUEST_TOO_LARGE')
+        raise NativeEvaluatorError('EVALUATOR_CONTEXT_INCOMPLETE')
     return packet
 
 
@@ -261,7 +277,7 @@ def prepare_native_evaluator(plan, request_id, generation, language, question_in
                   'generation': generation, 'question_index': question_index,
                   'question_record_sha256': source_hash, 'input_sha256': _text_sha(content),
                   'prompt_sha256': profile['prompt_sha256']})
-    sources = dict(profile['source_sha256'], **{'evidence/frozen_question': source_hash})
+    sources = dict(profile['source_sha256'], **{'evidence/frozen_question': source_hash}, **_p0_code_sources())
     spec = {'schema_version': 'tia-native-request/v1', 'transaction_id': token,
             'request_id': request_id, 'generation': generation, 'role': 'evaluator',
             'instructions': profile['instructions'], 'input': content,
@@ -286,22 +302,42 @@ def _assessed_dimensions(proposal, packet):
         _, anchor, aliases, reason = row
         if anchor is not None and (type(anchor) is not int or not 0 <= anchor <= 3):
             raise NativeEvaluatorError('INVALID_EVALUATOR_ANCHOR')
-        if (type(aliases) is not list or len(aliases) > 4 or any(type(a) is not str for a in aliases)
-                or len(set(aliases)) != len(aliases) or not set(aliases) <= set(criterion['allowed_aliases'])
-                or (anchor is None and aliases) or (anchor is not None and not aliases)):
+        if (type(aliases) is not list or len(aliases) > 4 or
+                any(type(a) is not str for a in aliases) or len(set(aliases)) != len(aliases) or
+                not set(aliases) <= set(evidence) or (anchor is None and aliases) or
+                (anchor is not None and not aliases)):
             raise NativeEvaluatorError('EVALUATOR_UNCITED_OR_CROSS_QUESTION_EVIDENCE')
         if type(reason) is not str or not 8 <= len(reason.strip()) <= 120 or any(ord(c) < 32 for c in reason):
             raise NativeEvaluatorError('INVALID_EVALUATOR_REASON')
         if anchor is not None and criterion['id'] == 'T01' and packet['local_execution']['status'] == 'FAILED' and anchor != 0:
             raise NativeEvaluatorError('EVALUATOR_FAILED_SQL_CANNOT_PASS')
-        citations = [{key: evidence[a][key] for key in ('alias', 'event_id', 'kind', 'text_sha256', 'span')}
-                     for a in aliases]
+        # Strict protocol claims must be rejected, not silently laundered into
+        # NOT_OBSERVED: unverified SQL correctness and non-existent closing speech.
+        # Other semantic false positives remain unscored with an explicit audit gate.
+        if anchor is not None and criterion['id'] in ('T01', 'C06') and not set(aliases) <= set(criterion['allowed_aliases']):
+            raise NativeEvaluatorError('EVALUATOR_UNCITED_OR_CROSS_QUESTION_EVIDENCE')
+        eligible_citations = [a for a in aliases if a in criterion['allowed_aliases']]
+        discarded_citations = [a for a in aliases if a not in criterion['allowed_aliases']]
+        blocked = None
+        if anchor is not None and not eligible_citations:
+            blocked = 'CRITERION_EVIDENCE_INADMISSIBLE'
+        elif anchor is not None and reason_self_contradicts(reason):
+            blocked = 'REASON_DENIES_OBSERVED_BEHAVIOR'
+        # Never silently promote structurally valid but semantically unrelated
+        # citations into points. Preserve attempted anchor in a local audit flag.
+        accepted_anchor = None if blocked else anchor
+        citations = ([{key: evidence[a][key] for key in ('alias', 'event_id', 'kind', 'text_sha256', 'span')}
+                      for a in eligible_citations] if not blocked else [])
         output.append({'id': criterion['id'], 'title': criterion['title'], 'axis': criterion['axis'],
                        'proposed_max_points': criterion['max_points'],
-                       'status': 'NOT_OBSERVED' if anchor is None else 'MODEL_PROPOSED',
-                       'anchor_0_to_4': anchor, 'provisional_points': None if anchor is None else criterion['max_points'] * anchor / 4,
-                       'reason': reason.strip(), 'confidence': 'NOT_ASSESSED' if anchor is None else 'HUMAN_REVIEW_REQUIRED',
-                       'evidence': citations})
+                       'status': 'NOT_OBSERVED' if accepted_anchor is None else 'MODEL_PROPOSED',
+                       'anchor_0_to_4': accepted_anchor,
+                       'provisional_points': None if accepted_anchor is None else criterion['max_points'] * accepted_anchor / 4,
+                       'reason': reason.strip(), 'confidence': 'NOT_ASSESSED' if accepted_anchor is None else 'HUMAN_REVIEW_REQUIRED',
+                       'evidence': citations,
+                       'admissibility_audit': {'gate': blocked or 'ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW',
+                                               'disallowed_proposal_anchor': anchor if blocked else None,
+                                               'discarded_irrelevant_citations': discarded_citations}})
     return output
 
 
@@ -364,12 +400,21 @@ def commit_native_evaluator(plan, pending, params):
               'rubric_version': compile_evaluator_profile()['rubric']['rubric_version'],
               'formula_version': 'tia-observed-proposed-points/v1', 'formula': 'max_points * anchor / 4',
               'proposal': copy.deepcopy(proposal), 'dimensions': dimensions,
+              'decision_trace': {'schema': 'tia-evaluator-decision-trace/v1',
+                  'input_candidate_event_ids': [e['event_id'] for e in packet['candidate_evidence']],
+                  'input_interviewer_event_ids': [e['event_id'] for e in packet['interviewer_context']],
+                  'ordered_input_event_ids': [e['event_id'] for e in sorted(packet['ordered_event_ids'], key=lambda x: x['position'])],
+                  'input_excerpt_truncated_count': sum(e['excerpt_truncated'] for e in packet['candidate_evidence'] + packet['interviewer_context']),
+                  'rejected_criterion_ids': [d['id'] for d in dimensions if d['admissibility_audit']['disallowed_proposal_anchor'] is not None],
+                  'static_sql_review': packet['static_sql_review'],
+                  'semantic_truth': 'HUMAN_REVIEW_REQUIRED'},
               'technical': _axis(dimensions, 'technical'), 'communication': _axis(dimensions, 'communication'),
               'model_identifier': model, 'usage': usage,
               'technical_score': 'NOT_SCORED', 'communication_score': 'NOT_SCORED', 'overall_grade': 'NOT_SCORED',
               'semantic_truth': 'HUMAN_REVIEW_REQUIRED', 'independent_vs_assisted': 'NOT_ESTABLISHED',
               'validation': {'citation_binding': True, 'arithmetic_host_computed': True,
-                             'validated_semantic_quality': False, 'unfamiliar_case_observed': False},
+                             'validated_semantic_quality': False, 'semantic_gate': 'NECESSARY_CONDITIONS_ONLY',
+                             'unfamiliar_case_observed': False},
               'limits': ['Single local fixture is not general correctness certification.',
                          'Proposed subweights and anchors are uncalibrated; no hiring inference.',
                          'Missing dimensions remain unknown; no renormalization or bonus.']}
@@ -407,18 +452,42 @@ def build_evaluator_report(plan, evaluations=None):
                         artifact.get('sha256') != _sha({k: v for k, v in artifact.items() if k != 'sha256'}) or
                         artifact.get('question_record_sha256') != _source_digest(plan, index) or
                         artifact.get('prompt_sha256') != profile['prompt_sha256'] or
-                        artifact.get('source_sha256') != dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)}) or
                         artifact.get('rubric_version') != profile['rubric']['rubric_version'] or
                         artifact.get('formula_version') != 'tia-observed-proposed-points/v1' or
                         artifact.get('formula') != 'max_points * anchor / 4' or
-                        artifact.get('question_sha256') != metric['question_sha256']):
+                        artifact.get('question_sha256') != metric['question_sha256'] or
+                        artifact.get('source_sha256') not in (
+                            dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)}),
+                            dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
+                                 **_p0_code_sources()),
+                            dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
+                                 **P0_V3_CODE_SOURCES),
+                            dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
+                                 **P0_V4_CODE_SOURCES))):
+
                     raise ValueError('artifact binding')
                 packet = _context(plan, index, artifact['language'], profile, card)
-                dimensions = _assessed_dimensions(artifact['proposal'], packet)
-                if (artifact['dimensions'] != dimensions or artifact['context_input_sha256'] != _text_sha(_canonical(packet))
-                        or artifact['technical'] != _axis(dimensions, 'technical')
-                        or artifact['communication'] != _axis(dimensions, 'communication')):
-                    raise ValueError('artifact arithmetic')
+                if artifact['context_input_sha256'] != _text_sha(_canonical(packet)):
+                    # Prior correctly source-bound LIVE_MODEL reviews used a *different*
+                    # evidence selector. Preserve bytes/ratings, but explicitly label
+                    # legacy semantic provenance as unverified; never auto-regrade.
+                    old_dimensions = artifact.get('dimensions')
+                    if (type(old_dimensions) is not list or len(old_dimensions) != len(IDS) or
+                            [d.get('id') for d in old_dimensions] != list(IDS) or
+                            artifact.get('technical') != _axis(old_dimensions, 'technical') or
+                            artifact.get('communication') != _axis(old_dimensions, 'communication')):
+                        raise ValueError('old artifact invalid')
+                    dimensions = copy.deepcopy(old_dimensions)
+                    artifact = copy.deepcopy(artifact)
+                    artifact['status'] = 'LEGACY_CONTEXT_REVIEW_REQUIRED'
+                    artifact['review_notice'] = ('Legacy proposal retained unchanged; its original truncated/context-filtered '
+                                                 'input is not semantically revalidated by the P0 evidence gate.')
+                else:
+                    dimensions = _assessed_dimensions(artifact['proposal'], packet)
+                    if (artifact['dimensions'] != dimensions or
+                            artifact['technical'] != _axis(dimensions, 'technical') or
+                            artifact['communication'] != _axis(dimensions, 'communication')):
+                        raise ValueError('artifact arithmetic')
             except (ValueError, TypeError, KeyError, RecursionError):
                 raise NativeEvaluatorError('EVALUATOR_ARTIFACT_INVALID') from None
         questions.append({'index': index, 'title': metric['title'], 'eligible': bool(closed and candidates and artifact is None),
@@ -426,6 +495,7 @@ def build_evaluator_report(plan, evaluations=None):
                           'technical': _axis(dimensions, 'technical'), 'communication': _axis(dimensions, 'communication'),
                           'raw_metrics': {'accuracy': copy.deepcopy(metric['accuracy']), 'behavior': copy.deepcopy(metric['behavior']),
                                           'time': copy.deepcopy(metric['time'])},
+                          'static_sql_review': static_sql_signals(plan['questions'][index], candidates),
                           'technical_score': 'NOT_SCORED', 'communication_score': 'NOT_SCORED'})
     result = {'schema': REPORT_SCHEMA, 'status': 'READY' if closed else 'IN_PROGRESS',
               'rubric_version': profile['rubric']['rubric_version'], 'review_status': profile['review_status'],
@@ -441,5 +511,7 @@ def build_evaluator_report(plan, evaluations=None):
                               'Coverage is evidence coverage, not percent performance; missing is not zero.',
                               'Raw SQL observations remain host-authoritative and separate from proposed points.',
                               'No explicit C06 closure event or unfamiliar-case evidence exists in this slice.']}
+    # Host-owned, purely derived three-question summary. No new score authority.
+    result['full_scheme'] = compile_full_scheme(result)
     result['sha256'] = _sha(result)
     return result

@@ -124,8 +124,13 @@ class EvaluatorHostTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(assessed['provenance'], 'LIVE_MODEL')
         self.assertEqual(assessed['technical']['proposed_observed_points'], 21.75)
         self.assertEqual(assessed['technical']['covered_maximum_points'], 37)
-        self.assertEqual(assessed['communication']['proposed_observed_points'], 3)
-        self.assertEqual(assessed['communication']['covered_maximum_points'], 6)
+        # This fixture submits SQL without a spoken clarification. Model
+        # C01=2 is explicitly not admissible under the repaired P0 contract.
+        self.assertIsNone(assessed['communication']['proposed_observed_points'])
+        self.assertEqual(assessed['communication']['covered_maximum_points'], 0)
+        self.assertEqual(assessed['dimensions'][5]['status'], 'NOT_OBSERVED')
+        self.assertEqual(assessed['dimensions'][5]['admissibility_audit']['gate'],
+                         'CRITERION_EVIDENCE_INADMISSIBLE')
         self.assertEqual(assessed['technical']['normalization'], 'NONE')
         self.assertEqual(assessed['communication']['normalization'], 'NONE')
         self.assertIn('C06', assessed['communication']['missing_dimensions'])
