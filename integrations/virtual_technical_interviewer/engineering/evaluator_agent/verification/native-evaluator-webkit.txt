@@ -1,0 +1,16 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+PASS E25B starts BYOQ rehearsal with 3 bound questions
+PASS E25B native bridge records candidate raw SQL and rejects mismatched fixture
+PASS E25B WebKit fixture review displays exact current question hash
+PASS E25B native consent + real ephemeral PostgreSQL returns verified fixture PASS
+PASS E25B frozen Q1 receipt does not award grades to skipped Q2/Q3
+PASS E3A completed rehearsal renders source-bound scorecard with no fabricated capability score
+PASS E3B shows six C01–C06 dimensions for each closed question and never fabricates ratings
+PASS E3C offline trainer binds practice to real receipt with no invented score or paid call
+PASS Evaluator starts with eleven unscored criteria and excludes skipped questions
+PASS Evaluator cancellation rejects late response and preserves frozen evidence
+PASS Evaluator malformed semantic response cannot commit or retry automatically
+PASS Evaluator native consent HTTP and host commit produce bounded cited proposals
+PASS Evaluator duplicate and renderer private commits cannot spend or alter evidence
+PASS Evaluator compact view exposes separate axes and missing evidence
+Native UI smoke: PASS — 15 real UI checks; 5 mocked HTTP requests; zero real provider requests
