@@ -47,6 +47,11 @@ enum BridgePolicy {
             guard TIAVoiceCompanion.validate(action: action, params: params) else { return nil }
         } else if emptyActions.contains(action) {
             guard params.isEmpty else { return nil }
+        } else if action == "evaluator_generate" {
+            guard Set(params.keys) == ["question_index"],
+                  let index = params["question_index"] as? NSNumber,
+                  CFGetTypeID(index) != CFBooleanGetTypeID(),
+                  (0...2).contains(index.intValue), index.doubleValue == Double(index.intValue) else { return nil }
         } else if action == "grade_inspect" {
             guard Set(params.keys) == ["fixture_json"],
                   let fixture = params["fixture_json"] as? String,

@@ -18,15 +18,18 @@ parser.add_argument("--ui", action="store_true", help="Open actual native window
 parser.add_argument("--regressions", action="store_true", help="Build/test Witness and shared HAL.")
 parser.add_argument("--increment", choices=["S03-A", "S03-B", "S03-C", "S03-E1", "S03-E2", "S03-E25B", "S03-E3A", "S03-E3B", "S03-E3C", "S03-E3CB", "S03-E3D"], default="S03-C")
 parser.add_argument("--voice", action="store_true", help="Include local voice UI with synthetic audio and mocked HTTP; requires --ui.")
+parser.add_argument("--evaluator", action="store_true", help="Verify independent evaluator through real native UI and mocked transport; requires --ui.")
 parser.add_argument("--run-label", help="Preserve this run in a new labelled subdirectory.")
 args = parser.parse_args()
-if args.voice and not args.ui:
-    parser.error("--voice requires --ui")
+if (args.voice or args.evaluator) and not args.ui:
+    parser.error("--voice / --evaluator requires --ui")
 if args.run_label and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", args.run_label):
     parser.error("Invalid run label")
 out = root / ("engineering/s03e_smart_plan/verification_E3D" if args.increment == "S03-E3D" else "engineering/s03e_grounded_trainer/verification_E3CB" if args.increment == "S03-E3CB" else "engineering/s03e_grounded_trainer/verification_E3C" if args.increment == "S03-E3C" else "engineering/s03e_communication_rubric/verification_E3B" if args.increment == "S03-E3B" else "engineering/s03e_evidence_scorecard/verification_E3A" if args.increment == "S03-E3A" else "engineering/s03e_postgres_accuracy/verification_E25B" if args.increment == "S03-E25B" else "engineering/s03e_time_intelligence/verification" if args.increment == "S03-E2" else "engineering/s03e_three_question/verification" if args.increment == "S03-E1" else ("engineering/s03c_live_byok/verification" if args.increment == "S03-C" else "engineering/s03_first_playable/verification/" + args.increment))
 if args.voice:
     out = root / "engineering/voice_companion/verification"
+if args.evaluator:
+    out = root / "engineering/evaluator_agent/verification"
 if args.run_label:
     out = out / args.run_label
     if out.exists():
@@ -125,6 +128,15 @@ if args.voice:
     ):
         run(label, [str(app), flag, "--test-output", str(directory)], timeout=240)
         shutil.copyfile(directory / name, out / name)
+if args.evaluator:
+    evaluator_dir = root / ".build-cache" / ("verified-evaluator-" + str(time.time_ns()))
+    for label, flag, name in (
+        ("native-evaluator-webkit", "--ui-evaluator-test", "ui-evaluator-receipt.json"),
+        ("native-evaluator-recovery", "--ui-evaluator-recovery-test", "ui-evaluator-recovery-receipt.json"),
+    ):
+        run(label, [str(app), flag, "--test-output", str(evaluator_dir)], timeout=240)
+        shutil.copyfile(evaluator_dir / name, out / name)
+    shutil.copyfile(evaluator_dir / "evaluator-13.png", out / "evaluator-assessment.png")
 if args.regressions:
     run("witness-hal", ["bash", str(repo / "scripts/verify_witness_local.sh")], timeout=240)
 receipt["completed_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()

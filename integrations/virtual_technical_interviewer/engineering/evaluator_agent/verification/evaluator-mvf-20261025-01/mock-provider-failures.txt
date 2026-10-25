@@ -1,0 +1,9 @@
+PASS failure journey opens synthetic native consent
+PASS 401 is visible and commits no false interviewer event
+PASS failure journey reopens synthetic native consent
+PASS native timeout creates no response and never automatically retries
+PASS explicit retry can verify via actual mocked transport
+PASS pending cancellation crosses native and controller without late commit
+PASS explicit retry reuses recorded candidate evidence then freezes receipt
+Native UI smoke: PASS — 7 real UI checks; 5 mocked HTTP requests; zero real provider requests
+2026-10-25 20:13:44.888 TechnicalInterviewLab[90375:16320740] error messaging the mach port for IMKCFRunLoopWakeUpReliable

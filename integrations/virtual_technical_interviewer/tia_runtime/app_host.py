@@ -42,6 +42,9 @@ from .grounded_trainer import build_grounded_trainer
 from .smart_plan import (SmartPlanError, build_smart_plan, start_smart_progress,
                          record_smart_activity, smart_progress_summary)
 from .native_trainer import NativeTrainerError, prepare_native_trainer, commit_native_trainer
+from .native_evaluator import NativeEvaluatorError, build_evaluator_report, prepare_native_evaluator, commit_native_evaluator
+from .evaluator_v1_projection import project_v1_score
+from .evaluator_v1_mock import project_v1_mock, MockContractError
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
 
 
@@ -83,6 +86,8 @@ COMMAND_FIELDS = {
     "smart_start": set(), "smart_record": {"task_id", "kind", "note", "artifact_sha256"},
     "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
     # Private native-only trainer IPC; never accepted by WebKit Bridge.
+    "native_prepare_evaluator": {"request_id", "generation", "question_index"},
+    "native_commit_evaluator": COMMIT_FIELDS, "native_cancel_evaluator": set(),
     "native_prepare_trainer": {"request_id", "generation"},
     "native_commit_trainer": COMMIT_FIELDS, "native_cancel_trainer": set(),
 }
@@ -163,6 +168,9 @@ class TutorialHost:
         self._grading_review = None
         self._grading_observation = None
         self._replay_observation = None
+        self._evaluator_pending = None
+        self._evaluator_assessments = {}
+        self._evaluator_interrupted = False
         self._trainer_pending = None
         self._native_trainer_feedback = None
         self._trainer_interrupted = False
@@ -214,6 +222,22 @@ class TutorialHost:
             'full_interview_authorized': False,
         }
 
+    def _evaluator_report(self):
+        """A failed optional evaluation must not make frozen interview data unreadable.
+
+        This projection is excluded from historical state digests. Native
+        prepare/commit still verify every installed source and fail closed.
+        """
+        try:
+            return build_evaluator_report(self._rehearsal, self._evaluator_assessments)
+        except NativeEvaluatorError:
+            return {'schema': 'tia-evaluator-report/v1', 'status': 'UNAVAILABLE',
+                    'error': 'EVALUATOR_SOURCE_UNAVAILABLE', 'questions': [],
+                    'summary': {'technical_score': 'NOT_SCORED', 'communication_score': 'NOT_SCORED',
+                                'overall_grade': 'NOT_SCORED', 'formal_exam_authorized': False},
+                    'limitations': ['Evaluator sources or assessment bindings require repair; '
+                                    'the original interview evidence remains available.']}
+
     def state(self):
         steps = {"WELCOME": 1, "RULES": 2, "QUESTION": 3, "ROOM": 4, "COMPLETE": 5}
         result = {
@@ -244,6 +268,15 @@ class TutorialHost:
             result['language_reviews'] = project_language_reviews(
                 self._rehearsal,
                 self._live_controller.snapshot() if self._live_controller is not None else None)
+            result['evaluator_report'] = self._evaluator_report()
+            result['evaluator_v1_readout'] = project_v1_score(self._rehearsal)
+            # E4D-02B read-only synthetic mock, never a candidate grade or persisted state.
+            try:
+                result['evaluator_v1_mock_readout'] = project_v1_mock(self._rehearsal)
+            except MockContractError:
+                result['evaluator_v1_mock_readout'] = {'schema': 'tia-evaluator-v1-mock-readout/v1', 'status': 'UNAVAILABLE'}
+            result['native_evaluator_pending'] = self._evaluator_pending is not None
+            result['native_evaluator_interrupted'] = self._evaluator_interrupted
             result['evidence_scorecard'] = build_scorecard(self._rehearsal)
             result['communication_evidence'] = build_communication_evidence(self._rehearsal)
             result['grounded_trainer'] = build_grounded_trainer(self._rehearsal)
@@ -299,6 +332,10 @@ class TutorialHost:
             public.pop("smart_progress", None)
         # E3-C-B append-only paid feedback lives in its journal transaction;
         # old save digests must remain byte-for-byte compatible.
+        public.pop("evaluator_v1_readout", None)  # display-only; preserve older save digests
+        public.pop("evaluator_v1_mock_readout", None)  # no historical save/digest migration
+        for key in ("evaluator_report", "native_evaluator_pending", "native_evaluator_interrupted"):
+            public.pop(key, None)
         public.pop("native_trainer_feedback", None)
         public.pop("native_trainer_pending", None)
         public.pop("native_trainer_interrupted", None)
@@ -323,9 +360,12 @@ class TutorialHost:
         if action == 'grade_execute' and (type(params['fixture_sha256']) is not str or
                                          re.fullmatch(r'[0-9a-f]{64}', params['fixture_sha256']) is None):
             raise HostError('INVALID_GRADE_APPROVAL')
-        if action in ('native_commit_preview', 'native_commit_trainer'):
+        if action in ('native_commit_preview', 'native_commit_trainer', 'native_commit_evaluator'):
             validate_commit(params)
-        if action == 'native_prepare_trainer':
+        if action == 'native_prepare_evaluator':
+            if type(params['question_index']) is not int or params['question_index'] not in range(3):
+                raise HostError('INVALID_EVALUATOR_QUESTION')
+        if action in ('native_prepare_trainer', 'native_prepare_evaluator'):
             for key in ('request_id', 'generation'):
                 if type(params[key]) is not str or re.fullmatch(r'[A-Za-z0-9_-]{1,80}', params[key]) is None:
                     raise HostError('INVALID_NATIVE_TRAINER_REQUEST')
@@ -507,6 +547,13 @@ class TutorialHost:
         if action in ('grade_inspect', 'grade_execute'):
             await self._grade_dispatch(action, params)
             return
+        if action in ('native_prepare_evaluator', 'native_commit_evaluator', 'native_cancel_evaluator'):
+            if self._trainer_pending is not None:
+                raise HostError('NATIVE_TRAINER_PENDING')
+            self._native_evaluator_dispatch(action, params)
+            return
+        if self._evaluator_pending is not None:
+            raise HostError('NATIVE_EVALUATOR_PENDING')
         if action in ('native_prepare_trainer', 'native_commit_trainer', 'native_cancel_trainer'):
             self._native_trainer_dispatch(action, params)
             return
@@ -878,6 +925,43 @@ class TutorialHost:
                 artifact_sha256=params['artifact_sha256'], host_wall_seconds=self._wall_sample)
         except SmartPlanError as error:
             raise HostError(error.code) from None
+
+    def _native_evaluator_dispatch(self, action, params):
+        if action == 'native_cancel_evaluator':
+            if self._evaluator_pending is None:
+                raise HostError('EVALUATOR_NOT_PENDING')
+            self._evaluator_pending = None
+            self._evaluator_interrupted = True
+            return
+        if (self._rehearsal is None or self._rehearsal['status'] not in
+                ('COMPLETE', 'TIMED_OUT', 'CLOCK_INTEGRITY_HOLD') or
+                self.screen != 'REHEARSAL_COMPLETE'):
+            raise HostError('EVALUATOR_REQUIRES_LOCKED_REHEARSAL')
+        if action == 'native_prepare_evaluator':
+            index = params['question_index']
+            if self._evaluator_pending is not None or str(index) in self._evaluator_assessments:
+                raise HostError('EVALUATOR_ALREADY_REQUESTED')
+            try:
+                pending, prepared = prepare_native_evaluator(
+                    self._rehearsal, params['request_id'], params['generation'], self.language, index)
+            except NativeEvaluatorError as error:
+                raise HostError(error.code) from None
+            self._evaluator_pending = pending
+            self._evaluator_interrupted = False
+            self._prepared_return = prepared
+            return
+        if self._evaluator_pending is None:
+            raise HostError('EVALUATOR_NOT_PENDING')
+        index = self._evaluator_pending['question_index']
+        if str(index) in self._evaluator_assessments:
+            raise HostError('EVALUATOR_ALREADY_REQUESTED')
+        try:
+            artifact = commit_native_evaluator(self._rehearsal, self._evaluator_pending, params)
+        except NativeEvaluatorError as error:
+            raise HostError(error.code) from None
+        self._evaluator_assessments[str(index)] = artifact
+        self._evaluator_pending = None
+        self._evaluator_interrupted = False
 
     def _native_trainer_dispatch(self, action, params):
         if action == 'native_cancel_trainer':
@@ -1283,6 +1367,8 @@ class TutorialHost:
         # the time until restart remains in the per-question wait bucket.
         if self._live_controller and self._live_controller.native_pending is not None:
             await self.command('native_cancel_preview', {})
+        if self._evaluator_pending is not None:
+            await self.command('native_cancel_evaluator', {})
         if self._trainer_pending is not None:
             # Persist explicit interruption; never auto-retry or bill after restart.
             await self.command('native_cancel_trainer', {})
@@ -1321,7 +1407,11 @@ class TutorialHost:
             },
         }
         if self._rehearsal is not None:
-            result.update(rehearsal=public_plan(self._rehearsal),
+            result.update(evaluator_v1_readout=project_v1_score(self._rehearsal),
+                          evaluator_report=self._evaluator_report(),
+                          native_evaluator_pending=self._evaluator_pending is not None,
+                          native_evaluator_interrupted=self._evaluator_interrupted,
+                          rehearsal=public_plan(self._rehearsal),
                           evidence_scorecard=build_scorecard(self._rehearsal),
                           communication_evidence=build_communication_evidence(self._rehearsal),
                           grounded_trainer=build_grounded_trainer(self._rehearsal),
@@ -1369,7 +1459,7 @@ class TutorialHost:
             raise HostError("RECOVERY_REQUIRED")
         if len(self._journal) >= MAX_JOURNAL_ENTRIES:
             raise HostError("HISTORY_LIMIT")
-        if action in ('native_prepare_preview', 'native_prepare_trainer') and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1:
+        if action in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator') and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1:
             # Keep one durable slot for a cancellation if the process exits while
             # native HTTP is pending; recovery must never create an unreadable save.
             raise HostError('HISTORY_LIMIT')
@@ -1429,7 +1519,7 @@ class TutorialHost:
             result = await self.command(request["action"], request["params"])
             if request["action"] == "export":
                 return {"id": request_id, "ok": True, "state": self.state(), "export": result}
-            if request['action'] in ('native_prepare_preview', 'native_prepare_trainer'):
+            if request['action'] in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator'):
                 return {'id': request_id, 'ok': True, 'state': result,
                         'prepared': copy.deepcopy(self._prepared_return)}
             return {"id": request_id, "ok": True, "state": result}

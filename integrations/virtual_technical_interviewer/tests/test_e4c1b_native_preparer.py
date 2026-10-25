@@ -18,7 +18,7 @@ class NativePreparerPolicyTests(unittest.TestCase):
         self.assertIn('"$TIA_ROOT/native/NativePreparer.swift"',self.build)
 
     def test_preparer_is_separate_provider_role(self):
-        self.assertIn('["interviewer", "trainer", "preparer"]',self.provider)
+        self.assertIn('["interviewer", "trainer", "preparer", "evaluator"]',self.provider)
         self.assertIn('"tia_" + role + "_reply"',self.provider)
 
     def test_preparer_has_explicit_distinct_output_budget(self):

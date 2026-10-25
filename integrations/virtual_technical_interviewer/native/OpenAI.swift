@@ -78,7 +78,7 @@ struct TIAModelRequest {
               let transactionID = value["transaction_id"] as? String, validID(transactionID),
               let requestID = value["request_id"] as? String, validID(requestID),
               let generation = value["generation"] as? String, validID(generation),
-              let role = value["role"] as? String, ["interviewer", "trainer", "preparer"].contains(role),
+              let role = value["role"] as? String, ["interviewer", "trainer", "preparer", "evaluator"].contains(role),
               let instructions = value["instructions"] as? String, !instructions.isEmpty, instructions.utf8.count <= 32768,
               let input = value["input"] as? String, input.utf8.count <= 16000,
               let encoded = input.data(using: .utf8), (try? StrictJSON.object(encoded)) is [String: Any],
@@ -159,7 +159,7 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
         return .httpStatus(status)
     }
     static func parse(_ data: Data, status: Int, role: String = "interviewer") throws -> TIAProviderReply {
-        guard ["interviewer", "trainer", "preparer"].contains(role),
+        guard ["interviewer", "trainer", "preparer", "evaluator"].contains(role),
               data.count <= maximumResponseBytes else { throw TIAProviderFailure.oversized }
         guard status == 200 else { throw httpFailure(data, status: status) }
         guard let body = try StrictJSON.object(data) as? [String: Any],

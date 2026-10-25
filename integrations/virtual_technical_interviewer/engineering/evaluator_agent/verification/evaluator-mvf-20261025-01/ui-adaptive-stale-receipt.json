@@ -1,0 +1,47 @@
+{
+  "adaptive_mode" : "STALE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 4,
+  "passed" : 8,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "8 real UI checks; 4 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "E25B opens native consent for synthetic fixture-only interview"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E25B starts BYOQ rehearsal with 3 bound questions"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E25B native bridge records candidate raw SQL and rejects mismatched fixture"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E25B WebKit fixture review displays exact current question hash"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E25B native consent + real ephemeral PostgreSQL returns verified fixture PASS"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C2C changed implementation invalidates earlier local fixture PASS"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C2C TEST on revised SQL refuses stale fixture promotion"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C2C stale scenario disconnects with exact mock count"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

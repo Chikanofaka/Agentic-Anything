@@ -17,6 +17,7 @@ final class TIAUISmoke {
     }
     private let helper = """
       const el=id=>document.getElementById(id);
+      const stable=v=>JSON.stringify(v, function(k,x){return x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.entries(x).sort(([a],[b])=>a.localeCompare(b))):x;});
       const pause=ms=>new Promise(r=>setTimeout(r,ms));
       async function until(f){for(let i=0;i<200;i++){if(f())return;await pause(30);}throw Error('UI timeout');}
       async function screen(s){await until(()=>window.tiaState?.screen===s); await until(()=>!document.querySelector('[aria-busy="true"]'));}
@@ -26,8 +27,10 @@ final class TIAUISmoke {
     private var recovering: Bool { CommandLine.arguments.contains("--ui-recovery-test") }
     private var setupTesting: Bool { CommandLine.arguments.contains("--ui-setup-test") }
     private var rehearsalTesting: Bool { CommandLine.arguments.contains("--ui-rehearsal-test") }
-    private var gradingTesting: Bool { CommandLine.arguments.contains("--ui-grading-test") || trainerTesting || smartTesting  || adaptiveTesting || adaptiveStaleTesting }
+    private var gradingTesting: Bool { evaluatorTesting || CommandLine.arguments.contains("--ui-grading-test") || trainerTesting || smartTesting  || adaptiveTesting || adaptiveStaleTesting }
     private var smartTesting: Bool { CommandLine.arguments.contains("--ui-smart-test") }
+    private var evaluatorTesting: Bool { CommandLine.arguments.contains("--ui-evaluator-test") }
+    private var evaluatorRecovering: Bool { CommandLine.arguments.contains("--ui-evaluator-recovery-test") }
     private var trainerTesting: Bool { CommandLine.arguments.contains("--ui-trainer-test") }
     private var liveTesting: Bool { CommandLine.arguments.contains("--ui-live-test") }
     private var liveRecovering: Bool { CommandLine.arguments.contains("--ui-live-recovery-test") }
@@ -37,6 +40,27 @@ final class TIAUISmoke {
     private var adaptiveStaleTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-stale-test") }
     private var adaptiveRecoveryTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-recovery-test") }
     private var steps: [Step] {
+        if evaluatorRecovering {
+            return [
+                Step(label: "Evaluator recovery restores immutable artifact offline without another request", code: """
+                  await until(()=>document.documentElement.dataset.tiaReady==='true');
+                  const s=await snap(),q=s.evaluator_report?.questions?.[0],a=q?.assessment;
+                  return {ok:s.screen==='REHEARSAL_COMPLETE'&&s.activation.state==='offline'
+                    &&s.activation.requests_total===0&&a?.status==='PENDING_HUMAN_REVIEW'
+                    &&a.provenance==='LIVE_MODEL'&&a.dimensions.length===11
+                    &&a.technical.proposed_observed_points===12&&a.communication.proposed_observed_points===null
+                    &&q.raw_metrics.accuracy.status==='PASSED'&&s.native_evaluator_pending===false
+                    &&el('evaluatorPanel')?.textContent.includes('NOT_SCORED')};
+                """),
+                Step(label: "Evaluator language switch preserves artifact and original frozen scores", code: """
+                  const s=await snap(),before=s.evaluator_report.questions[0].assessment.sha256;
+                  await request('language',{language:'zh'});const after=await snap();
+                  return {ok:after.evaluator_report.questions[0].assessment.sha256===before
+                    &&after.evaluator_report.summary.overall_grade==='NOT_SCORED'
+                    &&el('evaluatorPanel').textContent.includes('独立')};
+                """),
+            ]
+        }
         if adaptiveRecoveryTesting {
             return [
         Step(label: "C2C recovery restores prior local evidence and journal without a new provider call", code: """
@@ -425,6 +449,75 @@ final class TIAUISmoke {
             &&s.evidence_scorecard.summary.overall_grade==='NOT_SCORED'
             &&!el('requestTrainer')};
         """),
+    ] : []) + (evaluatorTesting ? [
+        Step(label: "Evaluator starts with eleven unscored criteria and excludes skipped questions", code: """
+          const s=await snap(),r=s.evaluator_report;
+          window.evaluatorOriginal={score:s.evidence_scorecard.sha256,plan:stable(s.rehearsal)};
+          return {ok:!!el('evaluatorPanel')&&r?.questions?.length===3
+            &&r.questions[0].eligible===true&&r.questions[1].eligible===false
+            &&r.questions[2].eligible===false&&r.questions[0].dimensions.length===11
+            &&r.questions[0].assessment===null&&r.summary.overall_grade==='NOT_SCORED'
+            &&!!el('evaluatorGenerate')&&!el('evaluatorGenerate').disabled};
+        """),
+        Step(label: "Evaluator cancellation rejects late response and preserves frozen evidence", code: """
+          const call=request('evaluator_generate',{question_index:0}).catch(e=>e.message);
+          await until(()=>window.tiaState?.activation?.state==='connecting');
+          await request('preview_cancel');await call;await pause(1700);
+          const s=await snap();return {ok:s.native_evaluator_pending===false
+            &&s.native_evaluator_interrupted===true&&s.evaluator_report.questions[0].assessment===null
+            &&s.activation.requests_used===3&&s.evidence_scorecard.sha256===window.evaluatorOriginal.score};
+        """),
+        Step(label: "Evaluator malformed semantic response cannot commit or retry automatically", code: """
+          try{await request('evaluator_generate',{question_index:0});return {ok:false};}
+          catch(e){if(e.message!=='INVALID_EVALUATOR_REPLY')return {ok:false,error:e.message};}
+          await pause(250);const s=await snap();
+          return {ok:s.evaluator_report.questions[0].assessment===null&&!s.native_evaluator_pending
+            &&s.activation.requests_used===4&&s.evidence_scorecard.sha256===window.evaluatorOriginal.score};
+        """),
+        Step(label: "Evaluator reconnect opens native consent without losing frozen report", code: """
+          await request('disconnect');
+          const s=await snap();if(s.activation.state!=='offline'||!el('evaluatorConnect'))return {ok:false};
+          await press('evaluatorConnect');return {ok:true};
+        """),
+        Step(label: "Evaluator native consent HTTP and host commit produce bounded cited proposals", code: """
+          await until(()=>window.tiaState?.activation?.state==='activated-unverified');
+          if(window.tiaState.activation.authenticated!==false)return {ok:false};
+          await press('evaluatorGenerate');
+          await until(()=>window.tiaState?.evaluator_report?.questions?.[0]?.assessment
+            && !document.querySelector('[aria-busy="true"]'));
+          const s=await snap(),q=s.evaluator_report.questions[0],a=q.assessment;
+          window.evaluatorHash=a.sha256;
+          return {ok:a.status==='PENDING_HUMAN_REVIEW'&&a.provenance==='LIVE_MODEL'
+            &&a.dimensions.length===11&&a.dimensions[0].anchor_0_to_4===2
+            &&a.dimensions[0].provisional_points===12&&a.dimensions[0].evidence.length===1
+            &&a.technical.proposed_observed_points===12&&a.communication.proposed_observed_points===null
+            &&a.dimensions.find(d=>d.id==='C06').status==='NOT_OBSERVED'
+            &&s.activation.requests_total===5&&s.activation.requests_used===1&&s.activation.authenticated===true&&s.transport_mode==='MOCK_HTTP'
+            &&s.evidence_scorecard.sha256===window.evaluatorOriginal.score
+            &&stable(s.rehearsal)===window.evaluatorOriginal.plan
+            &&!!el('evaluatorAssessment')&&el('evaluatorPanel').textContent.includes('NOT_SCORED')
+            &&el('evaluatorCriterion-T01').querySelector('blockquote')?.textContent.includes('SELECT customer_id'),
+            diagnostic:{technical:a.technical.proposed_observed_points,communication:a.communication.proposed_observed_points,
+              calls:s.activation.requests_used,scoreUnchanged:s.evidence_scorecard.sha256===window.evaluatorOriginal.score,
+              recordUnchanged:stable(s.rehearsal)===window.evaluatorOriginal.plan}};
+        """),
+        Step(label: "Evaluator duplicate and renderer private commits cannot spend or alter evidence", code: """
+          const before=await snap();
+          try{await request('evaluator_generate',{question_index:0});return {ok:false};}catch(e){}
+          try{await request('native_commit_evaluator',{question_index:0});return {ok:false};}catch(e){}
+          const s=await snap();return {ok:s.activation.requests_total===5&&s.activation.requests_used===1&&s.activation.authenticated===true
+            &&s.evaluator_report.questions[0].assessment.sha256===window.evaluatorHash
+            &&s.evidence_scorecard.sha256===window.evaluatorOriginal.score};
+        """),
+        Step(label: "Evaluator compact view exposes separate axes and missing evidence", code: """
+          const s=await snap();
+          el('evaluatorQuestion').value='1';el('evaluatorQuestion').dispatchEvent(new Event('change'));
+          if(!el('evaluatorGenerate')?.disabled)return {ok:false};
+          el('evaluatorQuestion').value='0';el('evaluatorQuestion').dispatchEvent(new Event('change'));
+          return {ok:!!el('evaluatorTechnical')&&!!el('evaluatorCommunication')
+            &&el('evaluatorCriterion-C06').textContent.includes('NOT_OBSERVED')
+            &&document.documentElement.scrollWidth<=innerWidth+2};
+        """, compact: true),
     ] : [])) : rehearsalTesting ? [
         Step(label: "E1 native rehearsal portal uses synthetic consent only", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
@@ -775,7 +868,7 @@ final class TIAUISmoke {
                 guard app.portalIsVisible else { self.end(false, "Native API sheet not visible"); return }
                 app.cancelPortalForTest()
             }
-            if step.label == "E25B opens native consent for synthetic fixture-only interview" || step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" || step.label == "C1B2 credential entered only through Native sheet" {
+            if step.label == "Evaluator reconnect opens native consent without losing frozen report" || step.label == "E25B opens native consent for synthetic fixture-only interview" || step.label == "E1 native rehearsal portal uses synthetic consent only" || step.label == "setup begins with actual native secure credential sheet" || step.label == "mock live journey opens actual native paid-consent sheet" || step.label == "failure journey opens synthetic native consent" || step.label == "failure journey reopens synthetic native consent" || step.label == "C1B2 credential entered only through Native sheet" {
                 guard app.enterSyntheticCredentialForTest() else { self.end(false, "Synthetic native input failed"); return }
             }
             if step.label == "C1B2 native confirmation is required before any HTTP" || step.label == "C1B2 separate Native confirmation allows one mock request" {
@@ -795,7 +888,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.adaptiveRecoveryTesting ? "adaptive-recovery-" : self.adaptiveStaleTesting ? "adaptive-stale-" : self.adaptiveTesting ? "adaptive-" : self.preparerTesting ? "preparer-" : self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.evaluatorRecovering ? "evaluator-recovery-" : self.evaluatorTesting ? "evaluator-" : self.adaptiveRecoveryTesting ? "adaptive-recovery-" : self.adaptiveStaleTesting ? "adaptive-stale-" : self.adaptiveTesting ? "adaptive-" : self.preparerTesting ? "preparer-" : self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -817,7 +910,7 @@ final class TIAUISmoke {
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
             "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting || gradingTesting || preparerTesting, "human_uat": "NOT_RUN", "adaptive_mode": adaptiveTesting ? "POSITIVE" : adaptiveStaleTesting ? "STALE" : adaptiveRecoveryTesting ? "RECOVERY" : "NONE"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(adaptiveRecoveryTesting ? "ui-adaptive-recovery-receipt.json" : adaptiveStaleTesting ? "ui-adaptive-stale-receipt.json" : adaptiveTesting ? "ui-adaptive-receipt.json" : preparerTesting ? "ui-preparer-receipt.json" : failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(evaluatorRecovering ? "ui-evaluator-recovery-receipt.json" : evaluatorTesting ? "ui-evaluator-receipt.json" : adaptiveRecoveryTesting ? "ui-adaptive-recovery-receipt.json" : adaptiveStaleTesting ? "ui-adaptive-stale-receipt.json" : adaptiveTesting ? "ui-adaptive-receipt.json" : preparerTesting ? "ui-preparer-receipt.json" : failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

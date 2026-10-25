@@ -1,0 +1,14 @@
+{
+  "schema_version": "tia-evaluator-prompt-manifest/v1",
+  "authority_source": "owner:TIA-EVALUATOR-MVF-2026-10-25",
+  "review_status": "ENGINEERING_IMPLEMENTATION_OWNER_UAT_PENDING",
+  "canonical_rubric_source": "TIA_FULL_PRD_v3/RUBRIC_60_40_PROPOSAL.json",
+  "canonical_measurement_source": "TIA_FULL_PRD_v3/TIA_FULL_BASELINE_PRD_v3.md#14a",
+  "source_sha256": {
+    "agents/evaluator/identity.md": "96178b91bec8f5dd8073de982cc9327e15db1574de98cab875248c575e3d3c97",
+    "agents/evaluator/soul.md": "a7a1170d3d454ac04c28cf6edff14160ba023e03b5390c80dcd82aaec0be73ba",
+    "agents/evaluator/AGENTS.md": "e49017d6caa71532d2096d5d7b2226b5540257691447a66fb375ed81ac9a307c",
+    "agents/evaluator/skills.md": "59e89655f5d3d73f7f00e2ef151c7d7a089e6b11d7e7c6e2e740dcad196be374",
+    "policy/evaluator_rubric_v1.json": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f"
+  }
+}

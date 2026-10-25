@@ -1,0 +1,15 @@
+PASS configuration still requires the API Portal entry step
+PASS keyless setup can cancel the mandatory first API Portal
+PASS keyless Wizard reaches review and full launch stays blocked with zero requests
+PASS setup begins with actual native secure credential sheet
+PASS synthetic native credential is only locally configured and unverified
+PASS 60 minutes derives four and 45 derives three Hard questions
+PASS S03-D freeform LeetCode original can extract, review and confirm through real bridge
+PASS incomplete BYOQ remains editable and never fabricates validated questions
+PASS three distinct structured synthetic questions cross the real bridge
+PASS supportive mechanism loads compiled source and configuration digests
+PASS launch remains blocked on authentication and independent execution
+PASS strict mechanism changes effective instructions without expanding authority
+PASS disconnect keeps full launch blocked while keyless draft remains usable
+Native UI smoke: PASS — 13 real UI checks; 0 mocked HTTP requests; zero real provider requests
+2026-10-25 20:13:34.877 TechnicalInterviewLab[90353:16320279] error messaging the mach port for IMKCFRunLoopWakeUpReliable

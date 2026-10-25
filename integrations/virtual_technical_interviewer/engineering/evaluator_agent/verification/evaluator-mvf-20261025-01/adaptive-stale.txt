@@ -1,0 +1,9 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+PASS E25B starts BYOQ rehearsal with 3 bound questions
+PASS E25B native bridge records candidate raw SQL and rejects mismatched fixture
+PASS E25B WebKit fixture review displays exact current question hash
+PASS E25B native consent + real ephemeral PostgreSQL returns verified fixture PASS
+PASS C2C changed implementation invalidates earlier local fixture PASS
+PASS C2C TEST on revised SQL refuses stale fixture promotion
+PASS C2C stale scenario disconnects with exact mock count
+Native UI smoke: PASS — 8 real UI checks; 4 mocked HTTP requests; zero real provider requests

@@ -22,6 +22,7 @@
   let questionSources = [];
   let questionFieldDrafts = [];
   let previousScreen = null;
+  let evaluatorQuestionIndex = 0;
   const strings = {
     en: {
       livePreview: "Live Conversational Preview", livePreviewNote: "A bounded conversation with a Senior Interviewer; technical capability and communication remain NOT_SCORED. Separately approved PostgreSQL local fixture runs may verify an individual submitted SQL answer.",
@@ -138,6 +139,24 @@
       trainerEvidenceNotice: "These offline drills were generated without a model, and are not diagnoses or employment scores. A separately authorized Native AI Trainer proposal may involve a paid call.",
       trainerEvidencePrimary: "Primary practice task", trainerEvidenceSource: "Observed evidence", trainerEvidenceAcceptance: "Completion check", trainerEvidenceLimit: "Skill level remains NOT_SCORED; historical interview evidence cannot change.",
       trainerEvidenceWaiting: "Finish and lock all three questions to prepare practice tasks.",
+      evaluatorHeading: "Independent AI Evaluator · evidence review",
+      evaluatorNotice: "Review one frozen question at a time. Technical and Communication are separate provisional, uncalibrated model proposals; they are not final grades. The verified SQL ledger above remains authoritative for actual execution.",
+      evaluatorPrivacy: "Each request sends the selected question and bounded frozen evidence to your approved provider. Review the native consent sheet before authorizing one paid request; there are no automatic retries.",
+      evaluatorQuestion: "Question to evaluate", evaluatorGenerate: "Evaluate this question · native consent required",
+      evaluatorEmpty: "No evaluator proposal has been committed for this question.",
+      evaluatorNoEvidence: "No eligible frozen candidate evidence is available for this question.",
+      evaluatorReview: "PENDING_HUMAN_REVIEW · Check each rationale and cited event against the frozen record.",
+      evaluatorPoints: "Proposed observed points", evaluatorCoverage: "Observed coverage",
+      evaluatorNotObserved: "NOT_OBSERVED · missing evidence, not zero",
+      evaluatorAnchor: "Proposed anchor", evaluatorWeight: "Provisional criterion weight",
+      evaluatorRationale: "Evidence-based rationale", evaluatorUncertainty: "Uncertainty / missing evidence",
+      evaluatorExcerptMissing: "The exact cited excerpt is unavailable in this view. Review the exported frozen record.",
+      evaluatorExcerptPartial: "Partial excerpt; remaining context was not included in this citation.",
+      evaluatorFinal: "Final Technical, Communication and Overall grades: NOT_SCORED. No combined 60/40 grade is assigned.",
+      evaluatorBudget: "A private provider session with remaining approved requests is required. Reopen the API Portal to activate or review your request cap.",
+      evaluatorConfidence: "Review status", evaluatorSources: "Policy, prompt and source provenance", evaluatorMissing: "Criteria without sufficient evidence remain unobserved; points are never extrapolated to missing criteria.",
+      evaluatorAwaitClosure: "Evaluator review becomes available only after the interview is closed and its evidence is frozen.",
+      evaluatorUnavailable: "Evaluator unavailable: its installed sources or frozen evidence could not be verified. Rebuild and reopen the App from the reviewed repository version. Your interview evidence remains available; evaluation is disabled until this is resolved.",
       nativeTrainerHeading: "Native BYOK · AI Trainer proposal",
       nativeTrainerNote: "Optional paid OpenAI request. Only the chosen evidence-linked drill and excerpts up to 280 characters per cited candidate event leave your Mac; a short SQL submission may be included in full. A native consent sheet is required for each request. Feedback is an unverified model proposal, not a skill grade.",
       nativeTrainerRequest: "Ask AI Trainer (requires native consent)",
@@ -294,6 +313,24 @@
       trainerEvidenceNotice: "这些离线练习无需调用模型，不是 AI 诊断或招聘评分；另行授权的原生 AI Trainer 建议可能产生付费请求。",
       trainerEvidencePrimary: "第一优先练习", trainerEvidenceSource: "证据来源", trainerEvidenceAcceptance: "完成标准", trainerEvidenceLimit: "能力仍为 NOT_SCORED；不得修改历史面试证据。",
       trainerEvidenceWaiting: "请先结束并锁定三道题，才能生成练习任务。",
+      evaluatorHeading: "独立 AI Evaluator · 面试证据评审",
+      evaluatorNotice: "逐题评审冻结记录。技术与沟通分别生成暂定、未校准的模型建议，不是最终成绩。上方 SQL 证据账本仍是实际执行结果的依据。",
+      evaluatorPrivacy: "每次请求会将所选题目及有界冻结证据发送给已授权的服务商。请在原生窗口审核后批准一次付费请求；不会自动重试。",
+      evaluatorQuestion: "选择评审题目", evaluatorGenerate: "评审此题 · 需原生窗口授权",
+      evaluatorEmpty: "此题尚无已提交的评估建议。",
+      evaluatorNoEvidence: "此题没有符合评审条件的冻结候选人证据。",
+      evaluatorReview: "PENDING_HUMAN_REVIEW · 请逐项核对依据与引用事件是否符合冻结记录。",
+      evaluatorPoints: "已观察项目的建议分值", evaluatorCoverage: "证据覆盖范围",
+      evaluatorNotObserved: "NOT_OBSERVED · 证据缺失，非零分",
+      evaluatorAnchor: "建议等级锚点", evaluatorWeight: "暂定项目权重",
+      evaluatorRationale: "证据依据", evaluatorUncertainty: "不确定性 / 缺失证据",
+      evaluatorExcerptMissing: "当前视图无法显示准确的引用片段，请审阅导出的冻结记录。",
+      evaluatorExcerptPartial: "此处仅显示引用片段；其余上下文不包含在该引用中。",
+      evaluatorFinal: "技术、沟通及综合最终成绩：NOT_SCORED。不会生成 60/40 合成总分。",
+      evaluatorBudget: "需要已激活的私有服务商会话及剩余授权请求。请重新打开 API Portal 激活或审阅请求上限。",
+      evaluatorConfidence: "审核状态", evaluatorSources: "规则、提示词与来源记录", evaluatorMissing: "证据不足的项目保留未观察状态；不会将已观察分值外推到缺失项目。",
+      evaluatorAwaitClosure: "只有面试关闭、证据冻结后，才能申请评估。",
+      evaluatorUnavailable: "评估器暂不可用：无法验证已安装来源或冻结证据。请从已审核的仓库版本重新构建并打开 App。面试证据仍可查看；问题解决前无法申请评估。",
       nativeTrainerHeading: "原生 BYOK · AI Trainer 反馈提案",
       nativeTrainerNote: "可选付费 OpenAI 请求。只发送所选训练任务及每条引用事件最多 280 字符的短片段（短 SQL 可能被完整包含）。每次请求需 macOS 原生弹窗确认。模型输出是未获事实认证的建议，不是能力评分。",
       nativeTrainerRequest: "申请 AI Trainer 建议（原生授权）",
@@ -359,7 +396,7 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request"]);
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate"]);
   const interruptActions = new Set(["preview_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
@@ -442,7 +479,7 @@
     if (hasState) {
       if (response.ok === true && (item?.action === "tutorial_replay" || item?.action === "reset")) {
         draft = "";
-        if (item.action === "reset") { questionDrafts = []; questionSources = []; questionFieldDrafts = []; liveDraft = ""; liveKind = "clarify"; }
+        if (item.action === "reset") { questionDrafts = []; questionSources = []; questionFieldDrafts = []; liveDraft = ""; liveKind = "clarify"; evaluatorQuestionIndex = 0; }
       }
       if (response.ok === true && item?.action === "preview_verify" && state?.screen !== "LIVE_PREVIEW") { liveDraft = ""; liveKind = "clarify"; }
       state = response.state;
@@ -1114,6 +1151,188 @@
     add(section, node("p", t("trainerEvidenceLimit"), "notice"), node("code", tplan.sha256, "digest"));
     return section;
   }
+  function evaluatorV1MvmPanel() {
+    const result = state.evaluator_v1_readout;
+    if (state.screen !== "REHEARSAL_COMPLETE" || result?.schema !== "tia-evaluator-v1-mvm-readout/v1") return null;
+    const section = node("section", null, "receipt-card"); section.id = "evaluatorV1MvmPanel";
+    add(section, node("h2", "Evaluator v1.0 · Offline scoring MVM"),
+      node("p", "Separate experimental 12-metric policy (70/20/10). Not a verified ability grade.", "notice"));
+    if (result.status !== "DEMO_READY") {
+      add(section, node("p", "Score waits for interview closure", "field-help"));
+      return section;
+    }
+    add(section, badge("PURE_PLACEHOLDER · NOT A CANDIDATE SCORE", "accent"),
+      node("h3", `Arithmetic placeholder: ${result.score} / 100`),
+      node("p", `Rating coverage: ${result.rating_coverage_pct}% · Missing-ratings range: ${result.sensitivity_min}–${result.sensitivity_max}`, "field-help"),
+      node("p", `Core gate: ${result.core_gate} · Industry percentile: ${result.industry_percentile}`, "field-help"));
+    const detail = node("details", null, "question-review"); detail.id = "evaluatorV1Breakdown";
+    add(detail, node("summary", "Show all 12 dimensions and missing evidence"));
+    for (const [id, metric] of Object.entries(result.metrics || {})) {
+      add(detail, node("p", `${id} · ${metric.status} · weight ${metric.max_points} · imputed ${metric.imputed_points}`, "field-help"));
+    }
+    add(section, detail,
+      node("p", "The historical 60/40 evaluator is shown separately below; no automatic migration of its proposed ratings.", "notice"),
+      node("code", `${result.policy_version} · ${result.provisional_interview_id}`, "digest"));
+    return section;
+  }
+  function evaluatorV1MockPanel() {
+    const mock = state.evaluator_v1_mock_readout;
+    if (state.screen !== "REHEARSAL_COMPLETE" || mock?.schema !== "tia-evaluator-v1-mock-readout/v1") return null;
+    const section = node("section", null, "receipt-card"); section.id = "evaluatorV1MockPanel";
+    add(section, node("h2", "Evaluator v1.0 · Event-bound OFFLINE Mock"),
+      node("p", "SYNTHETIC DEMONSTRATION ONLY: fixed fictional anchors, NOT real AI judgment, a SQL grade or your interview score.", "notice"));
+    if (mock.status !== "SYNTHETIC_DEMO_ONLY") {
+      add(section, badge("MOCK_NOT_AVAILABLE", "accent"), node("p", "The existing interview record cannot be represented by this constrained mock protocol."));
+      return section;
+    }
+    add(section, badge("SYNTHETIC_DEMO · HUMAN_REVIEW_NOT_APPLICABLE", "accent"),
+      node("h3", `Mock arithmetic: ${mock.score} / 100`),
+      node("p", `Mock-rated weight: ${mock.rating_coverage_pct}% · imputed ${mock.imputed_points} points · range ${mock.sensitivity_min}–${mock.sensitivity_max}`, "field-help"),
+      node("p", `Core gate: ${mock.core_gate}; industry percentile: ${mock.industry_percentile}; paid model calls: ${mock.mock_model_calls}`, "field-help"));
+    const detail = node("details", null, "question-review"); detail.id = "evaluatorV1MockEvidence";
+    add(detail, node("summary", "Inspect mock 12-metric ratings and source event IDs"));
+    for (const [metric, row] of Object.entries(mock.ratings || {})) {
+      const label = row.anchor === null ? "NOT_OBSERVED (imputed)" : `MOCK anchor ${row.anchor}/4 (NOT ASSESSED)`;
+      const cited = (row.evidence_event_ids || []).join(", ") || "NONE";
+      add(detail, node("p", `${metric} · ${label} · events: ${cited}`, "field-help"));
+      if (mock.mock_rationale?.[metric]) add(detail, node("p", mock.mock_rationale[metric], "field-help"));
+    }
+    add(section, detail, node("p", "This test confirms evidence-ID binding and arithmetic only. No training history is updated. A real Evaluator will require separately reviewed model responses.", "notice"),
+      node("code", `source sha256: ${mock.source_digest}`, "digest"));
+    return section;
+  }
+  function evaluatorExcerpt(questionIndex, citation) {
+    // Presentation only: the Host has already checked citation/source digests.
+    // Resolve solely within this question's original candidate events; never
+    // display a model-supplied quotation as if it came from the frozen record.
+    if (!Number.isInteger(questionIndex) || questionIndex < 0 || questionIndex >= 3) return null;
+    const events = state.rehearsal?.results?.[questionIndex]?.session?.events;
+    const span = citation.span;
+    if (!Array.isArray(events) || typeof citation.event_id !== "string" || !span ||
+        span.unit !== "UTF8_BYTES" || !Number.isInteger(span.start) || !Number.isInteger(span.end) ||
+        span.start < 0 || span.end <= span.start) return null;
+    const matches = events.filter(event => event.id === citation.event_id);
+    if (matches.length !== 1 || matches[0].actor !== "candidate" || matches[0].kind !== citation.kind ||
+        typeof matches[0].payload?.text !== "string") return null;
+    const bytes = new TextEncoder().encode(matches[0].payload.text);
+    if (span.end > bytes.length) return null;
+    try {
+      return {text: new TextDecoder("utf-8", {fatal: true}).decode(bytes.slice(span.start, span.end)),
+        partial: span.start > 0 || span.end < bytes.length};
+    } catch (_) { return null; }
+  }
+  function evaluatorPanel() {
+    const report = state.evaluator_report;
+    if (state.screen !== "REHEARSAL_COMPLETE" || report?.schema !== "tia-evaluator-report/v1") return null;
+    const section = node("section", null, "receipt-card"); section.id = "evaluatorPanel";
+    add(section, node("h2", t("evaluatorHeading")), node("p", t("evaluatorNotice"), "notice"),
+      node("p", t("evaluatorFinal"), "notice"));
+    if (report.status === "UNAVAILABLE" || !Array.isArray(report.questions)) {
+      const notice = node("p", t("evaluatorUnavailable"), "setup-warning"); notice.id = "evaluatorUnavailable";
+      add(section, notice);
+      return section;
+    }
+    if (report.status !== "READY") {
+      add(section, node("p", t("evaluatorAwaitClosure"), "field-help"));
+      return section;
+    }
+    const questions = report.questions.filter(q => Number.isInteger(q.index) && q.index >= 0 && q.index < 3);
+    if (!questions.length) return section;
+    if (!questions.some(q => q.index === evaluatorQuestionIndex)) evaluatorQuestionIndex = questions[0].index;
+    const field = selectField("evaluatorQuestion", t("evaluatorQuestion"),
+      questions.map(q => [String(q.index), `${q.index + 1}. ${q.title}`]), String(evaluatorQuestionIndex));
+    field.select.addEventListener("change", () => {
+      evaluatorQuestionIndex = Number(field.select.value);
+      render();
+    });
+    add(section, field.field);
+    const question = questions.find(q => q.index === evaluatorQuestionIndex);
+    const assessment = question.assessment;
+    if (assessment) {
+      const summary = node("div"); summary.id = "evaluatorAssessment";
+      add(summary, badge(`${assessment.provenance} · ${assessment.status}`, "accent"),
+        node("p", t("evaluatorReview"), "notice"),
+        node("p", assessment.model_identifier, "field-help"));
+      add(section, summary);
+    } else {
+      add(section, node("p", t("evaluatorEmpty"), "field-help"));
+    }
+    const axes = node("div", null, "setup-grid");
+    for (const [axis, title] of [["technical", t("technical")], ["communication", t("communication")]]) {
+      const summary = question[axis];
+      if (!summary) continue;
+      const card = node("section", null, "setup-stat");
+      card.id = axis === "technical" ? "evaluatorTechnical" : "evaluatorCommunication";
+      const observed = Number.isFinite(summary.proposed_observed_points);
+      add(card, node("h3", title),
+        node("p", `${t("evaluatorPoints")}: ` + (observed
+          ? `${summary.proposed_observed_points} / ${summary.covered_maximum_points}`
+          : (assessment ? t("evaluatorNotObserved") : "NOT_EVALUATED"))),
+        node("p", `${t("evaluatorCoverage")}: ${summary.observed_dimensions} / ${summary.total_dimensions} · ` +
+          `${t("evaluatorWeight")}: ${summary.covered_maximum_points} / ${summary.proposed_maximum_points}`, "field-help"));
+      if (summary.missing_dimensions?.length)
+        add(card, node("p", `${t("evaluatorUncertainty")}: ${summary.missing_dimensions.join(", ")}`, "field-help"));
+      add(axes, card);
+    }
+    add(section, axes, node("p", t("evaluatorMissing"), "field-help"));
+    for (const criterion of question.dimensions || []) {
+      const item = node("details", null, "question-review"); item.id = `evaluatorCriterion-${criterion.id}`;
+      add(item, node("summary", `${criterion.id} · ${criterion.title} · ${criterion.status}`),
+        node("p", `${t("evaluatorWeight")}: ${criterion.proposed_max_points}`, "field-help"));
+      if (Number.isInteger(criterion.anchor_0_to_4) && Number.isFinite(criterion.provisional_points)) {
+        add(item, node("p", `${t("evaluatorAnchor")}: ${criterion.anchor_0_to_4} / 4 · ` +
+          `${t("evaluatorPoints")}: ${criterion.provisional_points} / ${criterion.proposed_max_points}`, "field-help"));
+      } else add(item, node("p", criterion.status === "NOT_EVALUATED" ? "NOT_EVALUATED" : t("evaluatorNotObserved"), "field-help"));
+      add(item, node("p", `${t("evaluatorRationale")}: ${criterion.reason || ""}`, "field-help"),
+        node("p", `${t("evaluatorConfidence")}: ${criterion.confidence}`, "field-help"));
+      for (const evidence of criterion.evidence || []) {
+        const citation = node("div", null, "field-help");
+        add(citation, node("p", `${t("commRefs")}: ${evidence.event_id} · ${evidence.kind} · ${evidence.alias}`));
+        if (evidence.span) add(citation, node("p", `${evidence.span.unit}: ${evidence.span.start}–${evidence.span.end}`));
+        const original = evaluatorExcerpt(question.index, evidence);
+        if (original) {
+          add(citation, node("p", t("commPreview")), node("blockquote", original.text, "transcript-text"));
+          if (original.partial) add(citation, node("p", t("evaluatorExcerptPartial"), "field-help"));
+        } else add(citation, node("p", t("evaluatorExcerptMissing"), "field-help"));
+        add(citation, node("code", evidence.text_sha256, "digest"));
+        add(item, citation);
+      }
+      add(section, item);
+    }
+    if (state.native_evaluator_interrupted)
+      add(section, node("p", t("nativeTrainerInterrupted"), "notice"));
+    if (state.native_evaluator_pending) {
+      add(section, node("p", t("nativeTrainerPending"), "notice"));
+    } else if (!assessment) {
+      const activation = state.activation || {};
+      const available = activation.live_enabled === true && Number.isInteger(activation.request_limit) &&
+        Number.isInteger(activation.requests_used) && activation.requests_used < activation.request_limit;
+      add(section, node("p", t("evaluatorPrivacy"), "notice"));
+      if (!available) add(section, node("p", t("evaluatorBudget"), "notice"),
+        button("evaluatorConnect", t("portal"), () => act("api_portal"), "secondary"));
+      if (!question.eligible) add(section, node("p", t("evaluatorNoEvidence"), "field-help"));
+      const generate = button("evaluatorGenerate", t("evaluatorGenerate"),
+        () => act("evaluator_generate", {question_index: evaluatorQuestionIndex}), "primary");
+      generate.dataset.unavailable = String(!available || !question.eligible);
+      generate.disabled = busy || generate.dataset.unavailable === "true";
+      add(section, generate);
+    }
+    const provenance = node("details", null, "question-review"); provenance.id = "evaluatorProvenance";
+    add(provenance, node("summary", t("evaluatorSources")),
+      node("p", `${report.rubric_version} · ${JSON.stringify(report.proposed_weight_policy)}`, "field-help"),
+      node("p", "Prompt SHA-256", "field-help"), node("code", report.prompt_sha256, "digest"));
+    if (report.source_sha256 && typeof report.source_sha256 === "object") {
+      for (const [source, hash] of Object.entries(report.source_sha256))
+        add(provenance, node("p", source, "field-help"), node("code", hash, "digest"));
+    }
+    if (assessment) add(provenance, node("p", "Frozen context SHA-256", "field-help"),
+      node("code", assessment.context_input_sha256, "digest"),
+      node("p", "Assessment SHA-256", "field-help"), node("code", assessment.sha256, "digest"));
+    add(provenance, node("p", "Report SHA-256", "field-help"), node("code", report.sha256, "digest"));
+    add(section, provenance);
+    return section;
+  }
+
   function nativeTrainerPanel() {
     const tplan = state.grounded_trainer;
     if (!tplan || tplan.status !== "READY_FOR_HUMAN_REVIEW") return null;
@@ -1264,7 +1483,17 @@
       rs.status === "CLOCK_INTEGRITY_HOLD" ? "rehearsalClockHold" : "rehearsalComplete";
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
-    add(main, evidenceScorecard(), communicationEvidence(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel());
+    add(main, evidenceScorecard(), communicationEvidence(), evaluatorPanel(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel());
+    const offlineDemos = [evaluatorV1MvmPanel(), evaluatorV1MockPanel()].filter(Boolean);
+    if (offlineDemos.length) {
+      const demos = node("details", null, "question-review"); demos.id = "evaluatorOfflineDemos";
+      add(demos, node("summary", state.language === "zh" ? "离线工程演示" : "Offline engineering demonstrations"),
+        node("p", state.language === "zh"
+          ? "下方示例仅用于验证实验规则与算术，不是此次面试的评估或候选人成绩。真实模型评审位于上方独立 AI Evaluator 面板。"
+          : "These examples verify experimental policy and arithmetic only. They are not this interview's assessment or candidate score. The independent AI Evaluator panel above contains the model review.", "notice"),
+        ...offlineDemos);
+      add(main, demos);
+    }
     // Saved interview evidence is immutable. Show only derived, unscored warnings.
     for (const review of state.language_reviews?.completed || []) {
       if (review.status !== "LANGUAGE_MISMATCH_REVIEW_REQUIRED") continue;
@@ -1659,13 +1888,13 @@
     const setupStep = {CONFIG: 1, QUESTION_SOURCE: 2, MECHANISM: 3, REVIEW: 4}[state.screen];
     const label = setupStep ? `${t("setupStep")} ${setupStep} / 4` :
       state.screen === "ENTRY" ? t("entryStep") : state.screen === "API_PORTAL" ? t("portalStep") :
-      state.screen === "LIVE_PREVIEW" ? t("livePreview") : `${t("tutorialStep")} ${step} / 5`;
+      state.screen === "LIVE_PREVIEW" ? t("livePreview") : state.screen === "REHEARSAL_COMPLETE" ? t("rehearsalComplete") : `${t("tutorialStep")} ${step} / 5`;
     const meter = node("progress");
     meter.max = setupStep ? 4 : 5;
-    meter.value = state.screen === "LIVE_PREVIEW" ? (state.live_preview?.closed ? 5 : 3) : setupStep || step;
+    meter.value = state.screen === "REHEARSAL_COMPLETE" ? 5 : state.screen === "LIVE_PREVIEW" ? (state.live_preview?.closed ? 5 : 3) : setupStep || step;
     meter.setAttribute("aria-label", label);
     add(progress, add(node("div", null, "progress-label"), badge(label),
-      node("span", ["API_PORTAL", "LIVE_PREVIEW"].includes(state.screen) || setupStep ? modelLabel() : t("simulated"), "muted")), meter);
+      node("span", ["API_PORTAL", "LIVE_PREVIEW", "REHEARSAL_COMPLETE"].includes(state.screen) || setupStep ? modelLabel() : t("simulated"), "muted")), meter);
     const main = node("main"); main.id = "main";
     const screens = {
       ENTRY: entry, WELCOME: welcome, RULES: rules, QUESTION: question, ROOM: room, COMPLETE: complete,

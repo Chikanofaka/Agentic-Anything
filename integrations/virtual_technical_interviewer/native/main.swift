@@ -1,3 +1,4 @@
+import CoreFoundation
 import AppKit
 import WebKit
 import UniformTypeIdentifiers
@@ -27,12 +28,13 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-voice-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-evaluator-recovery-test") || CommandLine.arguments.contains("--ui-voice-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
     private var privatePreparation: TIAPreparerSeal?
     private var cancellationIDs = [String]()
+    private var evaluatorTestAttempt = 0
     private var loaded = false
     private var dataDirectory: URL!
     private var smokeDirectory: URL!
@@ -50,7 +52,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
                     .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
                 ] : [])
-                if CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+                if CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") {
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for SQL grading Q1"),
                         .reply("Please explain your own candidate SQL.")
@@ -238,6 +240,16 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         if action == "trainer_request" {
             beginTrainer(id: id); return
         }
+        // Renderer selects a question only; native owns the private evaluation handshake.
+        if action == "evaluator_generate" {
+            guard Set(params.keys) == ["question_index"],
+                  let index = params["question_index"] as? NSNumber,
+                  CFGetTypeID(index) != CFBooleanGetTypeID(),
+                  index.doubleValue == Double(index.intValue), (0...2).contains(index.intValue) else {
+                emit(["id": id, "ok": false, "error": "INVALID_EVALUATOR_QUESTION"]); return
+            }
+            beginEvaluator(id: id, questionIndex: index.intValue); return
+        }
         if action == "grade_execute" {
             guard let review = lastState["grading_review"] as? [String: Any],
                   let hash = review["fixture_sha256"] as? String,
@@ -361,6 +373,166 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                 }
             }
             // Unsolicited status contains no request instructions or credentials.
+            self.emit(["ok": true, "state": self.lastState])
+        }
+    }
+
+    // TIA-02C-NATIVE-WIRING-v0.1: protected post-interview paid-evaluation path.
+    // Host owns admissible source events, per-question eligibility and scoring.
+    // Renderer never constructs native_prepare/native_commit payloads.
+    private func beginEvaluator(id: String, questionIndex: Int) {
+        guard (0...2).contains(questionIndex),
+              lastState["screen"] as? String == "REHEARSAL_COMPLETE",
+              let rehearsal = lastState["rehearsal"] as? [String: Any],
+              ["COMPLETE", "TIMED_OUT", "CLOCK_INTEGRITY_HOLD"].contains(
+                  rehearsal["status"] as? String ?? ""),
+              lastState["native_evaluator_pending"] as? Bool != true,
+              let report = lastState["evaluator_report"] as? [String: Any],
+              let questions = report["questions"] as? [[String: Any]],
+              questions.indices.contains(questionIndex),
+              questions[questionIndex]["eligible"] as? Bool == true else {
+            emit(["id": id, "ok": false, "state": lastState,
+                  "error": "EVALUATOR_REQUIRES_LOCKED_REHEARSAL"]); return
+        }
+        guard portal.publicState["live_enabled"] as? Bool == true else {
+            emit(["id": id, "ok": false, "state": lastState,
+                  "error": "PAID_CONSENT_OR_AUTHENTICATION_REQUIRED"]); return
+        }
+        let used = portal.publicState["requests_used"] as? Int ?? 0
+        let limit = portal.publicState["request_limit"] as? Int ?? 0
+        guard used < limit else {
+            emit(["id": id, "ok": false, "state": lastState,
+                  "error": "REQUEST_LIMIT_REACHED"]); return
+        }
+        let notice = """
+        Send ONE paid OpenAI evaluation for closed interview question \(questionIndex + 1)?
+
+        The native Host will select bounded candidate answer and event evidence.
+        One request may incur charges even if later cancelled or rejected.
+        This is a provisional evidence-linked assessment, NOT an independent
+        SQL execution, certified competency grade or hiring prediction.
+        A newly entered key is unverified until a successful provider response.
+        No automatic retry will occur. / 是否授权发送一次付费语义评价？
+        新输入的密钥须经成功响应才算验证，评估不会修改原始判题结果。
+        """
+        confirm(notice) { [weak self] accepted in
+            guard let self = self else { return }
+            if !accepted { self.respondWithState(id); return }
+            // Prevent provider-budget races while the confirmation sheet was shown.
+            guard self.portal.publicState["live_enabled"] as? Bool == true,
+                  (self.portal.publicState["requests_used"] as? Int ?? 0) <
+                    (self.portal.publicState["request_limit"] as? Int ?? 0) else {
+                self.emit(["id": id, "ok": false, "state": self.lastState,
+                           "error": "PAID_CONSENT_OR_BUDGET_EXPIRED"]); return
+            }
+            self.executeNativeEvaluator(id: id, questionIndex: questionIndex)
+        }
+    }
+
+    private func executeNativeEvaluator(id: String, questionIndex: Int) {
+        let generation = portal.generation
+        let requestID = UUID().uuidString
+        busy = true
+        liveRequestID = id
+        liveGeneration = generation
+        liveStage = "evaluator_preparing"
+        worker?.request("native_prepare_evaluator", params: [
+            "request_id": requestID, "generation": generation,
+            "question_index": questionIndex
+        ]) { [weak self] response in
+            guard let self = self else { return }
+            if let state = response["state"] as? [String: Any] { self.lastState = state }
+            guard self.liveStage == "evaluator_preparing",
+                  self.liveGeneration == generation,
+                  self.portal.generation == generation,
+                  !self.cancellationIDs.contains(id) else {
+                self.cancelPrepared(error: "REQUEST_CANCELLED"); return
+            }
+            guard response["ok"] as? Bool == true,
+                  let prepared = response["prepared"] as? [String: Any],
+                  let spec = try? TIAModelRequest(prepared),
+                  spec.generation == generation, spec.requestID == requestID,
+                  spec.role == "evaluator", spec.schemaName == "tia_evaluator_reply",
+                  !spec.sourceSHA.isEmpty else {
+                if response["ok"] as? Bool == true {
+                    self.cancelPrepared(error: "INVALID_EVALUATOR_SPEC")
+                } else {
+                    self.finishLive(ok: false, error:
+                        response["error"] as? String ?? "EVALUATOR_PREPARE_REJECTED")
+                }
+                return
+            }
+            guard self.portal.publicState["live_enabled"] as? Bool == true,
+                  (self.portal.publicState["requests_used"] as? Int ?? 0) <
+                    (self.portal.publicState["request_limit"] as? Int ?? 0) else {
+                self.cancelPrepared(error: "PAID_CONSENT_OR_BUDGET_EXPIRED"); return
+            }
+            if self.uiTesting && CommandLine.arguments.contains("--ui-evaluator-test") {
+                // Only synthetic transport. Use admissible aliases from the actual
+                // controller packet so the test traverses the production validator.
+                guard let input = try? StrictJSON.object(Data(spec.input.utf8)) as? [String: Any],
+                      let criteria = input["criteria"] as? [[String: Any]] else {
+                    self.cancelPrepared(error: "INVALID_SYNTHETIC_EVALUATOR_INPUT"); return
+                }
+                let rows: [[Any]] = criteria.map { criterion in
+                    let identifier = criterion["id"] as? String ?? ""
+                    let aliases = criterion["allowed_aliases"] as? [String] ?? []
+                    let observed = identifier == "T01" && criterion["can_propose_anchor"] as? Bool == true && !aliases.isEmpty
+                    return [identifier, observed ? 2 as Any : NSNull(),
+                            observed ? [aliases[0]] : [],
+                            observed ? "Synthetic proposal linked to candidate evidence." : "No eligible observed evidence."]
+                }
+                guard let data = try? JSONSerialization.data(withJSONObject: ["assessments": rows]),
+                      let text = String(data: data, encoding: .utf8) else {
+                    self.cancelPrepared(error: "INVALID_SYNTHETIC_EVALUATOR_REPLY"); return
+                }
+                self.evaluatorTestAttempt += 1
+                if self.evaluatorTestAttempt == 1 {
+                    var delayed = TIATestHTTPProtocol.Plan.reply(text)
+                    delayed.delay = 1.5
+                    TIATestHTTPProtocol.enqueue([delayed])
+                } else if self.evaluatorTestAttempt == 2 {
+                    TIATestHTTPProtocol.enqueue([.reply("{\"assessments\":[]}")])
+                } else {
+                    TIATestHTTPProtocol.enqueue([.reply(text, usage: ["input_tokens": 300, "output_tokens": 200, "total_tokens": 500])])
+                }
+            }
+            self.liveStage = "evaluator_calling"
+            self.portal.send(spec) { [weak self] result in
+                guard let self = self, self.liveStage == "evaluator_calling",
+                      self.liveGeneration == generation,
+                      self.portal.generation == generation,
+                      !self.cancellationIDs.contains(id) else { return }
+                switch result {
+                case .failure(let failure):
+                    self.cancelPrepared(error: failure.code)
+                case .success(let reply):
+                    self.liveStage = "evaluator_committing"
+                    let commitment: [String: Any] = [
+                        "transaction_id": spec.transactionID,
+                        "request_id": requestID,
+                        "generation": generation,
+                        "reply": ["reply": reply.text],
+                        "model": self.portal.publicState["model"] as? String ?? "",
+                        "usage": reply.usage as Any? ?? NSNull()
+                    ]
+                    self.worker?.request("native_commit_evaluator", params: commitment) {
+                        [weak self] committed in
+                        guard let self = self else { return }
+                        if let state = committed["state"] as? [String: Any] {
+                            self.lastState = state
+                        }
+                        if committed["ok"] as? Bool == true {
+                            self.finishLive(ok: true, error: nil)
+                        } else {
+                            // Provider may already have billed this attempt.
+                            // Clear pending; never retry automatically or award a grade.
+                            self.cancelPrepared(error: committed["error"] as? String
+                                ?? "INVALID_EVALUATOR_ASSESSMENT")
+                        }
+                    }
+                }
+            }
             self.emit(["ok": true, "state": self.lastState])
         }
     }
@@ -491,14 +663,14 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             window.endSheet(sheet.window, returnCode: .alertSecondButtonReturn)
         }
         guard liveRequestID != nil else { respondWithState(id); return }
-        if liveStage == "committing" || liveStage == "trainer_committing" {
+        if liveStage == "committing" || liveStage == "trainer_committing" || liveStage == "evaluator_committing" {
             // A controller commitment already submitted is atomic. Disconnect still
             // clears the credential immediately; never claim this saved turn rolled back.
             emit(["id": id, "ok": disconnect, "state": lastState,
                   "error": "COMMIT_ALREADY_SUBMITTED"]); return
         }
         cancellationIDs.append(id)
-        if liveStage == "calling" || liveStage == "trainer_calling" { cancelPrepared(error: "REQUEST_CANCELLED") }
+        if liveStage == "calling" || liveStage == "trainer_calling" || liveStage == "evaluator_calling" { cancelPrepared(error: "REQUEST_CANCELLED") }
         // During preparation the Worker callback runs first, then cancels its
         // transaction. Never send two concurrent requests to the serial Worker.
     }
@@ -506,8 +678,11 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private func cancelPrepared(error: String) {
         guard liveStage != "cancelling" else { return }
         let isTrainer = liveStage.hasPrefix("trainer_")
+        let isEvaluator = liveStage.hasPrefix("evaluator_")
         liveStage = "cancelling"
-        worker?.request(isTrainer ? "native_cancel_trainer" : "native_cancel_preview") { [weak self] response in
+        let action = isEvaluator ? "native_cancel_evaluator" :
+            (isTrainer ? "native_cancel_trainer" : "native_cancel_preview")
+        worker?.request(action) { [weak self] response in
             guard let self = self else { return }
             if let state = response["state"] as? [String: Any] { self.lastState = state }
             self.finishLive(ok: false, error: error)
@@ -598,10 +773,11 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         // Test-only: simulate a real native confirmation click, never in a
         // normal App or in any provider-capable test. All data are synthetic.
         let syntheticVoiceConsent = CommandLine.arguments.contains("--ui-voice-test") && text.contains("Enable hands-free voice turns")
-        let syntheticGradeConsent = ["--ui-grading-test", "--ui-smart-test", "--ui-trainer-test", "--ui-adaptive-test", "--ui-adaptive-stale-test"]
+        let syntheticGradeConsent = ["--ui-evaluator-test", "--ui-grading-test", "--ui-smart-test", "--ui-trainer-test", "--ui-adaptive-test", "--ui-adaptive-stale-test"]
             .contains(where: { CommandLine.arguments.contains($0) }) && text.contains("Execute current candidate SQL")
         let syntheticTrainerConsent = CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI")
-        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent) {
+        let syntheticEvaluatorConsent = CommandLine.arguments.contains("--ui-evaluator-test") && text.contains("Send ONE paid OpenAI evaluation")
+        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent || syntheticEvaluatorConsent) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)
             }
@@ -783,7 +959,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") {
             // Test-only synthetic credential and bounded MOCK_HTTP requests.
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "10")
-        } else if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+        } else if CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
         if CommandLine.arguments.contains("--ui-voice-test") {

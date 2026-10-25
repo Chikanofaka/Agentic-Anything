@@ -404,3 +404,6 @@ test/release boundaries. Local `verification_E3C` is not part of public code.
 ### S03-E3D: evidence-linked SMART improvement sprint (pending macOS acceptance)
 
 After a three-question rehearsal is locked, the App derives a deterministic seven-day SMART plan from the first three E3-C-A evidence-grounded drills. The user explicitly clicks **Start** to create a Host-owned time origin and 1/3/7-day checkpoints. Practice and claimed external retests are appended to the private journal and survive restart. Every record remains `SELF_REPORTED_UNVERIFIED`; even a 64-digit external artifact digest does not establish that PostgreSQL was executed or that ability improved. The frozen technical/communication results and previous real OpenAI Trainer proposal are read-only and never rescored. Separate macOS regression: `verify_app.py --increment S03-E3D --ui --regressions`. Scope, evidence contract and unresolved verification gates: `engineering/s03e_smart_plan/README_E3D.md`.
+
+
+Independent Evaluator MVF: [operation, policy, verification and UAT](engineering/evaluator_agent/README.md). The owner-confirmed PRD v3 11-criterion proposal is the operating evaluator; 12-metric experiments remain separate.

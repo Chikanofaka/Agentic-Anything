@@ -30,6 +30,11 @@ func runNativeTests() -> Int32 {
     check("E3D cannot claim retest without artifact", BridgePolicy.validate(request("smart_record", smartRetest.merging(["artifact_sha256": NSNull()]) { _, extra in extra })) == nil)
     check("E3D invalid SMART task id rejected", BridgePolicy.validate(request("smart_record", smartSample.merging(["task_id": "../../fixture"]) { _, extra in extra })) == nil)
     check("E3D oversized SMART note rejected", BridgePolicy.validate(request("smart_record", smartSample.merging(["note": String(repeating: "中", count: 168)]) { _, extra in extra })) == nil)
+    check("evaluator explicit question request", BridgePolicy.validate(request("evaluator_generate", ["question_index": 0])) != nil)
+    for index: Any in [-1, 3, true, 0.5, "0"] {
+        check("evaluator index rejects invalid type/range", BridgePolicy.validate(request("evaluator_generate", ["question_index": index])) == nil)
+    }
+    check("evaluator renderer cannot supply assessment", BridgePolicy.validate(request("evaluator_generate", ["question_index": 0, "score": 100])) == nil)
     check("E3CB exact user trainer request", BridgePolicy.validate(request("trainer_request")) != nil)
     check("E4C1B exact Native preparer request", BridgePolicy.validate(request("preparer_request")) != nil)
     check("E4C1B renderer cannot forge private proposal", BridgePolicy.validate(request("preparer_request", ["code": "SELECT secret"])) == nil)
@@ -77,7 +82,8 @@ func runNativeTests() -> Int32 {
     check("S03D exact finish command", BridgePolicy.validate(request("setup_questions_finish")) != nil)
     check("S03D finish rejects extra fields", BridgePolicy.validate(request("setup_questions_finish", ["bypass": true])) == nil)
     for action in ["native_prepare_preview", "native_commit_preview", "native_cancel_preview",
-                   "native_prepare_trainer", "native_commit_trainer", "native_cancel_trainer"] {
+                   "native_prepare_trainer", "native_commit_trainer", "native_cancel_trainer",
+                   "native_prepare_evaluator", "native_commit_evaluator", "native_cancel_evaluator"] {
         check("native-only handshake " + action, BridgePolicy.validate(request(action)) == nil)
     }
     check("bounded preview input", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "one row per customer"])) != nil)

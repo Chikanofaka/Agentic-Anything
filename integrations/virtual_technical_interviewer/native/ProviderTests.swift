@@ -113,6 +113,10 @@ func runProviderTests() -> Int32 {
     check("no provider tools", body["tools"] == nil)
     let format = (body["text"] as? [String: Any])?["format"] as? [String: Any]
     check("TIA-specific reply schema", format?["name"] as? String == "tia_interviewer_reply" && format?["strict"] as? Bool == true)
+    check("evaluator distinct schema", try TIAModelRequest(dictionary(role: "evaluator")).schemaName == "tia_evaluator_reply")
+    check("evaluator bounded output", try TIAModelRequest(dictionary(role: "evaluator")).outputTokens == 600)
+    var excessiveEvaluator = dictionary(role: "evaluator"); excessiveEvaluator["max_output_tokens"] = 8192
+    check("evaluator cannot expand token budget", (try? TIAModelRequest(excessiveEvaluator)) == nil)
     check("trainer distinct schema", try TIAModelRequest(dictionary(role: "trainer")).schemaName == "tia_trainer_reply")
     check("endpoint-shaped model rejected", !TIAOpenAIAdapter.validModel("https://evil.invalid"))
     check("invalid key rejected", rejected { try TIAOpenAIAdapter.request(key: "bad\nkey", model: model, spec: spec) })
