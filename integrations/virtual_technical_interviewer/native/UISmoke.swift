@@ -261,11 +261,23 @@ final class TIAUISmoke {
             &&!pub.includes('C1B2-PRIVATE-REFERENCE')&&!visible.includes('C1B2-PRIVATE-REFERENCE')
             &&!el('preparerRequest')};
         """),
+        Step(label: "P0 three private references verify locally without additional model calls", code: """
+          for(let i=0;i<3;i++){
+            await press('verifyOracle'+i);
+            await until(()=>window.tiaState?.native_private_preparer?.questions?.[i]?.status==='REFERENCE_VERIFIED_LOCAL_FIXTURE'
+              && !document.querySelector('[aria-busy="true"]'));
+          }
+          const s=await snap(),prep=s.native_private_preparer;
+          return {ok:prep.status==='REFERENCE_VERIFIED_LOCAL_FIXTURE'&&prep.verified_questions===3
+            &&prep.questions.every(q=>q.execution_status==='LOCAL_FIXTURE_RUN'&&q.approaches_passed===1)
+            &&s.activation.requests_total===1&&!!el('enterPreparedInterview')&&!el('startRehearsal')
+            &&!JSON.stringify(s).includes('C1B2-PRIVATE-REFERENCE')};
+        """),
         Step(label: "C1B2 second attempt is rejected without a second charge", code: """
           try {await request('preparer_request');return {ok:false};}
           catch(e){if(e.message!=='ALREADY_PREPARED_THIS_SESSION')return {ok:false};}
           const s=await snap();return {ok:s.activation.requests_used===1
-            &&s.native_private_preparer.status==='REFERENCE_UNVERIFIED_AI_PROPOSAL'};
+            &&s.native_private_preparer.status==='REFERENCE_VERIFIED_LOCAL_FIXTURE'};
         """),
         Step(label: "C1B2 disconnect clears private memory without rerunning model", code: """
           await request('disconnect');const s=await snap();
@@ -293,7 +305,7 @@ final class TIAUISmoke {
           }
           await press('startRehearsal','API_PORTAL');
           await press('verifyPreview','LIVE_PREVIEW');
-          const s=await snap();return {ok:s.rehearsal.current_index===0&&s.live_preview.candidate_turn_limit===4};
+          const s=await snap();return {ok:s.rehearsal.current_index===0&&s.live_preview.candidate_turn_limit===null&&s.rehearsal.continuity_policy==='tia-continuity/v3'};
         """),
         Step(label: "E25B native bridge records candidate raw SQL and rejects mismatched fixture", code: """
           el('previewKind').value='implement';
@@ -538,11 +550,87 @@ final class TIAUISmoke {
           }
           const s=await snap();return {ok:s.screen==='QUESTION_SOURCE'&&!!el('startRehearsal')&&!el('startRehearsal').disabled&&s.setup_questions.every(q=>q.human_confirmed)};
         """),
-        Step(label: "E1 start through WebKit and verify first native mocked question", code: """
-          await press('startRehearsal','API_PORTAL');
-          let s=await snap();if(s.rehearsal.status!=='ACTIVE'||s.rehearsal.current_index!==0)return {ok:false};
-          await press('verifyPreview','LIVE_PREVIEW');s=await snap();
-          return {ok:s.rehearsal.current_index===0&&s.activation.requests_used===1&&s.live_preview.candidate_turn_limit===4&&s.transport_mode==='MOCK_HTTP'};
+        Step(label: "V2 rehearsal: dispatch Start only", code: """
+          const start=el('startRehearsal');
+          if(!start||start.disabled)throw Error('V2_START_BUTTON_NOT_ELIGIBLE');
+          // Keep this WKWebView evaluation short. Do not hold a Swift completion
+          // across asynchronous Host/Native state changes.
+          start.click();
+          return {ok:true};
+        """),
+        Step(label: "V2 rehearsal: confirm Host started in API Portal", code: """
+          try { await screen('API_PORTAL'); }
+          catch(e){const s=window.tiaState;throw Error('V2_START_STATE screen='
+            +String(s?.screen)+' status='+String(s?.rehearsal?.status)
+            +' policy='+String(s?.rehearsal?.continuity_policy)
+            +' activation='+String(s?.activation?.state)+' original='+String(e.message));}
+          const s=await snap();
+          return {ok:s.screen==='API_PORTAL'&&s.rehearsal?.status==='ACTIVE'
+            &&s.rehearsal?.current_index===0
+            &&s.rehearsal?.continuity_policy==='tia-continuity/v3'};
+        """),
+        Step(label: "V2 rehearsal: dispatch Verify only", code: """
+          const verify=el('verifyPreview');
+          if(!verify||verify.disabled)throw Error('V2_VERIFY_BUTTON_NOT_ELIGIBLE');
+          window.tiaV2RenderError=null;
+          if(!window.tiaV2ErrorHookInstalled){
+            window.addEventListener('error',e=>{window.tiaV2RenderError=String(e.message||e.error);});
+            window.addEventListener('unhandledrejection',e=>{window.tiaV2RenderError=String(e.reason);});
+            window.tiaV2ErrorHookInstalled=true;
+          }
+          verify.click();
+          return {ok:true};
+        """),
+        Step(label: "V2 rehearsal: confirm Native/Host first reply", code: """
+          // A Host reply is distinct from an interactive WebKit UI. No round-trip
+          // snapshot request inside this callback, only previously delivered state.
+          try { await until(() => {
+            const s=window.tiaState;
+            return s?.screen==='LIVE_PREVIEW'
+              &&s?.rehearsal?.current_index===0
+              &&s?.rehearsal?.continuity_policy==='tia-continuity/v3'
+              &&s?.activation?.requests_used===1
+              &&s?.live_preview?.session?.phase==='INTERVIEWING'
+              &&s?.live_preview?.verified_response_count===1
+              &&s?.live_preview?.pending===false
+              &&s?.live_preview?.closed===false;
+          }); } catch(e) {const s=window.tiaState;throw Error('V2_HOST_REPLY_MISSING'
+            +' screen='+String(s?.screen)+' activation='+String(s?.activation?.state)
+            +' used='+String(s?.activation?.requests_used)
+            +' replies='+String(s?.live_preview?.verified_response_count)
+            +' original='+String(e.message));}
+          return {ok:window.tiaState?.transport_mode==='MOCK_HTTP'
+            &&window.tiaState?.live_preview?.candidate_turn_limit===null};
+        """),
+        Step(label: "V2 rehearsal: verify interactive WebKit room", code: """
+          // Unblock only when the candidate really can type and select a response.
+          // A healthy Host state alone must not pass this rendering/readiness gate.
+          try { await until(() => {
+            const s=window.tiaState, answer=el('previewResponse');
+            const kind=el('previewKind'), send=el('sendPreview');
+            const active=document.querySelector('[aria-busy="true"]');
+            return s?.screen==='LIVE_PREVIEW'&&s?.live_preview?.can_send===true
+              &&!!answer&&!answer.readOnly&&!answer.disabled
+              &&!!kind&&!kind.disabled&&!!send&&!active;
+          }); } catch(e) {
+            const s=window.tiaState,answer=el('previewResponse'),kind=el('previewKind');
+            const send=el('sendPreview'),busyEls=[...document.querySelectorAll('[aria-busy="true"]')];
+            const pageError=el('error');
+            throw Error('V2_WEBKIT_ROOM_NOT_ACTIONABLE'
+              +' screen='+String(s?.screen)
+              +' hostCanSend='+String(s?.live_preview?.can_send)
+              +' textarea='+String(!!answer)
+              +' textareaReadOnly='+String(answer?.readOnly)
+              +' textareaDisabled='+String(answer?.disabled)
+              +' kindDisabled='+String(kind?.disabled)
+              +' sendDisabled='+String(send?.disabled)
+              +' sendUnavailable='+String(send?.dataset?.unavailable)
+              +' busyElements='+busyEls.map(x=>x.id||x.tagName).join(',')
+              +' pageError='+String(pageError?.textContent||'').slice(0,160)
+              +' capturedJsError='+String(window.tiaV2RenderError||'NONE').slice(0,210)
+              +' original='+String(e.message));
+          }
+          return {ok:true};
         """),
         Step(label: "E4 source-bound examples render in real WebKit room without grading", code: """
           const s=await snap(); const ex=document.getElementById('questionExamples');
@@ -562,30 +650,36 @@ final class TIAUISmoke {
             &&s.rehearsal.technical==='NOT_SCORED'
             &&t.events.some(e=>e.kind==='FIRST_QUESTION_PRESENTED')};
         """),
-        Step(label: "E1 two successive turns use guarded mocked native requests", code: """
-          for(let turn=0;turn<2;turn++){
-            const box=el('previewResponse');box.value='Synthetic follow-up '+turn;
+        Step(label: "P0 six successive turns stay on Q1 until explicit Final Submit", code: """
+          for(let turn=0;turn<6;turn++){
+            const box=el('previewResponse');
+            if(turn===5){el('previewKind').value='implement';
+              el('previewKind').dispatchEvent(new Event('change',{bubbles:true}));
+              box.value='SELECT customer_id, COUNT(*) AS total FROM Items0 GROUP BY customer_id;';
+            }else{box.value='Synthetic clarification, no final answer yet.';}
             box.dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
             await until(()=>window.tiaState?.live_preview?.candidate_turns_used===turn+1 &&
               window.tiaState.activation.requests_used===turn+2 && !document.querySelector('[aria-busy="true"]'));
           }
-          const s=await snap();return {ok:s.live_preview.can_send===true&&s.live_preview.candidate_turns_used===2&&s.activation.requests_used===3};
+          const s=await snap();return {ok:s.live_preview.can_send===true&&s.live_preview.candidate_turns_used===6&&s.activation.requests_used===7&&s.rehearsal.current_index===0&&!s.live_preview.closed};
         """),
         Step(label: "E1 finish Q1, skip Q2, open Q3 without extra calls", code: """
           await press('finishRehearsalQuestion','API_PORTAL');let s=await snap();
-          if(s.rehearsal.results[0].outcome!=='DISCUSSION_ONLY'||s.rehearsal.current_index!==1)return {ok:false};
+          if(s.rehearsal.results[0].outcome!=='SUBMITTED_UNVERIFIED'||s.rehearsal.current_index!==1)return {ok:false};
           await request('rehearsal_skip');s=await snap();
-          return {ok:s.rehearsal.current_index===2&&s.rehearsal.results[1].outcome==='SKIPPED'&&s.activation.requests_used===3};
+          return {ok:s.rehearsal.current_index===2&&s.rehearsal.results[1].outcome==='SKIPPED'&&s.activation.requests_used===7};
         """),
         Step(label: "E1 Q3 uses original question context and freezes unscored three-question outcome", code: """
           await press('verifyPreview','LIVE_PREVIEW');
-          const input=el('previewResponse');input.value='My final explanation for question three.';
+          el('previewKind').value='implement';
+          el('previewKind').dispatchEvent(new Event('change',{bubbles:true}));
+          const input=el('previewResponse');input.value='SELECT customer_id, COUNT(*) AS total FROM Items2 GROUP BY customer_id;';
           input.dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
-          await until(()=>window.tiaState?.activation?.requests_used===5&&!document.querySelector('[aria-busy="true"]'));
+          await until(()=>window.tiaState?.activation?.requests_used===9&&!document.querySelector('[aria-busy="true"]'));
           await press('finishRehearsalQuestion','REHEARSAL_COMPLETE');
           const s=await snap();return {ok:s.rehearsal.status==='COMPLETE'&&s.rehearsal.results.length===3
             &&s.rehearsal.results[2].session.receipt.live_model_used===true&&s.rehearsal.execution==='NOT_RUN'
-            &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===5};
+            &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===9};
         """),
         Step(label: "E2 score-free three-question time ledger remains exportable", code: """
           const s=await snap();const t=s.rehearsal?.timing;

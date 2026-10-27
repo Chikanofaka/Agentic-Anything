@@ -1,0 +1,8 @@
+PASS E1 native rehearsal portal uses synthetic consent only
+PASS E1 three distinct question imports and confirmations render start action
+PASS V2 rehearsal: dispatch Start only
+PASS V2 rehearsal: confirm Host started in API Portal
+PASS V2 rehearsal: dispatch Verify only
+UI check detail: failure(Error Domain=WKErrorDomain Code=4 "A JavaScript exception occurred" UserInfo={WKJavaScriptExceptionLineNumber=0, WKJavaScriptExceptionMessage=Error: V2_VERIFY_STATE screen=LIVE_PREVIEW activation=live-verified total=1 used=1 phase=INTERVIEWING replies=1 closed=false pending=false original=UI timeout, WKJavaScriptExceptionColumnNumber=0, NSLocalizedDescription=A JavaScript exception occurred})
+Native portal visible: false
+Native UI smoke: FAIL — V2 rehearsal: confirm first mocked interviewer reply

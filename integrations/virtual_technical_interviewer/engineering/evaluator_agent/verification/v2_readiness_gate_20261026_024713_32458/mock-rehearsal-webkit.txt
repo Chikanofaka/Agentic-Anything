@@ -1,0 +1,9 @@
+PASS E1 native rehearsal portal uses synthetic consent only
+PASS E1 three distinct question imports and confirmations render start action
+PASS V2 rehearsal: dispatch Start only
+PASS V2 rehearsal: confirm Host started in API Portal
+PASS V2 rehearsal: dispatch Verify only
+PASS V2 rehearsal: confirm Native/Host first reply
+UI check detail: failure(Error Domain=WKErrorDomain Code=4 "A JavaScript exception occurred" UserInfo={WKJavaScriptExceptionLineNumber=0, WKJavaScriptExceptionMessage=Error: V2_WEBKIT_ROOM_NOT_ACTIONABLE screen=LIVE_PREVIEW hostCanSend=true textarea=false textareaReadOnly=undefined textareaDisabled=undefined kindDisabled=undefined sendDisabled=undefined sendUnavailable=undefined busyElements=app pageError= capturedJsError=Script error. original=UI timeout, WKJavaScriptExceptionColumnNumber=0, NSLocalizedDescription=A JavaScript exception occurred})
+Native portal visible: false
+Native UI smoke: FAIL — V2 rehearsal: verify interactive WebKit room

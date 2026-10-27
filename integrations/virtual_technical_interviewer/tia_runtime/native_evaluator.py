@@ -17,6 +17,7 @@ from .evidence_scorecard import build_scorecard
 from .persistence import strict_json
 from .evaluator_p0_guards import eligible_aliases, reason_self_contradicts, static_sql_signals
 from .evaluator_full_scheme import compile_full_scheme
+from . import evaluator_p0_guards_v2 as guards_v2
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = 'tia-native-evaluator-assessment/v1'
@@ -56,10 +57,26 @@ def _text_sha(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
-def _p0_code_sources():
+CONTINUITY_POLICY = 'tia-continuity/v3'
+COMPLETE_CONTEXT_LIMIT = 262144
+# Exact shipped d3b7f8c implementation identity for the unchanged legacy branch.
+P0_V5_CODE_SOURCES = {
+    'engine/native_evaluator.py': '21d0836384f47fe7f1764607e9232e9605dba10facfbd52b0623e7eb8fbc64e5',
+    'engine/evaluator_p0_guards.py': '9d0ea4b95ffda4f852b2f7ee5eb0f467d49fc82e21b31ddf5291aa011e864886',
+}
+
+
+def _complete_context(plan):
+    return plan.get('continuity_policy') == CONTINUITY_POLICY
+
+
+def _p0_code_sources(plan=None):
+    if plan is not None and not _complete_context(plan):
+        return dict(P0_V5_CODE_SOURCES)
     directory = Path(__file__).resolve().parent
     return {'engine/native_evaluator.py': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            'engine/evaluator_p0_guards.py': hashlib.sha256((directory / 'evaluator_p0_guards.py').read_bytes()).hexdigest()}
+            'engine/evaluator_p0_guards.py': hashlib.sha256((directory / 'evaluator_p0_guards.py').read_bytes()).hexdigest(),
+            'engine/evaluator_p0_guards_v2.py': hashlib.sha256((directory / 'evaluator_p0_guards_v2.py').read_bytes()).hexdigest()}
 
 
 # A saved report's source hashes refer to the exact code that generated it.
@@ -191,11 +208,12 @@ def _evidence(plan, index, excerpt_bytes=4096):
             if type(identifier) is str and len(identifier) <= 160 and identifier not in seen:
                 seen.add(identifier)
                 replies.append((position, event))
-    if len(candidates) > 16 or len(replies) > 24:
+    complete = _complete_context(plan)
+    if not complete and (len(candidates) > 16 or len(replies) > 24):
         raise NativeEvaluatorError('EVALUATOR_CONTEXT_INCOMPLETE')
     def entry(position, event, alias=None):
         content = event['payload']['text']
-        limit = excerpt_bytes if alias else 2304
+        limit = 65536 if complete else (excerpt_bytes if alias else 2304)
         excerpt = _excerpt(content, limit)
         if excerpt != content:
             raise NativeEvaluatorError('EVALUATOR_CONTEXT_INCOMPLETE')
@@ -212,11 +230,11 @@ def _evidence(plan, index, excerpt_bytes=4096):
     return candidate_output, interviewer_output, 0
 
 
-def _criteria(profile, candidates, replies, accuracy):
+def _criteria(profile, candidates, replies, accuracy, *, complete=False):
     dimensions = []
     for identifier, title in zip(IDS, TITLES):
         axis = 'technical' if identifier[0] == 'T' else 'communication'
-        aliases = eligible_aliases(identifier, candidates, replies, accuracy)
+        aliases = (guards_v2.eligible_aliases if complete else eligible_aliases)(identifier, candidates, replies, accuracy)
         dimensions.append({'id': identifier, 'title': title, 'axis': axis,
                            'max_points': profile['rubric']['axes'][axis]['subscales'][identifier],
                            'allowed_aliases': aliases, 'can_propose_anchor': bool(aliases)})
@@ -229,7 +247,7 @@ def _context(plan, index, language, profile, card):
     candidates, replies, omitted = _evidence(plan, index)
     if not candidates:
         raise NativeEvaluatorError('EVALUATOR_EVIDENCE_NOT_READY')
-    criteria = _criteria(profile, candidates, replies, metrics['accuracy'])
+    criteria = _criteria(profile, candidates, replies, metrics['accuracy'], complete=_complete_context(plan))
     packet = {
         'schema': 'tia-native-evaluator-input/v1', 'question_index': index, 'language': language,
         'authority': 'UNTRUSTED_ATTRIBUTED_DATA_ONLY',
@@ -255,7 +273,26 @@ def _context(plan, index, language, profile, card):
     if type(packet['raw_metrics']['behavior']) is dict:
         packet['raw_metrics']['behavior'] = {k: v for k, v in packet['raw_metrics']['behavior'].items()
                                              if k != 'evidence_event_ids'}
-    if len(_canonical(packet).encode()) > 16000:
+    if _complete_context(plan):
+        packet['schema'] = 'tia-native-evaluator-input/v2'
+        packet['evidence_policy'] = 'tia-evaluator-evidence/v2'
+        packet['continuity_policy'] = CONTINUITY_POLICY
+        packet['admissibility_guard_version'] = 'tia-evaluator-p0-admissibility/v2'
+        packet['question'] = {key: question.get(key, '') if type(question.get(key)) is str else ''
+                              for key in ('title', 'statement', 'schema', 'environment',
+                                          'example_input', 'expected_output', 'constraints')}
+        packet['question']['question_sha256'] = metrics['question_sha256']
+        packet['ordered_event_ids'].sort(key=lambda e: e['position'])
+        packet['conversation'] = sorted(
+            [dict(actor='candidate', **e) for e in candidates] +
+            [dict(actor='interviewer', **e) for e in replies], key=lambda e: e['position'])
+        # Transcript is represented once, in chronological order. Alias pools are
+        # restored locally for validation and never silently replace full text.
+        packet.pop('candidate_evidence')
+        packet.pop('interviewer_context')
+        packet['evidence_limits']['conversation_complete'] = True
+        packet['evidence_limits']['capacity_bytes'] = COMPLETE_CONTEXT_LIMIT
+    if len(_canonical(packet).encode()) > (COMPLETE_CONTEXT_LIMIT if _complete_context(plan) else 16000):
         raise NativeEvaluatorError('EVALUATOR_CONTEXT_INCOMPLETE')
     return packet
 
@@ -277,7 +314,7 @@ def prepare_native_evaluator(plan, request_id, generation, language, question_in
                   'generation': generation, 'question_index': question_index,
                   'question_record_sha256': source_hash, 'input_sha256': _text_sha(content),
                   'prompt_sha256': profile['prompt_sha256']})
-    sources = dict(profile['source_sha256'], **{'evidence/frozen_question': source_hash}, **_p0_code_sources())
+    sources = dict(profile['source_sha256'], **{'evidence/frozen_question': source_hash}, **_p0_code_sources(plan))
     spec = {'schema_version': 'tia-native-request/v1', 'transaction_id': token,
             'request_id': request_id, 'generation': generation, 'role': 'evaluator',
             'instructions': profile['instructions'], 'input': content,
@@ -295,7 +332,8 @@ def _assessed_dimensions(proposal, packet):
             type(proposal['assessments']) is not list or len(proposal['assessments']) != len(IDS)):
         raise NativeEvaluatorError('INVALID_EVALUATOR_REPLY')
     output = []
-    evidence = {e['alias']: e for e in packet['candidate_evidence']}
+    candidate_rows = packet.get('candidate_evidence', [e for e in packet.get('conversation', []) if e['actor'] == 'candidate'])
+    evidence = {e['alias']: e for e in candidate_rows}
     for row, criterion in zip(proposal['assessments'], packet['criteria']):
         if type(row) is not list or len(row) != 4 or row[0] != criterion['id']:
             raise NativeEvaluatorError('INVALID_EVALUATOR_DIMENSIONS')
@@ -321,7 +359,7 @@ def _assessed_dimensions(proposal, packet):
         blocked = None
         if anchor is not None and not eligible_citations:
             blocked = 'CRITERION_EVIDENCE_INADMISSIBLE'
-        elif anchor is not None and reason_self_contradicts(reason):
+        elif anchor is not None and (guards_v2.reason_self_contradicts(reason) if packet.get('schema') == 'tia-native-evaluator-input/v2' else reason_self_contradicts(reason)):
             blocked = 'REASON_DENIES_OBSERVED_BEHAVIOR'
         # Never silently promote structurally valid but semantically unrelated
         # citations into points. Preserve attempted anchor in a local audit flag.
@@ -390,6 +428,9 @@ def commit_native_evaluator(plan, pending, params):
         raise NativeEvaluatorError('INVALID_EVALUATOR_REPLY') from None
     packet = strict_json(spec['input'])
     dimensions = _assessed_dimensions(proposal, packet)
+    if 'conversation' in packet:
+        packet['candidate_evidence'] = [e for e in packet['conversation'] if e['actor'] == 'candidate']
+        packet['interviewer_context'] = [e for e in packet['conversation'] if e['actor'] == 'interviewer']
     model, usage = _metadata(params)
     result = {'schema': SCHEMA, 'status': 'PENDING_HUMAN_REVIEW', 'provenance': 'LIVE_MODEL',
               'authority': 'MODEL_PROPOSAL_ONLY', 'question_index': pending['question_index'],
@@ -435,7 +476,7 @@ def build_evaluator_report(plan, evaluations=None):
     questions = []
     for index, metric in enumerate(card['questions']):
         candidates, replies, _ = _evidence(plan, index)
-        criteria = _criteria(profile, candidates, replies, metric['accuracy'])
+        criteria = _criteria(profile, candidates, replies, metric['accuracy'], complete=_complete_context(plan))
         dimensions = [{
             'id': d['id'], 'title': d['title'], 'axis': d['axis'], 'proposed_max_points': d['max_points'],
             'status': 'NOT_EVALUATED' if d['can_propose_anchor'] else 'NOT_OBSERVED',
@@ -459,11 +500,13 @@ def build_evaluator_report(plan, evaluations=None):
                         artifact.get('source_sha256') not in (
                             dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)}),
                             dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
-                                 **_p0_code_sources()),
+                                 **_p0_code_sources(plan)),
                             dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
                                  **P0_V3_CODE_SOURCES),
                             dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
-                                 **P0_V4_CODE_SOURCES))):
+                                 **P0_V4_CODE_SOURCES),
+                            dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
+                                 **P0_V5_CODE_SOURCES))):
 
                     raise ValueError('artifact binding')
                 packet = _context(plan, index, artifact['language'], profile, card)

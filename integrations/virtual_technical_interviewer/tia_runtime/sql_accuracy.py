@@ -265,7 +265,7 @@ def _run(argv, *, env, timeout=12, input=None):
     return result
 
 
-def _postgres_run(fixture, query, *, pg_config='pg_config'):
+def _postgres_run(fixture, query, *, pg_config='pg_config', private_query=False):
     if hasattr(os, 'geteuid') and os.geteuid() == 0:
         raise AccuracyError('REFUSE_TO_RUN_POSTGRES_AS_ROOT')
     bins = _postgres_bins(pg_config)
@@ -295,6 +295,8 @@ def _postgres_run(fixture, query, *, pg_config='pg_config'):
             stream.write('idle_in_transaction_session_timeout = 5000\n')
             stream.write('temp_file_limit = 16384\n')
             stream.write('max_connections = 12\n')
+            if private_query:
+                stream.write("log_statement = 'none'\nlog_min_error_statement = 'panic'\n")
             stream.write('standard_conforming_strings = on\n')
         attempted_start = False
         try:
@@ -323,8 +325,9 @@ def _postgres_run(fixture, query, *, pg_config='pg_config'):
             # Exactly one validated SELECT / WITH command; psql --csv handles
             # quoted delimiters. No implicit default DSN or caller-supplied URI.
             null_marker = NULL_MARKER_PREFIX + secrets.token_hex(16) + '__'
-            run = _run(common + ['-U', 'tia_candidate', '--csv', '-P', 'null=' + null_marker,
-                                 '-c', query], env=env, timeout=7)
+            query_args = ['-f', '-'] if private_query else ['-c', query]
+            run = _run(common + ['-U', 'tia_candidate', '--csv', '-P', 'null=' + null_marker] +
+                       query_args, env=env, timeout=7, **({'input': query + ';\n'} if private_query else {}))
             if run.returncode:
                 return {'status': 'EXECUTION_ERROR', 'error_code': 'POSTGRES_QUERY_ERROR',
                         'columns': None, 'rows': None}
@@ -353,12 +356,12 @@ def _postgres_run(fixture, query, *, pg_config='pg_config'):
 
 
 def grade_fixture(blob: bytes, solution: str, approval_sha256: str,
-                  *, pg_config='pg_config') -> dict:
+                  *, pg_config='pg_config', private_query=False) -> dict:
     fixture, digest = validate_fixture(blob)
     if type(approval_sha256) is not str or approval_sha256 != digest:
         raise AccuracyError('HUMAN_FIXTURE_APPROVAL_REQUIRED')
     query = validate_solution(solution)
-    result = _postgres_run(fixture, query, pg_config=pg_config)
+    result = _postgres_run(fixture, query, pg_config=pg_config, **({'private_query': True} if private_query else {}))
     return {
         'schema': 'tia-local-sql-accuracy/v1',
         'source': 'EPHEMERAL_POSTGRESQL_LOCAL',

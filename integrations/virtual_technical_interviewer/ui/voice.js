@@ -13,7 +13,7 @@
       kind: "Speaking as", clarify: "Clarification", plan: "Plan / think aloud", test: "Test idea", help: "Help request",
       draft: "Your voice draft", placeholder: "Speak, pause, then review your words…", partial: "Hearing…", clear: "Clear", send: "Send · 1 AI request",
       bytes: "UTF-8 bytes", tooLong: "Shorten this draft before sending (4096 UTF-8 bytes maximum).", empty: "Nothing has been sent.",
-      handsfree: "Send completed speech automatically", handsfreeNote: "On by default for each new question. Each completed utterance can use one authorized AI request. Pause the mic or turn this off to work at your own pace.",
+      handsfree: "Send completed speech automatically", handsfreeNote: "On by default for each new question. Speech sends after at least 5 seconds of silence and can use one authorized AI request. Pause the mic or turn this off to work at your own pace.",
       helpText: "Think aloud, clarify or ask for help. Submit SQL in the code editor; voice never submits or runs code. The host still decides permitted guidance.",
       settings: "Voice settings & privacy", language: "Speech language", rate: "Speaking speed", normal: "Normal", slow: "Slower", fast: "Faster",
       privacy: "Audio stays on this Mac. On-device speech recognition must be available. Only speech you send becomes interview text sent to the already authorized AI provider. No audio API calls.",
@@ -29,7 +29,7 @@
       kind: "发言类型", clarify: "澄清问题", plan: "方案 / 口述思路", test: "测试想法", help: "请求帮助",
       draft: "你的语音草稿", placeholder: "说出想法，暂停后核对文字…", partial: "正在识别…", clear: "清空", send: "发送 · 1 次 AI 请求",
       bytes: "UTF-8 字节", tooLong: "请缩短草稿后再发送（最多 4096 UTF-8 字节）。", empty: "尚未发送任何内容。",
-      handsfree: "自动发送已完成的发言", handsfreeNote: "每道新题默认开启，每段发言可消耗一次已授权 AI 请求。可暂停收音或关闭自动发送，按自己的节奏作答。",
+      handsfree: "自动发送已完成的发言", handsfreeNote: "每道新题默认开启。连续静音至少 5 秒后发送，可消耗一次已授权 AI 请求。可暂停收音或关闭自动发送，按自己的节奏作答。",
       helpText: "口述思路、澄清或求助。SQL 请在代码编辑器中提交；语音不会提交或执行代码。允许提供的提示仍由宿主决定。",
       settings: "语音设置与隐私", language: "识别与朗读语言", rate: "朗读速度", normal: "正常", slow: "较慢", fast: "较快",
       privacy: "音频留在这台 Mac 上，须支持设备端识别。只有你发送的文字会成为面试记录，并交给已授权的 AI 服务。没有音频 API 调用。",
@@ -295,7 +295,10 @@
     const activation = host.activation || {};
     const used = Number.isInteger(activation.requests_used) ? activation.requests_used : 0;
     const limit = Number.isInteger(activation.request_limit) ? activation.request_limit : "—";
-    text(refs.budget, `${t("count")}: ${used} / ${limit} · ${host.language === "zh" ? "本题发言" : "Question turns"}: ${host.live_preview.candidate_turns_used} / ${host.live_preview.candidate_turn_limit}`);
+    const turns = ["tia-continuity/v2", "tia-continuity/v3"].includes(host.rehearsal?.continuity_policy)
+      ? `${host.language === "zh" ? "本题发言" : "Question turns"}: ${host.live_preview.candidate_turns_used}`
+      : `${host.language === "zh" ? "本题发言" : "Question turns"}: ${host.live_preview.candidate_turns_used} / ${host.live_preview.candidate_turn_limit}`;
+    text(refs.budget, `${t("count")}: ${used} / ${limit} · ${turns}`);
     const error = localError || (voice.error ? safeError(voice.error) : "");
     refs.error.hidden = !error; text(refs.error, errorMessage(error));
     captionPaint(); paintControls(); clampPosition();

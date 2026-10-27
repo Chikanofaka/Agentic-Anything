@@ -1,4 +1,5 @@
 import CoreFoundation
+import CryptoKit
 import AppKit
 import WebKit
 import UniformTypeIdentifiers
@@ -33,6 +34,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var liveGeneration: String?
     private var liveStage = "idle"
     private var privatePreparation: TIAPreparerSeal?
+    private var oracleOperationID: String?
     private var cancellationIDs = [String]()
     private var evaluatorTestAttempt = 0
     private var loaded = false
@@ -83,6 +85,10 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                         .reply("Synthetic opener for Question 1"),
                         .reply("Synthetic follow-up for Question 1 turn 1"),
                         .reply("Synthetic follow-up for Question 1 turn 2"),
+                        .reply("Synthetic follow-up for Question 1 turn 3"),
+                        .reply("Synthetic follow-up for Question 1 turn 4"),
+                        .reply("Synthetic follow-up for Question 1 turn 5"),
+                        .reply("Synthetic follow-up for Question 1 turn 6"),
                         .reply("Synthetic opener for Question 3"),
                         .reply("Synthetic follow-up for Question 3"),
                     ])
@@ -164,7 +170,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         NSApp.mainMenu = menu
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
-    func applicationWillTerminate(_ notification: Notification) { voice.stop(); portal.disconnect(); worker?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { privatePreparation?.cancelVerification(); voice.stop(); portal.disconnect(); worker?.stop() }
     func applicationDidResignActive(_ notification: Notification) {
         // OS permission sheets may temporarily resign activation. The audio
         // backend checks actual App activation again before starting capture.
@@ -218,8 +224,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
               let (id, action, params) = BridgePolicy.validate(message.body) else {
             emit(["ok": false, "error": "INVALID_BRIDGE_REQUEST"]); return
         }
-        guard seenIDs.count < 10000, seenIDs.insert(id).inserted else {
-            emit(["id": id, "ok": false, "error": "DUPLICATE_OR_EXHAUSTED_REQUEST"]); return
+        guard seenIDs.insert(id).inserted else {
+            emit(["id": id, "ok": false, "error": "DUPLICATE_REQUEST"]); return
         }
         if action.hasPrefix("voice_") {
             handleVoice(id: id, action: action, params: params); return
@@ -236,6 +242,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         if action == "preparer_request" {
             beginPrivatePreparer(id: id); return
+        }
+        if action == "preparer_verify", let index = params["question_index"] as? Int {
+            beginOracleVerification(id: id, questionIndex: index); return
         }
         if action == "trainer_request" {
             beginTrainer(id: id); return
@@ -270,7 +279,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         if action == "reset" || action == "tutorial_replay" {
             confirm(action == "reset" ? "Delete the local tutorial save and transcript?" : "Replace this tutorial with a fresh rehearsal? Export first if you want to keep it.") { confirmed in
-                if confirmed { self.portal.disconnect(); self.forward(id: id, action: action, params: params) }
+                if confirmed { self.privatePreparation?.cancelVerification(); self.privatePreparation = nil; self.portal.disconnect(); self.forward(id: id, action: action, params: params) }
                 else { self.respondWithState(id) }
             }
             return
@@ -652,6 +661,12 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
 
     private func cancelLive(id: String, disconnect: Bool) {
+        if let operation = oracleOperationID {
+            oracleOperationID = nil; privatePreparation?.cancelVerification(); busy = false
+            if disconnect { privatePreparation = nil; portal.disconnect() }
+            emit(["id": operation, "ok": false, "state": lastState, "error": "ORACLE_CANCELLED"])
+            respondWithState(id); return
+        }
         voice.stop()
         if disconnect { privatePreparation = nil; portal.disconnect() } else { portal.cancel() }
         if liveStage == "preparer_calling" {
@@ -777,9 +792,78 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             .contains(where: { CommandLine.arguments.contains($0) }) && text.contains("Execute current candidate SQL")
         let syntheticTrainerConsent = CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI")
         let syntheticEvaluatorConsent = CommandLine.arguments.contains("--ui-evaluator-test") && text.contains("Send ONE paid OpenAI evaluation")
-        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent || syntheticEvaluatorConsent) {
+        let syntheticOracleConsent = CommandLine.arguments.contains("--ui-preparer-test") && text.contains("Verify private reference approaches")
+        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent || syntheticEvaluatorConsent || syntheticOracleConsent) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)
+            }
+        }
+    }
+
+    private func beginOracleVerification(id: String, questionIndex: Int) {
+        guard lastState["screen"] as? String == "REVIEW", let seal = privatePreparation,
+              !seal.isVerifying, (0..<seal.count).contains(questionIndex),
+              let package = try? TIAPreparerPackage(state: lastState), package.questionSetSHA == seal.questionSetSHA else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "ORACLE_SOURCE_NOT_READY"]); return
+        }
+        voice.stop()
+        // Synthetic input bypasses only the OS file chooser. The native approval,
+        // source binding, private subprocess and real local execution are unchanged.
+        if uiTesting && CommandLine.arguments.contains("--ui-preparer-test") {
+            let rows = seal.safeStatus["questions"] as! [[String: Any]]
+            let fixture: [String: Any] = ["schema": "tia-postgres-fixture/v1", "fixture_id": "P0-SYNTHETIC-ORACLE",
+                "question_sha256": rows[questionIndex]["question_sha256"]!, "environment": "POSTGRESQL",
+                "tables": [["name": "SyntheticRows", "columns": [["name": "id", "type": "INTEGER"], ["name": "group_id", "type": "INTEGER"]], "rows": [[1, 2], [3, 4]]]],
+                "expected": ["columns": ["id"], "rows": [[1], [3]], "order_sensitive": false]]
+            approveOracleFixture(id: id, questionIndex: questionIndex, seal: seal,
+                                 data: try! JSONSerialization.data(withJSONObject: fixture))
+            return
+        }
+        busy = true
+        let picker = NSOpenPanel()
+        picker.allowedContentTypes = [.json]; picker.allowsMultipleSelection = false
+        picker.canChooseDirectories = false
+        picker.message = "Choose independently reviewed local Fixture JSON for question \(questionIndex + 1). Reference code stays private."
+        picker.beginSheetModal(for: window) { [weak self] response in
+            guard let self = self else { return }
+            self.busy = false
+            guard response == .OK, let url = picker.url else { self.respondWithState(id); return }
+            guard self.privatePreparation === seal else { self.respondWithState(id); return }
+            guard let info = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
+                  info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? 262145) <= 262144,
+                  let data = try? Data(contentsOf: url), !data.isEmpty, data.count <= 262144 else {
+                self.emit(["id": id, "ok": false, "state": self.lastState, "error": "ORACLE_FIXTURE_FILE_INVALID"]); return
+            }
+            self.approveOracleFixture(id: id, questionIndex: questionIndex, seal: seal, data: data)
+        }
+    }
+
+    private func approveOracleFixture(id: String, questionIndex: Int, seal: TIAPreparerSeal, data: Data) {
+        guard privatePreparation === seal, !data.isEmpty, data.count <= 262144,
+              let runtime = Bundle.main.resourceURL?.appendingPathComponent("runtime"),
+              let fixture = try? StrictJSON.object(data) as? [String: Any],
+              let rows = seal.safeStatus["questions"] as? [[String: Any]], rows.indices.contains(questionIndex),
+              fixture["question_sha256"] as? String == rows[questionIndex]["question_sha256"] as? String else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "ORACLE_FIXTURE_SOURCE_MISMATCH"]); return
+        }
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        confirm("Verify private reference approaches for question \(questionIndex + 1) against this independently reviewed local fixture?\n\nFixture SHA-256: \(digest)\n\nConfirm that you reviewed the expected output independently of the model proposal. Uses a NEW isolated local PostgreSQL cluster. No API call, official hidden-test claim or final grade. Reference answers never enter the interview transcript.") { [weak self] approved in
+            guard let self = self else { return }
+            guard approved else { self.respondWithState(id); return }
+            guard self.privatePreparation === seal,
+                  (try? TIAPreparerPackage(state: self.lastState).questionSetSHA) == seal.questionSetSHA else {
+                self.emit(["id": id, "ok": false, "state": self.lastState, "error": "ORACLE_SOURCE_CHANGED"]); return
+            }
+            self.busy = true; self.oracleOperationID = id
+            let started = seal.verifyReference(questionIndex: questionIndex, fixture: data, approvalSHA: digest, runtime: runtime) { [weak self] result in
+                guard let self = self, self.oracleOperationID == id, self.privatePreparation === seal else { return }
+                self.busy = false; self.oracleOperationID = nil
+                self.emit(["id": id, "ok": true, "state": self.lastState, "oracle_result": result])
+            }
+            if started { self.emit(["ok": true, "state": self.lastState, "pending": true]) }
+            else {
+                self.busy = false; self.oracleOperationID = nil
+                self.emit(["id": id, "ok": false, "state": self.lastState, "error": "ORACLE_VERIFICATION_UNAVAILABLE"])
             }
         }
     }
@@ -956,7 +1040,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
               let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first(where: { !($0 is NSPopUpButton) }),
               let delegate = field.delegate as? CredentialFieldDelegate else { return false }
         field.stringValue = "synthetic-ui-fixture-not-a-real-key"
-        if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") {
+        if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-rehearsal-test") {
             // Test-only synthetic credential and bounded MOCK_HTTP requests.
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "10")
         } else if CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
@@ -974,10 +1058,12 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         guard var exported = (result["export"] ?? result["record"]) as? [String: Any] else {
             completion("FAILED"); return
         }
-        if exported["live_preview"] != nil {
+        if exported["live_preview"] != nil || exported["rehearsal"] != nil {
             // Native-only provider facts decorate the export; frozen controller
             // receipts and their hashes are never rewritten.
             exported["native_provider_at_export"] = portal.publicState
+            exported["native_provider_usage_scope"] = "NATIVE_APP_PROCESS_SNAPSHOT_NOT_PERSISTED_INTERVIEW_TOTAL"
+            exported["private_reference_status_at_export"] = privatePreparation?.safeStatus ?? ["status": "NOT_IN_NATIVE_MEMORY"]
             if uiTesting { exported["transport_mode"] = "MOCK_HTTP" }
             if portal.publicState["authenticated"] as? Bool == true,
                var setup = exported["setup"] as? [String: Any], let blockers = setup["blockers"] as? [String] {

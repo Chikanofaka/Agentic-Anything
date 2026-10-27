@@ -37,6 +37,12 @@ func runNativeTests() -> Int32 {
     check("evaluator renderer cannot supply assessment", BridgePolicy.validate(request("evaluator_generate", ["question_index": 0, "score": 100])) == nil)
     check("E3CB exact user trainer request", BridgePolicy.validate(request("trainer_request")) != nil)
     check("E4C1B exact Native preparer request", BridgePolicy.validate(request("preparer_request")) != nil)
+    check("P0 exact private verifier selection", BridgePolicy.validate(request("preparer_verify", ["question_index": 0])) != nil)
+    for index: Any in [-1, 3, true, 0.5, "0"] {
+        check("P0 private verifier rejects invalid question", BridgePolicy.validate(request("preparer_verify", ["question_index": index])) == nil)
+    }
+    check("P0 renderer cannot provide oracle answer", BridgePolicy.validate(request("preparer_verify", ["question_index": 0, "reference": "SELECT private"])) == nil)
+    check("P0 renderer cannot provide oracle path", BridgePolicy.validate(request("preparer_verify", ["question_index": 0, "fixture_path": "/private/file"])) == nil)
     check("E4C1B renderer cannot forge private proposal", BridgePolicy.validate(request("preparer_request", ["code": "SELECT secret"])) == nil)
     check("E3CB renderer cannot send trainer feedback", BridgePolicy.validate(request("trainer_request", ["proposal": "approved"])) == nil)
     check("no arbitrary process execution", BridgePolicy.validate(request("exec", ["command": "true"])) == nil)
@@ -135,6 +141,44 @@ func runNativeTests() -> Int32 {
         let alteredText = try? TIAPreparerPackage.encoded(altered)
         check("E4C1B rejects stale question digest", alteredText.flatMap { try? prep.validate($0) } == nil)
         check("E4C1B no code in public status", !String(describing: validated?.safeStatus ?? [:]).contains("SELECT id"))
+        if let validated = validated {
+            let fixture: [String: Any] = ["schema": "tia-postgres-fixture/v1", "fixture_id": "synthetic-native-oracle",
+                "question_sha256": syntheticHashes[0], "environment": "POSTGRESQL",
+                "tables": [["name": "Orders", "columns": [["name": "id", "type": "INTEGER"]], "rows": [[7]]]],
+                "expected": ["columns": ["id"], "rows": [[7]], "order_sensitive": false]]
+            let raw = try! TIAPreparerPackage.encoded(fixture)
+            let data = Data(raw.utf8)
+            let runtime = Bundle.main.resourceURL!.appendingPathComponent("runtime")
+            check("P0 reference validation requires independent fixture approval", !validated.verifyReference(
+                questionIndex: 0, fixture: data, approvalSHA: String(repeating: "f", count: 64), runtime: runtime) { _ in })
+            check("P0 reference validation rejects stale question fixture", !validated.verifyReference(
+                questionIndex: 1, fixture: data, approvalSHA: TIAPreparerPackage.sha(raw), runtime: runtime) { _ in })
+            // Opt-in offline acceptance: real disposable PostgreSQL, synthetic
+            // references only. Ordinary builds do not require server binaries.
+            if CommandLine.arguments.contains("--oracle-self-test") {
+                for index in 0..<3 {
+                    var bound = fixture; bound["question_sha256"] = syntheticHashes[index]
+                    let text = try! TIAPreparerPackage.encoded(bound)
+                    var response: [String: Any]?
+                    let started = validated.verifyReference(questionIndex: index, fixture: Data(text.utf8),
+                        approvalSHA: TIAPreparerPackage.sha(text), runtime: runtime) { response = $0 }
+                    let until = Date().addingTimeInterval(120)
+                    while started && response == nil && Date() < until {
+                        RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+                    }
+                    check("P0 source-bound private oracle Q\(index + 1) real execution", started && response?["status"] as? String == "REFERENCE_VERIFIED_LOCAL_FIXTURE")
+                    check("P0 oracle Q\(index + 1) never exports reference SQL", !String(describing: response).contains("SELECT id"))
+                }
+                check("P0 all three references independently verified", validated.safeStatus["verified_questions"] as? Int == 3)
+                var cancelledCallback = false
+                let started = validated.verifyReference(questionIndex: 0, fixture: data,
+                    approvalSHA: TIAPreparerPackage.sha(raw), runtime: runtime) { _ in cancelledCallback = true }
+                validated.cancelVerification()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+                check("P0 cancelled verification cannot commit late", started && !validated.isVerifying && !cancelledCallback)
+            }
+        }
+
     }
     let portal = NativePortal()
     check("offline initially", portal.state == "offline")

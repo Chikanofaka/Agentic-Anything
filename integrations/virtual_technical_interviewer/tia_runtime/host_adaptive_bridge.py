@@ -122,4 +122,14 @@ def seconds_remaining(rehearsal: object) -> int:
     limit = timing['limit_seconds']
     if type(elapsed) not in (int, float) or not math.isfinite(elapsed) or elapsed < 0 or limit != 2700:
         raise EvidenceContractError('INVALID_REHEARSAL_CLOCK')
+    if rehearsal.get('continuity_policy') == 'tia-continuity/v3':
+        questions = timing.get('questions')
+        index = timing.get('current_question')
+        if (timing.get('question_limit_seconds') != 900 or type(questions) is not list
+                or type(index) is not int or index not in range(len(questions))):
+            raise EvidenceContractError('INVALID_REHEARSAL_CLOCK')
+        current = questions[index].get('elapsed_seconds')
+        if type(current) not in (int, float) or not math.isfinite(current) or current < 0:
+            raise EvidenceContractError('INVALID_REHEARSAL_CLOCK')
+        return max(0, 900 - math.ceil(current))
     return max(0, limit - math.ceil(elapsed))

@@ -1,0 +1,325 @@
+PASS accessibility fragment retains bridge
+PASS query cannot change document origin
+PASS external page rejected
+PASS neighbor file rejected
+PASS allow exact command export
+PASS reject extra params export
+PASS allow exact command tutorial_replay
+PASS reject extra params tutorial_replay
+PASS allow exact command tutorial_back
+PASS reject extra params tutorial_back
+PASS allow exact command setup_launch
+PASS reject extra params setup_launch
+PASS allow exact command tutorial_complete
+PASS reject extra params tutorial_complete
+PASS allow exact command api_portal
+PASS reject extra params api_portal
+PASS allow exact command preview_cancel
+PASS reject extra params preview_cancel
+PASS allow exact command setup_back
+PASS reject extra params setup_back
+PASS allow exact command rehearsal_tick
+PASS reject extra params rehearsal_tick
+PASS allow exact command smart_start
+PASS reject extra params smart_start
+PASS allow exact command rehearsal_skip
+PASS reject extra params rehearsal_skip
+PASS allow exact command tutorial_next
+PASS reject extra params tutorial_next
+PASS allow exact command setup_continue
+PASS reject extra params setup_continue
+PASS allow exact command preparer_request
+PASS reject extra params preparer_request
+PASS allow exact command rehearsal_submit
+PASS reject extra params rehearsal_submit
+PASS allow exact command disconnect
+PASS reject extra params disconnect
+PASS allow exact command trainer_request
+PASS reject extra params trainer_request
+PASS allow exact command reset
+PASS reject extra params reset
+PASS allow exact command choose_real
+PASS reject extra params choose_real
+PASS allow exact command preview_verify
+PASS reject extra params preview_verify
+PASS allow exact command preview_close
+PASS reject extra params preview_close
+PASS allow exact command tutorial_start
+PASS reject extra params tutorial_start
+PASS allow exact command snapshot
+PASS reject extra params snapshot
+PASS E3D exact SMART start
+PASS E3D SMART start cannot inject time
+PASS E3D exact SMART activity
+PASS E3D never accept renderer competence grade
+PASS E3D self-reported artifact hash is bounded
+PASS E3D cannot claim retest without artifact
+PASS E3D invalid SMART task id rejected
+PASS E3D oversized SMART note rejected
+PASS evaluator explicit question request
+PASS evaluator index rejects invalid type/range
+PASS evaluator index rejects invalid type/range
+PASS evaluator index rejects invalid type/range
+PASS evaluator index rejects invalid type/range
+PASS evaluator index rejects invalid type/range
+PASS evaluator renderer cannot supply assessment
+PASS E3CB exact user trainer request
+PASS E4C1B exact Native preparer request
+PASS E4C1B renderer cannot forge private proposal
+PASS E3CB renderer cannot send trainer feedback
+PASS no arbitrary process execution
+PASS no host phase mutation
+PASS no renderer credentials
+PASS bounded id
+PASS exact envelope
+PASS language allowlist
+PASS unknown language
+PASS candidate clarify
+PASS candidate plan
+PASS candidate implement
+PASS candidate test
+PASS candidate help
+PASS empty candidate rejected
+PASS UTF8 byte bound
+PASS no score command
+PASS typed setup accepted
+PASS boolean duration rejected
+PASS independent question count rejected
+PASS Easy configuration rejected
+PASS bounded question slots
+PASS bounded pasted bytes
+PASS S03D raw question accepted
+PASS S03D source must be approved
+PASS S03D boolean index rejected
+PASS S03D exact 8192-byte source accepted
+PASS S03D excessive UTF8 source rejected
+PASS S03D no extra authority in import
+PASS S03D human-reviewed fields accepted
+PASS S03D fields cannot grant scores
+PASS S03D practice digest accepted
+PASS S03D practice cannot override role
+PASS S03D exact finish command
+PASS S03D finish rejects extra fields
+PASS native-only handshake native_prepare_preview
+PASS native-only handshake native_commit_preview
+PASS native-only handshake native_cancel_preview
+PASS native-only handshake native_prepare_trainer
+PASS native-only handshake native_commit_trainer
+PASS native-only handshake native_cancel_trainer
+PASS native-only handshake native_prepare_evaluator
+PASS native-only handshake native_commit_evaluator
+PASS native-only handshake native_cancel_evaluator
+PASS bounded preview input
+PASS preview test inquiry allowed without execution authority
+PASS preview cannot inject mechanism or authority
+PASS E25B inspect bounded fixture
+PASS E25B inspect rejects empty
+PASS E25B inspect rejects over-limit UTF8
+PASS E25B inspect cannot grant authority
+PASS E25B execute exact SHA
+PASS E25B execute rejects invalid SHA
+PASS E25B execute rejects path injection
+PASS E25B native-only execution commit rejected
+PASS E4C1B source-bound 3 question preflight
+PASS E4C1B native private proposal validated
+PASS E4C1B forbids proposed grades
+PASS E4C1B rejects stale question digest
+PASS E4C1B no code in public status
+PASS offline initially
+PASS empty key not activated
+PASS no consent not activated
+PASS newline credential rejected
+PASS bounded credential
+PASS local fixture explicitly unverified
+PASS credential never serialized
+PASS no authentication claim
+PASS live calls disabled
+PASS disconnect clears activation
+PASS export private before publication
+PASS export exact contents
+PASS export refuses symlink
+PASS export symlink target unchanged
+Native tests: 141 passed, 0 failed; provider requests: 0
+PASS provider fixed HTTPS endpoint
+PASS provider bounded timeout
+PASS provider key only native Authorization header
+PASS provider provider storage disabled
+PASS provider bounded token output
+PASS provider no provider tools
+PASS provider TIA-specific reply schema
+PASS provider evaluator distinct schema
+PASS provider evaluator bounded output
+PASS provider evaluator cannot expand token budget
+PASS provider trainer distinct schema
+PASS provider endpoint-shaped model rejected
+PASS provider invalid key rejected
+PASS provider Witness schemas rejected
+PASS provider unapproved output budget rejected
+PASS provider boolean budget rejected
+PASS provider ambiguous input rejected
+PASS provider provenance path traversal rejected
+PASS provider effective instructions digest verified natively
+PASS provider extra request keys rejected
+PASS provider actual supplied usage retained
+PASS provider missing usage remains unknown
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider reject malformed or authority-bearing structured output
+PASS provider nested depth bounded
+PASS provider duplicate envelope rejected
+PASS provider response size bounded
+PASS provider usage cannot fabricate totals
+PASS provider mock HTTP roundtrip returns exact response
+PASS provider 401 invalid key truthfully rejected
+PASS provider 404 model unavailable
+PASS provider 429 rate limit no retry
+PASS provider quota distinct from rate limit
+PASS provider timeout truthfully classified
+PASS provider network error sanitized
+PASS provider redirect rejected
+PASS provider refusal never accepted as reply
+PASS provider malformed HTTP body rejected
+PASS provider credential reflection blocked
+PASS provider oversized HTTP body rejected
+PASS provider redirect delegate never forwards Authorization
+PASS provider paid consent mandatory
+PASS provider credential cannot become public model identifier
+PASS provider maximum request limit enforced
+PASS provider activation makes zero calls
+PASS provider invalid request body consumes no HTTP budget
+PASS provider structured success verifies provider
+PASS provider duplicate request cannot be sent
+PASS provider missing usage not manufactured
+PASS provider budget blocks additional HTTP request
+PASS provider disconnect clears credential but keeps usage evidence
+PASS provider former credential unusable after disconnect
+PASS provider public state never contains key
+PASS provider cancel suppresses late native completion
+PASS provider cancel invalidates former generation
+PASS provider disconnect suppresses late completion
+PASS provider failed key cannot become verified
+PASS provider 401 clears former credential
+PASS provider mock transport exhausted plan fails closed
+PASS provider C1B1 native schema and output cap 3
+PASS provider C1B1 Native Mock HTTP fully validates 3
+PASS provider C1B1 3/4 solutions never in public status 3
+PASS provider C1B1 no unapproved second paid request 3
+PASS provider C1B1 wrong batch SHA rejects successful HTTP proposal 3
+PASS provider C1B1 native schema and output cap 4
+PASS provider C1B1 Native Mock HTTP fully validates 4
+PASS provider C1B1 3/4 solutions never in public status 4
+PASS provider C1B1 no unapproved second paid request 4
+PASS provider C1B1 wrong batch SHA rejects successful HTTP proposal 4
+Provider tests: 72 passed, 0 failed; real provider requests: 0; transport: MOCK_HTTP
+PASS voice exact empty command voice_listen
+PASS voice no command extras voice_listen
+PASS voice exact empty command voice_pause
+PASS voice no command extras voice_pause
+PASS voice exact empty command voice_replay
+PASS voice no command extras voice_replay
+PASS voice exact empty command voice_clear
+PASS voice no command extras voice_clear
+PASS voice exact empty command voice_send
+PASS voice no command extras voice_send
+PASS voice allowed candidate kind clarify
+PASS voice allowed candidate kind plan
+PASS voice allowed candidate kind test
+PASS voice allowed candidate kind help
+PASS voice no authority-bearing kind implement
+PASS voice no authority-bearing kind SQL
+PASS voice no authority-bearing kind score
+PASS voice no authority-bearing kind run
+PASS voice no authority-bearing kind admin
+PASS voice no arbitrary speech command
+PASS voice no renderer synthetic transcript
+PASS voice exact boolean mute
+PASS voice numeric boolean rejected
+PASS voice handsfree consent parameter exact
+PASS voice UTF8 draft bound
+PASS voice exact 4096-byte draft
+PASS voice rate cannot be boolean
+PASS voice rate bounded
+PASS voice language allowlist
+PASS voice unverified room rejects recording
+PASS voice stored credential is not verification
+PASS voice tutorial cannot use live voice submit
+PASS voice verified room becomes ready
+PASS voice no restored autoplay or microphone
+PASS voice initial committed caption visible without playback
+PASS voice voice needs explicit opt-in
+PASS voice explicit listen accepted
+PASS voice partial caption never submits
+PASS voice default final is editable draft
+PASS voice duplicate recognizer final ignored
+PASS voice existing draft cannot be silently replaced by recording
+PASS voice edited draft requires explicit send
+PASS voice existing text request receives exact edited content
+PASS voice pending duplicate send rejected
+PASS voice pending draft immutable
+PASS voice successful send clears draft
+PASS voice handsfree opt-in alone never records
+PASS voice handsfree final submits once
+PASS voice handsfree duplicate cannot spend another request
+PASS voice speaker and mic are half duplex
+PASS voice explicit handsfree resumes after speech
+PASS voice request failure preserves review draft and disables auto retry
+PASS voice late completion cannot restart failed recording
+PASS voice pause stops actual backend and stale callback
+PASS voice question transition invalidates recording and draft
+PASS voice disconnect stops capture and invalidates callback
+PASS voice reconnect never resumes capture or prior speech
+PASS voice permissions are explicit pending state
+PASS voice late permission grant after pause cannot record
+PASS voice device STT unavailable fails without auto fallback
+PASS voice provider wait suspends microphone
+PASS voice committed model reply only is spoken
+PASS voice caption range uses UTF16
+PASS voice out of bounds caption range rejected
+PASS voice speaker mute stops backend playback
+PASS voice late speaker completion cannot double-start mic
+PASS voice simulated events never spoken by live companion
+PASS voice turn limit can still play final interviewer reply
+PASS voice turn limit never resumes microphone
+PASS voice turn limit cannot send voice
+PASS voice local language and rate applied
+PASS voice same committed event does not repeat playback
+PASS voice recognizer output byte cap enforced
+PASS voice bounded empty utterance ends capture
+PASS voice silence endpoint creates a draft without paid send
+PASS voice focus loss clears ephemeral draft and stops capture
+PASS voice closed host removes ephemeral voice data
+PASS voice native test injection obeys lifecycle
+PASS voice microphone pause does not mute interviewer playback
+PASS voice missing installed voice reports typed failure
+PASS voice muted reply still updates committed captions
+PASS voice typed request preserves unfinished voice draft
+PASS voice late speech callbacks cannot resurrect closed room
+PASS voice synthetic transcript entrypoint disabled outside testing
+PASS voice missing submission route returns truthful action error
+PASS voice synchronous native rejection returns action failure
+PASS voice rejected manual send preserves editable draft
+PASS voice connecting retains verified room and exact pending draft
+PASS voice connecting preserves handsfree consent but stops capture
+PASS voice real connecting-to-commit transition preserves automatic speech
+PASS voice handsfree resumes after verified response finishes
+PASS voice recoverable unavailable preserves editable voice draft
+PASS voice unavailable stops auto submit and new recording
+PASS voice invalid credential still clears all ephemeral voice data
+PASS voice fresh entry enables handsfree and speaks committed introduction
+PASS voice entry starts listening after introduction
+PASS voice default completed speech sends exactly once
+PASS voice snapshot never reverses manual pause
+PASS voice new question resets automatic mode
+PASS voice permission failure never retries on snapshot
+PASS voice permission grant while inactive waits for foreground
+PASS voice foreground after permission starts exactly once
+PASS voice pause cancels deferred permission activation
+PASS voice already active permission starts immediately
+PASS voice permission pending preserves automatic preference
+PASS voice permission completion continues automatic listening
+PASS voice external interruption stops audio without changing preference
+PASS voice listen resumes automatic mode after interruption
+Voice tests: 108 passed, 0 failed; microphone captures: 0; synthesized audio: 0; provider requests: 0
+Built local development App: <repo>/integrations/virtual_technical_interviewer/dist/Technical Interview Lab.app

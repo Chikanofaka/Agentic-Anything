@@ -103,7 +103,7 @@ struct TIAPreparerPackage {
                 }
             }
         }
-        return TIAPreparerSeal(questionSetSHA: questionSetSHA, count: questionCount, privateRawProposal: response)
+        return TIAPreparerSeal(questionSetSHA: questionSetSHA, count: questionCount, privateRawProposal: response, questionSources: questions)
     }
 }
 
@@ -112,14 +112,138 @@ final class TIAPreparerSeal {
     let questionSetSHA: String
     let count: Int
     private let privateRawProposal: String
-    init(questionSetSHA: String, count: Int, privateRawProposal: String) {
+    private let questionSources: [[String: String]]
+    private var verificationReceipts: [Int: [String: Any]] = [:]
+    private var verificationProcess: Process?
+    private var verificationGeneration = UUID()
+    var isVerifying: Bool { verificationProcess != nil }
+
+    init(questionSetSHA: String, count: Int, privateRawProposal: String,
+         questionSources: [[String: String]]) {
         self.questionSetSHA = questionSetSHA
         self.count = count
         self.privateRawProposal = privateRawProposal
+        self.questionSources = questionSources
     }
+
+    // Native UI selects an owner-approved fixture; no reference getter exists.
+    // Only the reviewed one-shot verifier receives reference code, over stdin.
+    // The regular Python controller/Worker and WebKit never receive this packet.
+    @discardableResult
+    func verifyReference(questionIndex: Int, fixture: Data, approvalSHA: String,
+                         runtime: URL, completion: @escaping ([String: Any]) -> Void) -> Bool {
+        guard !isVerifying, questionSources.indices.contains(questionIndex),
+              questionSources[questionIndex]["environment"] == "POSTGRESQL",
+              !fixture.isEmpty, fixture.count <= 262144,
+              SHA256.hash(data: fixture).map({ String(format: "%02x", $0) }).joined() == approvalSHA,
+              let fixtureText = String(data: fixture, encoding: .utf8),
+              let fixtureObject = try? StrictJSON.object(fixture) as? [String: Any],
+              fixtureObject["question_sha256"] as? String == questionSources[questionIndex]["question_sha256"],
+              let proposalData = privateRawProposal.data(using: .utf8),
+              let proposal = try? StrictJSON.object(proposalData) as? [String: Any],
+              let items = proposal["items"] as? [[String: Any]], items.indices.contains(questionIndex),
+              let approaches = items[questionIndex]["approaches"] as? [[String: Any]],
+              (1...3).contains(approaches.count),
+              Bundle.main.object(forInfoDictionaryKey: "TIADevelopmentBuild") as? Bool == true
+        else { return false }
+        let references = approaches.compactMap { $0["code"] as? String }
+        guard references.count == approaches.count else { return false }
+        let packet: [String: Any] = ["schema": "tia-private-oracle-request/v1",
+            "question_sha256": questionSources[questionIndex]["question_sha256"]!,
+            "fixture_json": fixtureText, "approval_sha256": approvalSHA, "references": references]
+        guard let encoded = try? JSONSerialization.data(withJSONObject: packet), encoded.count <= 400000 else { return false }
+        let process = Process(), stdin = Pipe(), stdout = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.arguments = ["-B", "-u", "-m", "tia_runtime.private_oracle_worker"]
+        process.currentDirectoryURL = runtime
+        process.environment = ["PATH": "/usr/bin:/bin", "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1"]
+        process.standardInput = stdin
+        process.standardOutput = stdout
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return false }
+        let generation = UUID()
+        verificationGeneration = generation
+        verificationProcess = process
+        let referenceHashes = references.map(TIAPreparerPackage.sha)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var replyData = Data()
+            do {
+                try stdin.fileHandleForWriting.write(contentsOf: encoded)
+                try stdin.fileHandleForWriting.close()
+                while replyData.count <= 16384 {
+                    let chunk = try stdout.fileHandleForReading.read(upToCount: 16385 - replyData.count) ?? Data()
+                    if chunk.isEmpty { break }
+                    replyData.append(chunk)
+                }
+                if replyData.count > 16384, process.isRunning { process.terminate() }
+            } catch { if process.isRunning { process.terminate() } }
+            process.waitUntilExit()
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.verificationGeneration == generation else { return }
+                self.verificationProcess = nil
+                var safe: [String: Any] = ["status": "REFERENCE_NOT_VERIFIED", "error": "ORACLE_VERIFICATION_FAILED"]
+                if process.terminationStatus == 0, replyData.count <= 16384,
+                   let result = try? StrictJSON.object(replyData) as? [String: Any],
+                   Set(result.keys) == Set(["schema", "question_sha256", "fixture_sha256", "source", "official_hidden_tests", "references"]),
+                   result["schema"] as? String == "tia-private-oracle-result/v1",
+                   result["question_sha256"] as? String == self.questionSources[questionIndex]["question_sha256"],
+                   result["fixture_sha256"] as? String == approvalSHA,
+                   result["source"] as? String == "EPHEMERAL_POSTGRESQL_LOCAL",
+                   result["official_hidden_tests"] as? Bool == false,
+                   let rows = result["references"] as? [[String: Any]], rows.count == referenceHashes.count,
+                   rows.enumerated().allSatisfy({ index, row in
+                       Set(row.keys) == Set(["index", "reference_sha256", "status", "error"])
+                       && row["index"] as? Int == index
+                       && row["reference_sha256"] as? String == referenceHashes[index]
+                       && ["PASSED", "FAILED", "EXECUTION_ERROR", "NOT_VERIFIED"].contains(row["status"] as? String ?? "")
+                   }) {
+                    let passed = rows.filter { $0["status"] as? String == "PASSED" }.count
+                    let executed = rows.filter { $0["status"] as? String != "NOT_VERIFIED" }.count
+                    // No free-form runner error, code, fixture rows or SQL output leaves this boundary.
+                    safe = ["status": passed == rows.count ? "REFERENCE_VERIFIED_LOCAL_FIXTURE" : "REFERENCE_NOT_VERIFIED",
+                            "question_sha256": self.questionSources[questionIndex]["question_sha256"]!,
+                            "fixture_sha256": approvalSHA, "approaches_tested": executed,
+                            "approaches_passed": passed, "approaches_total": rows.count,
+                            "execution_status": executed > 0 ? "LOCAL_FIXTURE_RUN" : "NOT_RUN",
+                            "official_hidden_tests": false]
+                    self.verificationReceipts[questionIndex] = safe
+                }
+                self.verificationReceipts[questionIndex] = safe
+                completion(safe)
+            }
+        }
+        // Three independently proposed approaches, each protected by the existing
+        // initdb/pg_ctl/query timeouts. Cancellation unwinds the Python cleanup.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 360) { [weak self] in
+            guard let self = self, self.verificationGeneration == generation,
+                  let running = self.verificationProcess, running.isRunning else { return }
+            running.terminate()
+        }
+        return true
+    }
+
+    func cancelVerification() {
+        verificationGeneration = UUID()
+        if let process = verificationProcess, process.isRunning { process.terminate() }
+        verificationProcess = nil
+    }
+
+    deinit { if let process = verificationProcess, process.isRunning { process.terminate() } }
+
     var safeStatus: [String: Any] {
-        ["status": "REFERENCE_UNVERIFIED_AI_PROPOSAL", "question_set_sha256": questionSetSHA,
-         "question_count": count, "execution_status": "NOT_RUN", "technical": "NOT_SCORED",
-         "interviewer_reference_access": false, "persistence": "NATIVE_MEMORY_ONLY"]
+        let verified = verificationReceipts.values.filter { $0["status"] as? String == "REFERENCE_VERIFIED_LOCAL_FIXTURE" }.count
+        return ["status": verified == count ? "REFERENCE_VERIFIED_LOCAL_FIXTURE" : "REFERENCE_UNVERIFIED_AI_PROPOSAL",
+         "question_set_sha256": questionSetSHA, "question_count": count,
+         "execution_status": verificationReceipts.isEmpty ? "NOT_RUN" : "SEE_QUESTION_RESULTS",
+         "technical": "NOT_SCORED", "interviewer_reference_access": false,
+         "persistence": "NATIVE_MEMORY_ONLY", "verification_pending": isVerifying,
+         "verified_questions": verified,
+         "questions": questionSources.enumerated().map { index, source -> [String: Any] in
+             var row: [String: Any] = verificationReceipts[index] ?? ["status": "REFERENCE_UNVERIFIED_AI_PROPOSAL", "execution_status": "NOT_RUN"]
+             row["index"] = index
+             row["question_sha256"] = source["question_sha256"]
+             row["environment"] = source["environment"]
+             return row
+         }]
     }
 }

@@ -1,0 +1,113 @@
+{
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 4,
+  "passed" : 24,
+  "real_credentials_used" : false,
+  "real_microphone_used" : false,
+  "schema" : "tia-native-voice-ui-test\/v1",
+  "speech_permissions_requested" : false,
+  "speech_transport" : "SYNTHETIC_NATIVE_TRANSCRIPTS",
+  "summary" : "24 real WebKit\/native\/controller checks; four mocked HTTP calls; zero real audio or provider calls",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "Voice is unavailable before provider verification"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Native synthetic consent is isolated from the renderer"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Three reviewed questions enter a real multi-turn controller session"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Verified committed interviewer response makes the voice companion available"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Chinese interface and local voice settings require no new model request"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Explicit listen begins mock recognition without a provider request"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Partial recognition remains an unsubmitted caption"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Manual-mode speech waits five seconds before becoming an editable draft"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Edited voice draft crosses the same guarded candidate and model path"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Pause stops recognition before a delayed final transcript"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Late speech after pause cannot mutate the draft or committed dialogue"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Mute affects local speech playback without inventing a conversation turn"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "A second manual speech turn remains available while output is muted"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Second spoken plan is committed with independent unscored evidence"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Companion remains usable at compact window size"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Native keyboard movement and focus work without scrolling the dialogue"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Native Tab reaches a companion control and native mouse drag is armed"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Native mouse drag keeps the companion inside the compact window"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Hands-free mode is an explicit opt-in before a third candidate turn"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Opted-in speech seals after five seconds within the approved request budget"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Native credential sheet stops capture and rejects a renderer request to restart it"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Cancelling the credential sheet requires explicit microphone restart"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Manual Skip freezes voice-only dialogue while Final Submit requires code"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Disconnect clears local audio state without late speech or paid requests"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

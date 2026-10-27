@@ -80,8 +80,10 @@ struct TIAModelRequest {
               let generation = value["generation"] as? String, validID(generation),
               let role = value["role"] as? String, ["interviewer", "trainer", "preparer", "evaluator"].contains(role),
               let instructions = value["instructions"] as? String, !instructions.isEmpty, instructions.utf8.count <= 32768,
-              let input = value["input"] as? String, input.utf8.count <= 16000,
-              let encoded = input.data(using: .utf8), (try? StrictJSON.object(encoded)) is [String: Any],
+              let input = value["input"] as? String, input.utf8.count <= 262144,
+              let encoded = input.data(using: .utf8), let context = (try? StrictJSON.object(encoded)) as? [String: Any],
+              input.utf8.count <= (role == "evaluator" && context["evidence_policy"] as? String == "tia-evaluator-evidence/v2"
+                && context["continuity_policy"] as? String == "tia-continuity/v3" ? 262144 : 16000),
               let name = value["schema_name"] as? String, name == "tia_" + role + "_reply",
               let tokens = value["max_output_tokens"] as? NSNumber, CFGetTypeID(tokens) != CFBooleanGetTypeID(),
               tokens.doubleValue == Double(role == "preparer" ? 8192 : 600),
@@ -141,7 +143,7 @@ final class TIAOpenAIAdapter: NSObject, URLSessionTaskDelegate, URLSessionDataDe
         request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
-        guard request.httpBody!.count <= 65536 else { throw TIAProviderFailure.invalidRequest }
+        guard request.httpBody!.count <= (spec.role == "evaluator" ? 2 * 1024 * 1024 : 65536) else { throw TIAProviderFailure.invalidRequest }
         return request
     }
     private static func httpFailure(_ data: Data, status: Int) -> TIAProviderFailure {

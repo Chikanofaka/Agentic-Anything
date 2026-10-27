@@ -1,0 +1,5 @@
+PASS E1 native rehearsal portal uses synthetic consent only
+PASS E1 three distinct question imports and confirmations render start action
+UI check detail: failure(Error Domain=WKErrorDomain Code=4 "A JavaScript exception occurred" UserInfo={WKJavaScriptExceptionLineNumber=0, WKJavaScriptExceptionMessage=Completion handler for function call is no longer reachable, WKJavaScriptExceptionColumnNumber=0, NSLocalizedDescription=A JavaScript exception occurred})
+Native portal visible: false
+Native UI smoke: FAIL — E1 start through WebKit and verify first native mocked question

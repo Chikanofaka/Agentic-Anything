@@ -22,7 +22,7 @@ import time
 import uuid
 
 from .controller import InterviewController, SessionConfig, SessionError
-from .persistence import SaveError, TutorialStore, strict_json
+from .persistence import SaveError, TutorialStore, strict_json, MAX_SAVE_BYTES
 from .prompt_profiles import ProfileError, compile_profile, compile_live_profile, decide_interaction
 from .provider import ModelPortalError
 from .setup import SetupError, assess_allocation, review_question, validate_config
@@ -81,7 +81,7 @@ COMMAND_FIELDS = {
     # rejects them as renderer actions. They contain no credentials or URLs.
     "native_prepare_preview": PREPARE_FIELDS, "native_commit_preview": COMMIT_FIELDS,
     "native_cancel_preview": set(), "preview_close": set(),
-    "rehearsal_start": set(), "rehearsal_submit": set(), "rehearsal_skip": set(),
+    "rehearsal_start": {"continuity_policy"}, "rehearsal_submit": set(), "rehearsal_skip": set(),
     "rehearsal_tick": set(),
     "smart_start": set(), "smart_record": {"task_id", "kind", "note", "artifact_sha256"},
     "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
@@ -191,6 +191,9 @@ class TutorialHost:
     def _practice_snapshot(self):
         return copy.deepcopy(self._practice_question) if self._practice_question else None
 
+    def _continuous_rehearsal(self):
+        return self._rehearsal is not None and self._rehearsal.get('continuity_policy') == 'tia-continuity/v3'
+
     def _preview_state(self):
         if self._live_controller is None:
             return None
@@ -203,8 +206,10 @@ class TutorialHost:
         pending = self._live_controller.native_pending is not None
         closed = self._live_controller.phase != 'INTERVIEWING'
         rehearsal_active = self._rehearsal is not None and self._rehearsal['status'] == 'ACTIVE'
-        limit = MAX_REHEARSAL_TURNS if rehearsal_active else 1
+        continuity_v2 = rehearsal_active and self._rehearsal.get('continuity_policy') in ('tia-continuity/v2', 'tia-continuity/v3')
+        limit = None if continuity_v2 else (MAX_REHEARSAL_TURNS if rehearsal_active else 1)
         unanswered = len(candidates) > answered_count
+        clock_hold = self._continuous_rehearsal() and 'HOLD' in (self._rehearsal.get('timing') or {}).get('integrity', '')
         return {
             'question': self._selected_preview_question(), 'session': session,
             'pending': pending, 'closed': closed,
@@ -215,7 +220,7 @@ class TutorialHost:
             'sql_accuracy': copy.deepcopy(self._active_grade_receipt()), 'technical': 'NOT_SCORED',
             'communication': 'NOT_SCORED', 'candidate_turn_limit': limit,
             'candidate_turns_used': len(candidates),
-            'can_send': verified and (unanswered or len(candidates) < limit) and not pending and not closed,
+            'can_send': verified and (unanswered or continuity_v2 or len(candidates) < limit) and not pending and not closed and not clock_hold,
             'retry_input': ({'kind': candidates[-1]['kind'], 'text': candidates[-1]['payload']['text']}
                             if unanswered else None),
             'verified_response_count': len(replies),
@@ -349,8 +354,11 @@ class TutorialHost:
     @staticmethod
     def _validate_command(action, params):
         if (type(action) is not str or action not in COMMAND_FIELDS
-                or type(params) is not dict or set(params) != COMMAND_FIELDS[action]):
+                or type(params) is not dict or (set(params) != COMMAND_FIELDS[action]
+                and not (action == 'rehearsal_start' and not params))):
             raise HostError("INVALID_COMMAND")
+        if action == 'rehearsal_start' and params and params.get('continuity_policy') not in ('tia-continuity/v2', 'tia-continuity/v3'):
+            raise HostError('INVALID_CONTINUITY_POLICY')
         if action == 'native_prepare_preview':
             validate_prepare(params)
         if action == 'grade_inspect':
@@ -524,6 +532,61 @@ class TutorialHost:
         self._live_controller = self._live_profile = self._live_question = None
         self.screen = 'REHEARSAL_COMPLETE'
 
+    def _close_timed_out_rehearsal_question(self):
+        """Host-owned 15-minute question handoff, never an interviewer/model command.
+
+        Preserve the candidate/interviewer transcript, verified local SQL receipt,
+        and elapsed-time evidence. An in-flight model reply is cancelled and
+        cannot advance/grade the next question. Explicit submit/skip are separate.
+        """
+        plan = self._rehearsal
+        if plan is None or plan['status'] != 'ACTIVE':
+            return
+        index = plan['current_index']
+        if index not in range(3):
+            raise HostError('INVALID_REHEARSAL_INDEX')
+        controller = self._live_controller
+        if controller is not None and controller.native_pending is not None:
+            controller.cancel_native_reply()
+        request_finished(plan)
+        receipt = self._active_grade_receipt()
+        result = {
+            'index': index, 'outcome': 'TIMED_OUT',
+            'execution_status': ('RUN_LOCAL_FIXTURE' if receipt and
+                                 receipt['correctness'] == 'VERIFIED_LOCAL_FIXTURE'
+                                 else 'NOT_VERIFIED' if receipt else 'NOT_RUN'),
+            'technical': 'NOT_SCORED', 'communication': 'NOT_SCORED',
+            'question_sha256': plan['questions'][index]['content_sha256'],
+            'session': None,
+        }
+        if receipt is not None:
+            result['sql_accuracy'] = copy.deepcopy(receipt)
+        if controller is not None:
+            candidate = [e for e in controller.snapshot()['events'] if e['actor'] == 'candidate']
+            result['behavior_metrics'] = {
+                'candidate_turn_count': len(candidate),
+                'clarification_requests': sum(e['kind'] == 'clarify' for e in candidate),
+                'help_requests': sum(e['kind'] == 'help' for e in candidate),
+                'code_submissions': sum(e['kind'] == 'implement' for e in candidate),
+                'evidence_event_ids': [e['id'] for e in candidate],
+                'correctness': receipt['correctness'] if receipt else 'NOT_VERIFIED',
+            }
+            if controller.phase == 'INTERVIEWING':
+                controller.close('timeout')
+                controller.review('host-question-timeout')
+            result['session'] = controller.snapshot()
+        if plan.get('timing') is not None:
+            result['time_metrics'] = close_question(plan, outcome='TIMED_OUT')
+        plan['results'].append(result)
+        plan['current_index'] += 1
+        self._live_controller = self._live_profile = self._live_question = None
+        self._grading_review = None
+        if plan['current_index'] == 3:
+            plan['status'] = 'COMPLETE'
+            self.screen = 'REHEARSAL_COMPLETE'
+        else:
+            self.screen = 'API_PORTAL'
+
     def _advance_rehearsal_before_action(self, action):
         if (self._rehearsal is None or self._rehearsal['status'] != 'ACTIVE'
                 or self._rehearsal.get('timing') is None or self._wall_sample is None):
@@ -532,6 +595,17 @@ class TutorialHost:
             result = advance_rehearsal_time(self._rehearsal, self._wall_sample, self._tick)
         except ValueError:
             raise HostError('INVALID_CLOCK_SAMPLE') from None
+        if result == 'QUESTION_TIMEOUT':
+            self._close_timed_out_rehearsal_question()
+            if action != 'rehearsal_tick':
+                raise HostError('REHEARSAL_QUESTION_TIME_LIMIT')
+            return
+        if result == 'CLOCK_HOLD' and self._continuous_rehearsal():
+            # Clock integrity loss is a visible hold, never a question-ending
+            # event. Explicit submit/skip/cancel still belong to the candidate.
+            if action not in ('rehearsal_tick', 'rehearsal_submit', 'rehearsal_skip', 'native_cancel_preview'):
+                raise HostError('REHEARSAL_CLOCK_HOLD')
+            return
         if result in ('TIMEOUT', 'CLOCK_HOLD'):
             self._end_rehearsal_due_to_time(result == 'CLOCK_HOLD')
             if action != 'rehearsal_tick':
@@ -789,7 +863,12 @@ class TutorialHost:
                 self._preview_history.append(self._preview_state())
             # Old journals replay with no wall sample, preserving E1 snapshots.
             if self._wall_sample is not None:
-                plan['timing'] = begin_rehearsal_time(self._wall_sample, self._tick)
+                plan['timing'] = begin_rehearsal_time(
+                    self._wall_sample, self._tick,
+                    question_limit_seconds=(900 if params.get('continuity_policy') in ('tia-continuity/v2', 'tia-continuity/v3') else None))
+            if params.get('continuity_policy') in ('tia-continuity/v2', 'tia-continuity/v3'):
+                plan['continuity_policy'] = params['continuity_policy']
+                plan['max_turns_per_question'] = None  # no semantic four-turn limit
             self._rehearsal = plan
             self._grading_review = None
             self._practice_question = None
@@ -802,6 +881,12 @@ class TutorialHost:
                 raise HostError('REHEARSAL_NOT_ACTIVE')
             if self._live_controller is not None and self._live_controller.native_pending is not None:
                 raise HostError('NATIVE_REQUEST_PENDING')
+            if action == 'rehearsal_submit' and self._rehearsal.get('continuity_policy') in ('tia-continuity/v2', 'tia-continuity/v3'):
+                candidate_actions = ([] if self._live_controller is None else
+                    [e for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate'])
+                if (not candidate_actions or (not any(e['kind'] == 'implement' for e in candidate_actions)
+                        if self._continuous_rehearsal() else candidate_actions[-1]['kind'] != 'implement')):
+                    raise HostError('FINAL_CODE_SUBMISSION_REQUIRED')
             result = {
                 'index': self._rehearsal['current_index'],
                 'outcome': ('SKIPPED' if action == 'rehearsal_skip' else
@@ -891,6 +976,9 @@ class TutorialHost:
             if self._rehearsal is not None:
                 request_finished(self._rehearsal)
         elif action == 'preview_close':
+            if (self._rehearsal is not None and self._rehearsal['status'] == 'ACTIVE'
+                    and self._rehearsal.get('continuity_policy') in ('tia-continuity/v2', 'tia-continuity/v3')):
+                raise HostError('REHEARSAL_EXIT_REQUIRES_SUBMIT_SKIP_OR_TIMEOUT')
             if self._live_controller is None:
                 raise HostError('INVALID_TRANSITION')
             if self._live_controller.phase == 'INTERVIEWING':
@@ -1062,6 +1150,13 @@ class TutorialHost:
         self._wall_sample = end_wall
         if plan.get('timing') is not None:
             timed = advance_rehearsal_time(plan, end_wall, end_tick)
+            if timed == 'QUESTION_TIMEOUT':
+                self._close_timed_out_rehearsal_question()
+                self._grading_observation = observation
+                return
+            if timed == 'CLOCK_HOLD' and self._continuous_rehearsal():
+                self._grading_observation = observation
+                return
             if timed in ('TIMEOUT', 'CLOCK_HOLD'):
                 # Fail closed: even a PASS from PostgreSQL cannot become a
                 # counted grade after the deadline. Preserve time outcome.
@@ -1108,7 +1203,8 @@ class TutorialHost:
                     SessionConfig(session_id=('rehearsal-' + self._instance_id + '-q' + str(self._rehearsal['current_index'] + 1)
                                                 if self._rehearsal is not None else
                                                 'preview-' + self._instance_id + '-' + str(len(self._preview_history) + 1)),
-                                  duration_seconds=86400, max_input_bytes=4096),
+                                  duration_seconds=86400, max_input_bytes=4096,
+                                  max_events=None if self._continuous_rehearsal() else 128),
                     clock=lambda: self._tick,
                 )
                 self._live_controller.start_native_preview(self._live_question['statement'], profile)
@@ -1244,6 +1340,13 @@ class TutorialHost:
                 'Ask only the Host-authorized diagnostic/explanation question. '
                 'Do not disclose expected fixture rows or claim any other execution. '
                 'No Pandas execution evidence is available.\n')
+        if self._continuous_rehearsal():
+            profile['instructions'] += (
+                '\nCONTINUOUS QUESTION POLICY tia-continuity/v3: A candidate may ask to '
+                'skip the introduction and read the question. Treat that as a request '
+                'to briefly read the current public task, not as Skip Question or Final Submit. '
+                'Do not advance, end, or imply completion of the question. Only the Host '
+                'may advance after explicit Final Submit, manual Skip Question, or timeout.\n')
         profile['sha256'] = hashlib.sha256(profile['instructions'].encode()).hexdigest()
         candidate = [{'event_id': e['id'], 'kind': e['kind'], 'text': e['payload']['text']}
                      for e in self._live_controller.snapshot()['events'] if e['actor'] == 'candidate']
@@ -1297,12 +1400,17 @@ class TutorialHost:
                 or type(document["instance_id"]) is not str
                 or not re.fullmatch(r"[0-9a-f]{32}", document["instance_id"])
                 or type(document["journal"]) is not list
-                or not 1 <= len(document["journal"]) <= MAX_JOURNAL_ENTRIES):
+                or len(document["journal"]) < 1):
             raise HostError("INVALID_SAVE")
         sealed = dict(document)
         expected = sealed.pop("document_sha256")
         if type(expected) is not str or digest(sealed) != expected:
             raise HostError("INVALID_SAVE")
+        continuous_journal = any(type(item) is dict and item.get('action') == 'rehearsal_start'
+                                 and item.get('params') == {'continuity_policy': 'tia-continuity/v3'}
+                                 and item.get('outcome') == 'OK' for item in document['journal'])
+        if len(document['journal']) > MAX_JOURNAL_ENTRIES and not continuous_journal:
+            raise HostError('INVALID_SAVE')
         self._instance_id = document["instance_id"]
         prior_tick = 0.0
         for item in document["journal"]:
@@ -1407,7 +1515,9 @@ class TutorialHost:
             },
         }
         if self._rehearsal is not None:
-            result.update(evaluator_v1_readout=project_v1_score(self._rehearsal),
+            result.update(api_requests=None,
+                          provider_usage_source='Native activation snapshot only; complete session request count unavailable',
+                          evaluator_v1_readout=project_v1_score(self._rehearsal),
                           evaluator_report=self._evaluator_report(),
                           native_evaluator_pending=self._evaluator_pending is not None,
                           native_evaluator_interrupted=self._evaluator_interrupted,
@@ -1457,12 +1567,22 @@ class TutorialHost:
             return self.export()
         if self._recovery_error:
             raise HostError("RECOVERY_REQUIRED")
-        if len(self._journal) >= MAX_JOURNAL_ENTRIES:
+        if not self._continuous_rehearsal() and len(self._journal) >= MAX_JOURNAL_ENTRIES:
             raise HostError("HISTORY_LIMIT")
-        if action in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator') and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1:
+        if (not self._continuous_rehearsal() and action in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator')
+                and len(self._journal) >= MAX_JOURNAL_ENTRIES - 1):
             # Keep one durable slot for a cancellation if the process exits while
             # native HTTP is pending; recovery must never create an unreadable save.
             raise HostError('HISTORY_LIMIT')
+        if self._continuous_rehearsal() and action in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator'):
+            # This is a byte resource bound, not a turn limit. Reserve capacity
+            # for a response, cancellation, explicit submit/skip and timeout; a
+            # failed preflight leaves the current question and transcript open.
+            journal_bytes = len(json.dumps(self._journal, ensure_ascii=True,
+                                          separators=(',', ':'), allow_nan=False).encode('utf-8'))
+            request_bytes = len(json.dumps(params, ensure_ascii=True).encode('utf-8'))
+            if journal_bytes + request_bytes + 65536 > MAX_SAVE_BYTES:
+                raise HostError('LOCAL_STORAGE_LIMIT')
         self._tick = max(self._tick, self._clock_offset + self._clock() - self._origin)
         # The sample is written into the journal and used for deterministic
         # replay. No renderer-provided clock or timestamp is accepted.

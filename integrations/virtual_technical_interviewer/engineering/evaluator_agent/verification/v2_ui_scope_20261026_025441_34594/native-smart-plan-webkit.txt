@@ -1,0 +1,6 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+UI check detail: success({
+    ok = 0;
+})
+Native portal visible: false
+Native UI smoke: FAIL — E25B starts BYOQ rehearsal with 3 bound questions

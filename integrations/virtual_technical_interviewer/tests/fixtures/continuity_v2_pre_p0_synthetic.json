@@ -1,0 +1,320 @@
+{
+  "document_sha256": "cdc49b42b12a5e1d904c5ceef41583eccaa9cdbf578070ecaca403a3f9f69d90",
+  "instance_id": "7eaf95df50e041c4a619e141501f4690",
+  "journal": [
+    {
+      "action": "choose_real",
+      "outcome": "OK",
+      "params": {},
+      "tick_seconds": 0.011000999999999983,
+      "wall_seconds": 1792954548.540738
+    },
+    {
+      "action": "setup_continue",
+      "outcome": "OK",
+      "params": {},
+      "tick_seconds": 0.8332122500000001,
+      "wall_seconds": 1792954549.362975
+    },
+    {
+      "action": "setup_config",
+      "outcome": "OK",
+      "params": {
+        "config": {
+          "difficulty": "HARD",
+          "duration_minutes": 45,
+          "interviewer_mechanism": "STRICT_CHALLENGING",
+          "question_source": "BYOQ",
+          "technical_environment": "POSTGRESQL"
+        }
+      },
+      "tick_seconds": 0.8635643749999999,
+      "wall_seconds": 1792954549.393327
+    },
+    {
+      "action": "setup_question_set",
+      "outcome": "OK",
+      "params": {
+        "index": 0,
+        "raw_text": "{\"problem_statement\":\"Find the total per customer for example 0\",\"task\":\"Aggregate rows for exercise 0\",\"schema\":\"Items0(id INT, customer_id INT)\",\"example_input\":\"(1, 2)\",\"expected_output\":\"(2)\",\"environment\":\"POSTGRESQL\",\"source\":\"OWNER\",\"constraints\":\"One row per key\",\"source_reference\":\"\"}",
+        "source": "OWNER"
+      },
+      "tick_seconds": 0.8664281659999999,
+      "wall_seconds": 1792954549.396191
+    },
+    {
+      "action": "setup_question_confirm",
+      "outcome": "OK",
+      "params": {
+        "fields": {
+          "constraints": "One row per key",
+          "environment": "POSTGRESQL",
+          "example_input": "(1, 2)",
+          "expected_output": "(2)",
+          "problem_statement": "Find the total per customer for example 0",
+          "schema": "Items0(id INT, customer_id INT)",
+          "source": "OWNER",
+          "source_reference": "",
+          "task": "Aggregate rows for exercise 0"
+        },
+        "index": 0,
+        "raw_sha256": "17047dba07b7cba897e834d1fca7ace56e91e2e797254370fe97264fe6a54875"
+      },
+      "tick_seconds": 0.869420541,
+      "wall_seconds": 1792954549.399182
+    },
+    {
+      "action": "setup_question_set",
+      "outcome": "OK",
+      "params": {
+        "index": 1,
+        "raw_text": "{\"problem_statement\":\"Find the total per customer for example 1\",\"task\":\"Aggregate rows for exercise 1\",\"schema\":\"Items1(id INT, customer_id INT)\",\"example_input\":\"(1, 2)\",\"expected_output\":\"(2)\",\"environment\":\"POSTGRESQL\",\"source\":\"OWNER\",\"constraints\":\"One row per key\",\"source_reference\":\"\"}",
+        "source": "OWNER"
+      },
+      "tick_seconds": 0.8730543749999999,
+      "wall_seconds": 1792954549.402816
+    },
+    {
+      "action": "setup_question_confirm",
+      "outcome": "OK",
+      "params": {
+        "fields": {
+          "constraints": "One row per key",
+          "environment": "POSTGRESQL",
+          "example_input": "(1, 2)",
+          "expected_output": "(2)",
+          "problem_statement": "Find the total per customer for example 1",
+          "schema": "Items1(id INT, customer_id INT)",
+          "source": "OWNER",
+          "source_reference": "",
+          "task": "Aggregate rows for exercise 1"
+        },
+        "index": 1,
+        "raw_sha256": "d091010ce71f6aad785d0a1327feeb09342dee987d0cdbd06627ce9fd88e83f5"
+      },
+      "tick_seconds": 0.875345958,
+      "wall_seconds": 1792954549.405108
+    },
+    {
+      "action": "setup_question_set",
+      "outcome": "OK",
+      "params": {
+        "index": 2,
+        "raw_text": "{\"problem_statement\":\"Find the total per customer for example 2\",\"task\":\"Aggregate rows for exercise 2\",\"schema\":\"Items2(id INT, customer_id INT)\",\"example_input\":\"(1, 2)\",\"expected_output\":\"(2)\",\"environment\":\"POSTGRESQL\",\"source\":\"OWNER\",\"constraints\":\"One row per key\",\"source_reference\":\"\"}",
+        "source": "OWNER"
+      },
+      "tick_seconds": 0.878670541,
+      "wall_seconds": 1792954549.408434
+    },
+    {
+      "action": "setup_question_confirm",
+      "outcome": "OK",
+      "params": {
+        "fields": {
+          "constraints": "One row per key",
+          "environment": "POSTGRESQL",
+          "example_input": "(1, 2)",
+          "expected_output": "(2)",
+          "problem_statement": "Find the total per customer for example 2",
+          "schema": "Items2(id INT, customer_id INT)",
+          "source": "OWNER",
+          "source_reference": "",
+          "task": "Aggregate rows for exercise 2"
+        },
+        "index": 2,
+        "raw_sha256": "a9a2acbb42d6cd6725df85f66a066fba301181307878b3da0d79e23c06a62b3e"
+      },
+      "tick_seconds": 0.8818822500000001,
+      "wall_seconds": 1792954549.411645
+    },
+    {
+      "action": "rehearsal_start",
+      "outcome": "OK",
+      "params": {
+        "continuity_policy": "tia-continuity/v2"
+      },
+      "tick_seconds": 1.081899875,
+      "wall_seconds": 1792954549.611669
+    },
+    {
+      "action": "native_prepare_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "kind": "clarify",
+        "mechanism": "STRICT_CHALLENGING",
+        "operation": "verify",
+        "request_id": "F2E2EE91-5A4F-4559-A052-B563AB3D2E8C",
+        "text": ""
+      },
+      "tick_seconds": 1.488500666,
+      "wall_seconds": 1792954550.018282
+    },
+    {
+      "action": "native_commit_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "model": "gpt-4.1-mini",
+        "reply": {
+          "reply": "Synthetic opener for Question 1"
+        },
+        "request_id": "F2E2EE91-5A4F-4559-A052-B563AB3D2E8C",
+        "transaction_id": "6a0f3a4e92e348475a6397e47f89304bfe434395c92d274138209e9bf909ec9d",
+        "usage": null
+      },
+      "tick_seconds": 1.504878291,
+      "wall_seconds": 1792954550.034659
+    },
+    {
+      "action": "native_prepare_preview",
+      "adaptive_policy_version": "E4C2B1",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "kind": "clarify",
+        "mechanism": "STRICT_CHALLENGING",
+        "operation": "reply",
+        "request_id": "7F6C72BE-D11A-4A80-9E72-9F199C4A3855",
+        "text": "Synthetic clarification, no final answer yet."
+      },
+      "tick_seconds": 2.541020541,
+      "wall_seconds": 1792954551.070834
+    },
+    {
+      "action": "native_commit_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "model": "gpt-4.1-mini",
+        "reply": {
+          "reply": "Synthetic follow-up for Question 1 turn 1"
+        },
+        "request_id": "7F6C72BE-D11A-4A80-9E72-9F199C4A3855",
+        "transaction_id": "9c881766acfa996f308ed66edc8f8b884369aa629cbe729e9875310eac3d25f8",
+        "usage": null
+      },
+      "reply_guard_version": "E4C2B2A",
+      "tick_seconds": 2.554856333,
+      "wall_seconds": 1792954551.084669
+    },
+    {
+      "action": "native_prepare_preview",
+      "adaptive_policy_version": "E4C2B1",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "kind": "implement",
+        "mechanism": "STRICT_CHALLENGING",
+        "operation": "reply",
+        "request_id": "C9CBC0CE-7432-4629-AFA4-84DB56DB9EEF",
+        "text": "SELECT customer_id, COUNT(*) AS total FROM Items0 GROUP BY customer_id;"
+      },
+      "tick_seconds": 2.6925732079999998,
+      "wall_seconds": 1792954551.222391
+    },
+    {
+      "action": "native_commit_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "model": "gpt-4.1-mini",
+        "reply": {
+          "reply": "Synthetic follow-up for Question 1 turn 2"
+        },
+        "request_id": "C9CBC0CE-7432-4629-AFA4-84DB56DB9EEF",
+        "transaction_id": "d27651f01d68bbf4969ea7132463b17a67c2cc978001e09c23814c6208aefb06",
+        "usage": null
+      },
+      "reply_guard_version": "E4C2B2A",
+      "tick_seconds": 2.706474916,
+      "wall_seconds": 1792954551.236292
+    },
+    {
+      "action": "rehearsal_submit",
+      "outcome": "OK",
+      "params": {},
+      "tick_seconds": 3.06415875,
+      "wall_seconds": 1792954551.593988
+    },
+    {
+      "action": "rehearsal_skip",
+      "outcome": "OK",
+      "params": {},
+      "tick_seconds": 3.102594541,
+      "wall_seconds": 1792954551.632424
+    },
+    {
+      "action": "native_prepare_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "kind": "clarify",
+        "mechanism": "STRICT_CHALLENGING",
+        "operation": "verify",
+        "request_id": "A64EC16E-8FEC-4E28-A06D-D8CC5E46DD7A",
+        "text": ""
+      },
+      "tick_seconds": 3.333950166,
+      "wall_seconds": 1792954551.863787
+    },
+    {
+      "action": "native_commit_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "model": "gpt-4.1-mini",
+        "reply": {
+          "reply": "Synthetic opener for Question 3"
+        },
+        "request_id": "A64EC16E-8FEC-4E28-A06D-D8CC5E46DD7A",
+        "transaction_id": "ba66c2604b99033f11b8c3771a7cd6a9cb11c657caf44244f8440af2de89699a",
+        "usage": null
+      },
+      "tick_seconds": 3.3537735,
+      "wall_seconds": 1792954551.883611
+    },
+    {
+      "action": "native_prepare_preview",
+      "adaptive_policy_version": "E4C2B1",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "kind": "implement",
+        "mechanism": "STRICT_CHALLENGING",
+        "operation": "reply",
+        "request_id": "774D785D-AEBF-4A03-ADC5-060510F157AE",
+        "text": "SELECT customer_id, COUNT(*) AS total FROM Items2 GROUP BY customer_id;"
+      },
+      "tick_seconds": 3.395267958,
+      "wall_seconds": 1792954551.925107
+    },
+    {
+      "action": "native_commit_preview",
+      "outcome": "OK",
+      "params": {
+        "generation": "8C6EA91B-4E32-4EF5-826F-DCF416B31671",
+        "model": "gpt-4.1-mini",
+        "reply": {
+          "reply": "Synthetic follow-up for Question 3"
+        },
+        "request_id": "774D785D-AEBF-4A03-ADC5-060510F157AE",
+        "transaction_id": "ffcb2fc1b002b8f75eb12f6267f82a54bd0f9b88a7a777251559ff88ef894fe2",
+        "usage": null
+      },
+      "reply_guard_version": "E4C2B2A",
+      "tick_seconds": 3.413150458,
+      "wall_seconds": 1792954551.942989
+    },
+    {
+      "action": "rehearsal_submit",
+      "outcome": "OK",
+      "params": {},
+      "tick_seconds": 3.545559083,
+      "wall_seconds": 1792954552.075402
+    }
+  ],
+  "protocol": "tia-native-tutorial/v1",
+  "schema": "tia-tutorial-save/v1",
+  "state_sha256": "6676535375b1f0503b06f3299f201f76dee09d829f97c799cba361c86a2604f2"
+}

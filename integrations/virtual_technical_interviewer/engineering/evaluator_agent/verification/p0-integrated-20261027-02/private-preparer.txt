@@ -1,0 +1,11 @@
+PASS C1B2 open Native API portal with zero paid calls
+PASS C1B2 credential entered only through Native sheet
+PASS C1B2 3 reviewed questions expose private-preparation button
+PASS C1B2 native confirmation is required before any HTTP
+PASS C1B2 cancellation preserves no-request no-reference state
+PASS C1B2 separate Native confirmation allows one mock request
+PASS C1B2 model result is sealed and never reaches WebKit
+PASS P0 three private references verify locally without additional model calls
+PASS C1B2 second attempt is rejected without a second charge
+PASS C1B2 disconnect clears private memory without rerunning model
+Native UI smoke: PASS — 10 real UI checks; 1 mocked HTTP requests; zero real provider requests

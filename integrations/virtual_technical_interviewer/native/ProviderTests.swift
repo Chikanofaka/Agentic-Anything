@@ -167,6 +167,23 @@ func runProviderTests() -> Int32 {
     redirectSession.invalidateAndCancel()
     check("redirect delegate never forwards Authorization", redirectDenied)
 
+    var completeEvidence = dictionary(role: "evaluator")
+    completeEvidence["input"] = try! TIAPreparerPackage.encoded([
+        "evidence_policy": "tia-evaluator-evidence/v2", "continuity_policy": "tia-continuity/v3",
+        "transcript": String(repeating: "candidate reasoning ", count: 4000)])
+    check("versioned full evaluator conversation fits native transport",
+          try TIAOpenAIAdapter.request(key: key, model: model, spec: TIAModelRequest(completeEvidence)).httpBody!.count > 65536)
+    var otherRole = completeEvidence
+    otherRole["role"] = "interviewer"; otherRole["schema_name"] = "tia_interviewer_reply"
+    check("larger evidence does not widen interviewer request", rejected { try TIAModelRequest(otherRole) })
+    var legacyEvidence = completeEvidence
+    legacyEvidence["input"] = try! TIAPreparerPackage.encoded(["transcript": String(repeating: "x", count: 17000)])
+    check("legacy evaluator retains original input bound", rejected { try TIAModelRequest(legacyEvidence) })
+    completeEvidence["input"] = try! TIAPreparerPackage.encoded([
+        "evidence_policy": "tia-evaluator-evidence/v2", "continuity_policy": "tia-continuity/v3",
+        "transcript": String(repeating: "x", count: 262144)])
+    check("complete conversation capacity bound fails before transport", rejected { try TIAModelRequest(completeEvidence) })
+
     let portal = NativePortal(adapter: TIAOpenAIAdapter(configuration: TIATestHTTPProtocol.configuration()))
     TIATestHTTPProtocol.reset([.reply("Native verification", usage: usage), .reply("One candidate dialogue")])
     check("paid consent mandatory", !portal.activate(key: key, model: model, requestLimit: 2, paidConsent: false))

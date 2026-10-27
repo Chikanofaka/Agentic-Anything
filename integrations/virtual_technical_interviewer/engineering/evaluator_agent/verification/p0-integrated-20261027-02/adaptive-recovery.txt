@@ -1,0 +1,3 @@
+PASS C2C recovery restores prior local evidence and journal without a new provider call
+PASS C2C recovered Q2 remains unverified with zero re-execution
+Native UI smoke: PASS — 2 real UI checks; 0 mocked HTTP requests; zero real provider requests

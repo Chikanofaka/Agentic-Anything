@@ -71,6 +71,7 @@ def public_plan(plan):
             for i, q in enumerate(plan['questions'])
         ],
         'results': copy.deepcopy(plan['results']),
+        **({'continuity_policy': plan['continuity_policy']} if plan.get('continuity_policy') else {}),
         **({'timing': copy.deepcopy(plan['timing'])} if plan.get('timing') else {}),
         'technical': 'NOT_SCORED', 'communication': 'NOT_SCORED',
         'execution': ('SOME_LOCAL_FIXTURES_RUN' if any(x.get('correctness') == 'VERIFIED_LOCAL_FIXTURE'

@@ -124,7 +124,7 @@
       rehearsalStart: "Start LIVE 3-question interview practice (unscored)",
       rehearsalSubmit: "Finish question → Next", rehearsalSkip: "Skip question → Next",
       rehearsalFinish: "Finish interview & freeze record", rehearsalComplete: "Three-question rehearsal complete",
-      rehearsalNote: "Three confirmed questions, up to four candidate turns each. PostgreSQL SQL can be tested only against separately approved local fixtures; Pandas and competency grading remain unavailable.",
+      rehearsalNote: "Three confirmed questions. New interviews allow continuous conversation within each 15-minute question window. PostgreSQL SQL can be tested only against separately approved local fixtures; Pandas and competency grading remain unavailable.",
       evidenceHeading: "Evidence-based technical scorecard · no competency grade",
       evidenceNotice: "Host-derived observations only. Approved local fixtures are not official hidden tests or technical ability percentages.",
       evidenceCovered: "Latest SQL locally verified", evidencePassed: "Latest SQL passed local fixture",
@@ -298,7 +298,7 @@
       rehearsalStart: "开始真实 AI 三题模拟面试（不评分）",
       rehearsalSubmit: "结束本题并进入下一题", rehearsalSkip: "跳过本题并进入下一题",
       rehearsalFinish: "完成面试并冻结记录", rehearsalComplete: "三题模拟面试已完成",
-      rehearsalNote: "三道确认题，每题最多四次交互。SQL 可单独批准本地 PostgreSQL Fixture 执行；Pandas 及综合能力评分仍未开放。",
+      rehearsalNote: "三道确认题。新面试每题 15 分钟，可持续交互。SQL 可单独批准本地 PostgreSQL Fixture 执行；Pandas 及综合能力评分仍未开放。",
       evidenceHeading: "技术面试证据成绩单 · 不生成能力分数",
       evidenceNotice: "仅根据 Host 记录生成。审核过的本地 Fixture 不等于官方隐藏测试，也不代表能力百分比。",
       evidenceCovered: "最终 SQL 已经本地验证的题目", evidencePassed: "最终 SQL 通过本地 Fixture 的题目",
@@ -396,7 +396,7 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate"]);
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate", "preparer_request", "preparer_verify"]);
   const interruptActions = new Set(["preview_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
@@ -1059,7 +1059,11 @@
     if (state.rehearsal?.timing) add(main, rehearsalClock());
     if (state.rehearsal?.status === "ACTIVE") {
       const rs = state.rehearsal;
-      add(main, node("p", `Question ${rs.current_index + 1} / ${rs.question_count} · ${preview.candidate_turns_used} / ${preview.candidate_turn_limit} candidate turns`, "notice"));
+      add(main, node("p", `Question ${rs.current_index + 1} / ${rs.question_count} · ${preview.candidate_turns_used} candidate turns · host-controlled handoff only`, "notice"));
+      const elapsedQ = rs.timing?.questions?.[rs.current_index]?.elapsed_seconds;
+      if (typeof elapsedQ === "number" && rs.timing?.question_limit_seconds === 900) {
+        add(main, node("p", `${state.language === "zh" ? "本题剩余" : "Question time remaining"}: ${formatElapsed(Math.max(0, 900 - elapsedQ))} · ${state.language === "zh" ? "仅最终提交 / 跳过 / 计时归零可转场" : "Only final submit / skip / timeout advances"}`, "notice"));
+      }
     }
     add(main, columns, communicationPlaybook(), conversation(preview.session, true), gradingPanel(), scores(), previewProvenance(preview.prompt_provenance));
     if (preview.session?.receipt) {
@@ -1076,10 +1080,21 @@
     }
     if (state.rehearsal?.status === "ACTIVE") {
       const final = state.rehearsal.current_index === 2;
-      add(main, actions(
-        button("finishRehearsalQuestion", t(final ? "rehearsalFinish" : "rehearsalSubmit"),
-          () => act("rehearsal_submit"), "primary"),
+      const candidateEvents = (preview.session?.events || []).filter(e => e.actor === "candidate");
+      const policy = state.rehearsal?.continuity_policy;
+      const hasSubmittedCode = policy === "tia-continuity/v3"
+        ? candidateEvents.some(e => e.kind === "implement")
+        : candidateEvents.at(-1)?.kind === "implement";
+      const canFinalize = (!["tia-continuity/v2", "tia-continuity/v3"].includes(policy) || hasSubmittedCode) && !preview.pending;
+      const finish = button("finishRehearsalQuestion", t(final ? "rehearsalFinish" : "rehearsalSubmit"),
+        () => act("rehearsal_submit"), "primary");
+      finish.disabled = busy || !canFinalize;
+      finish.dataset.unavailable = String(!canFinalize);
+      add(main, actions(finish,
         button("skipRehearsalQuestion", t("rehearsalSkip"), () => act("rehearsal_skip"), "secondary")));
+      if (!canFinalize) add(main, node("p", state.language === "zh"
+        ? "请先选择提交代码（implement）并发送最终 SQL / Pandas 代码；澄清和计划不会自动结束本题。"
+        : "Send your final SQL / Pandas code using implement before finishing. Clarification and planning do not close this question.", "field-help"));
     }
     add(main, actions(button("openPortal", t("portal"), () => act("api_portal")),
       interruptButton("disconnect", t("disconnected"), "disconnect")),
@@ -1875,7 +1890,7 @@
       state.setup_questions?.length === 3 &&
       state.setup_questions.every(q => q.practice_eligible && q.human_confirmed) &&
       new Set(state.setup_questions.map(q => q.content_sha256)).size === 3;
-    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start"), "primary full-width");
+    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start", {continuity_policy: "tia-continuity/v3"}), "primary full-width");
     start.dataset.unavailable = String(!eligible);
     start.disabled = busy || !eligible;
     return add(node("section", null, "preview-start-card"),
@@ -2031,10 +2046,30 @@
         : "Four-question source review supported; four-question LIVE launch not implemented.", "notice"));
       if (pf.status === "READY_FOR_FUTURE_PRIVATE_PREPARATION") {
         const prep = state.native_private_preparer;
-        const completed = prep?.status === "REFERENCE_UNVERIFIED_AI_PROPOSAL";
+        const completed = ["REFERENCE_UNVERIFIED_AI_PROPOSAL", "REFERENCE_VERIFIED_LOCAL_FIXTURE"].includes(prep?.status);
         add(section, node("p", `${zh ? "原生私有备课" : "Native private preparation"} · ${prep?.status || "NOT_PREPARED"}`, "field-help"));
         if (!completed) add(section, button("preparerRequest", zh ? "私有备课全部题目 · 1 次付费请求" : "Prepare all questions privately · 1 paid request", () => act("preparer_request", {}), "secondary"));
-        if (completed) add(section, node("p", zh ? "仅在原生内存保存未验证方案；没有执行代码或评分。" : "Unverified proposals are held in Native memory only; no code execution or scoring.", "notice"));
+        if (completed) {
+          for (const q of prep.questions || []) {
+            add(section, node("p", `Q${q.index + 1} · ${q.status}`, "field-help"));
+            const binding = node("details", null, "question-review");
+            add(binding, node("summary", zh ? "本地测试题目绑定" : "Local test question binding"), node("code", q.question_sha256, "digest"));
+            add(section, binding);
+            if (q.environment === "POSTGRESQL") add(section, button(`verifyOracle${q.index}`,
+              zh ? `核验第 ${q.index + 1} 题参考方案 · 本地测试` : `Verify Q${q.index + 1} reference · local tests`,
+              () => act("preparer_verify", {question_index: q.index}), "secondary"));
+          }
+          if (prep.verification_pending) add(section, node("p", zh ? "正在本地核验私有参考方案…" : "Verifying private references locally…"),
+            interruptButton("cancelOracle", zh ? "取消核验" : "Cancel verification", "preview_cancel"));
+          add(section, node("p", zh
+            ? "三道题参考方案已准备。每题验证状态见上方；只有独立本地测试通过的方案才标记为已验证。面试官只读取公开题目。"
+            : "References prepared for all three questions. Verification status is shown per question; only independently tested proposals are verified. The interviewer sees public questions only.", "notice"));
+          if (pf.required_count === 3 && (prep?.question_count == null || prep.question_count === 3)) {
+            add(section, node("h3", zh ? "候场室 · 面试官已就绪" : "Waiting room · Interviewer ready"),
+              node("p", zh ? "进入后按题目顺序开始；每题 15 分钟，需明确提交、跳过或计时归零才能转场。" : "Enter in question order. Each question lasts 15 minutes; only final submission, skip or timeout advances.", "field-help"),
+              button("enterPreparedInterview", zh ? "进入面试室 →" : "Enter interview room →", () => act("rehearsal_start", {continuity_policy: "tia-continuity/v3"}), "primary"));
+          }
+        }
       }
       add(main, section);
     }
@@ -2054,7 +2089,9 @@
     add(table, body); add(main, table);
     // Put the actual working path BEFORE long question reviews and provenance.
     if (config.question_source === "BYOQ" && config.duration_minutes === 45) {
-      add(main, rehearsalStartButton());
+      if (!["REFERENCE_UNVERIFIED_AI_PROPOSAL", "REFERENCE_VERIFIED_LOCAL_FIXTURE"].includes(state.native_private_preparer?.status)) {
+        add(main, rehearsalStartButton());
+      }
     }
     if (state.setup_profiles) {
       const section = node("details", null, "question-review");

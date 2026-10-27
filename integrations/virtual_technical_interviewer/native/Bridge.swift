@@ -31,7 +31,7 @@ enum BridgePolicy {
         "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
         "tutorial_complete", "tutorial_replay", "choose_real", "reset",
         "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch",
-        "preview_verify", "preview_close", "preview_cancel", "trainer_request", "preparer_request", "smart_start", "rehearsal_start", "rehearsal_submit", "rehearsal_skip", "rehearsal_tick"
+        "preview_verify", "preview_close", "preview_cancel", "trainer_request", "preparer_request", "smart_start", "rehearsal_submit", "rehearsal_skip", "rehearsal_tick"
     ]
     static func validate(_ value: Any) -> (String, String, [String: Any])? {
         guard let body = value as? [String: Any],
@@ -47,7 +47,10 @@ enum BridgePolicy {
             guard TIAVoiceCompanion.validate(action: action, params: params) else { return nil }
         } else if emptyActions.contains(action) {
             guard params.isEmpty else { return nil }
-        } else if action == "evaluator_generate" {
+        } else if action == "rehearsal_start" {
+            guard Set(params.keys) == ["continuity_policy"],
+                  params["continuity_policy"] as? String == "tia-continuity/v3" else { return nil }
+        } else if action == "evaluator_generate" || action == "preparer_verify" {
             guard Set(params.keys) == ["question_index"],
                   let index = params["question_index"] as? NSNumber,
                   CFGetTypeID(index) != CFBooleanGetTypeID(),

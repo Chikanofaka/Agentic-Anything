@@ -1,0 +1,14 @@
+PASS E1 native rehearsal portal uses synthetic consent only
+PASS E1 three distinct question imports and confirmations render start action
+PASS V2 rehearsal: dispatch Start only
+PASS V2 rehearsal: confirm Host started in API Portal
+PASS V2 rehearsal: dispatch Verify only
+PASS V2 rehearsal: confirm Native/Host first reply
+PASS V2 rehearsal: verify interactive WebKit room
+PASS E4 source-bound examples render in real WebKit room without grading
+PASS E2 timer starts on first presented question, exposes local-only clock
+PASS P0 six successive turns stay on Q1 until explicit Final Submit
+PASS E1 finish Q1, skip Q2, open Q3 without extra calls
+PASS E1 Q3 uses original question context and freezes unscored three-question outcome
+PASS E2 score-free three-question time ledger remains exportable
+Native UI smoke: PASS — 13 real UI checks; 9 mocked HTTP requests; zero real provider requests

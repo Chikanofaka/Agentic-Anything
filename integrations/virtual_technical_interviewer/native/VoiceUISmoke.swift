@@ -70,7 +70,7 @@ final class TIAVoiceUISmoke {
           await panel();
           const s=await snap(),p=s.live_preview;
           return {ok:s.activation.state==='live-verified'&&s.transport_mode==='MOCK_HTTP'
-            &&s.activation.requests_used===1&&p.candidate_turn_limit===4
+            &&s.activation.requests_used===1&&p.candidate_turn_limit===null
             &&p.execution_status==='NOT_RUN'&&p.technical==='NOT_SCORED'&&p.communication==='NOT_SCORED'
             &&el('voiceHandsfree')?.checked===true&&s.voice.listening===true&&el('voiceCaption')?.textContent.trim().length>0};
         """),
@@ -97,7 +97,9 @@ final class TIAVoiceUISmoke {
             &&!s.live_preview.session.events.some(e=>e.actor==='candidate')&&el('voiceHandsfree').checked===false
             &&el('previewResponse').value==='SELECT customer_id, COUNT(*) FROM VoiceItems0 GROUP BY customer_id;'};
         """, action: .transcript("Synthetic clarification from local speech", true)),
-        Step(label: "Manual-mode final recognition is editable and never silently submitted", code: """
+        Step(label: "Manual-mode speech waits five seconds before becoming an editable draft", code: """
+          await pause(800);
+          if(el('voiceDraft')?.value==='Synthetic clarification from local speech')return {ok:false};
           await until(()=>el('voiceDraft')?.value==='Synthetic clarification from local speech');await pause(450);
           const s=await snap();return {ok:s.activation.requests_used===1&&s.live_preview.candidate_turns_used===0
             &&!el('voiceDraft').readOnly&&!s.live_preview.session.events.some(e=>e.actor==='candidate')};
@@ -169,7 +171,7 @@ final class TIAVoiceUISmoke {
           await press('voiceMic');
           return {ok:window.tiaState.activation.requests_used===3};
         """, action: .transcript("I identified duplicate customer rows. Which assumption should I explain before asking for help?", true)),
-        Step(label: "Opted-in final speech submits once within existing model and turn budgets", code: """
+        Step(label: "Opted-in speech seals after five seconds within the approved request budget", code: """
           await until(()=>window.tiaState.live_preview.candidate_turns_used===3
             &&window.tiaState.activation.requests_used===4&&!document.querySelector('[aria-busy="true"]'));
           await pause(350);const s=await snap(),p=s.live_preview,c=p.session.events.filter(e=>e.actor==='candidate');
@@ -189,10 +191,11 @@ final class TIAVoiceUISmoke {
           return {ok:s.voice.listening===false&&s.voice.handsfree===true&&s.voice.draft===''
             &&s.activation.requests_total===4};
         """),
-        Step(label: "Leaving the question freezes dialogue and disables voice", code: """
-          await press('finishRehearsalQuestion','API_PORTAL');const s=await snap();
+        Step(label: "Manual Skip freezes voice-only dialogue while Final Submit requires code", code: """
+          if(!el('finishRehearsalQuestion')?.disabled)return {ok:false};
+          await press('skipRehearsalQuestion','API_PORTAL');const s=await snap();
           window.voiceFrozen=s.rehearsal.results[0].session.receipt.sha256;
-          return {ok:s.rehearsal.current_index===1&&s.rehearsal.results[0].outcome==='DISCUSSION_ONLY'
+          return {ok:s.rehearsal.current_index===1&&s.rehearsal.results[0].outcome==='SKIPPED'
             &&s.rehearsal.results[0].session.receipt.live_model_used===true
             &&!visible(el('voiceCompanion'))&&s.activation.requests_total===4};
         """, action: .transcript("STALE CLOSED QUESTION TRANSCRIPT MUST NOT SEND", true)),

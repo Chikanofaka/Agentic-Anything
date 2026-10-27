@@ -28,7 +28,7 @@ class SessionError(ValueError):
 class SessionConfig:
     session_id: str = 'demo-001'
     duration_seconds: float = 300
-    max_events: int = 128
+    max_events: int | None = 128
     max_input_bytes: int = 8192
 
     def __post_init__(self):
@@ -37,7 +37,9 @@ class SessionConfig:
         if (type(self.duration_seconds) not in (int, float) or
                 not 0 < self.duration_seconds <= 86400):
             raise SessionError('INVALID_SESSION_CONFIG')
-        if type(self.max_events) is not int or not 16 <= self.max_events <= 4096:
+        # None is the Host's explicit continuous-session policy. Legacy callers
+        # retain their exact bounded-event lifecycle. Storage still has byte limits.
+        if self.max_events is not None and (type(self.max_events) is not int or not 16 <= self.max_events <= 4096):
             raise SessionError('INVALID_SESSION_CONFIG')
         if type(self.max_input_bytes) is not int or not 1 <= self.max_input_bytes <= 65536:
             raise SessionError('INVALID_SESSION_CONFIG')
@@ -118,7 +120,9 @@ class InterviewController:
             'execution_status': 'NOT_RUN', 'prompt_sha256': profile['sha256'],
             'source_sha256': profile['source_sha256'],
             'mechanism': profile['mechanism'],
-            'scope': 'One candidate turn; conversational preview, not a technical interview',
+            'scope': ('Continuous conversation during the Host-owned question window; unscored rehearsal'
+                      if self.config.max_events is None else
+                      'One candidate turn; conversational preview, not a technical interview'),
         })
 
     def prepare_native_reply(self, request_id, generation, operation, profile, policy):
@@ -197,7 +201,7 @@ class InterviewController:
         return max(0.0, self._clock() - self._started)
 
     def _append(self, actor, kind, payload, provenance='HOST_VERIFIED'):
-        if len(self._events) >= self.config.max_events:
+        if self.config.max_events is not None and len(self._events) >= self.config.max_events:
             raise SessionError('EVENT_LIMIT')
         event = {'id': f'{self.config.session_id}:{len(self._events) + 1}',
                  'sequence': len(self._events) + 1,
@@ -219,7 +223,7 @@ class InterviewController:
             self.close('timeout')
             raise SessionError('SESSION_EXPIRED')
         # Reserve room for expiry, close, review, handoff and training completion.
-        if len(self._events) >= self.config.max_events - 8:
+        if self.config.max_events is not None and len(self._events) >= self.config.max_events - 8:
             self.close('event_limit')
             raise SessionError('EVENT_LIMIT')
 
@@ -318,7 +322,7 @@ class InterviewController:
             raise SessionError('INVALID_TRANSITION')
         if 'TRAINING' not in self._roles['trainer'].active_states:
             raise SessionError('ROLE_NOT_ALLOWED')
-        if len(self._events) >= self.config.max_events - 2:
+        if self.config.max_events is not None and len(self._events) >= self.config.max_events - 2:
             raise SessionError('EVENT_LIMIT')
         context = {'reviewed_receipt': self.receipt, 'review': copy.deepcopy(self._review)}
         self._busy = True

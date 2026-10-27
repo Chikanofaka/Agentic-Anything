@@ -1,6 +1,8 @@
 import Foundation
+import AVFoundation
 
 private final class TIAVoiceMock: TIAVoiceBackend {
+    var canMonitorDuringPlayback = false
     var autoReady = true
     var listenCount = 0
     var stopCount = 0
@@ -10,14 +12,21 @@ private final class TIAVoiceMock: TIAVoiceBackend {
     var rates: [Double] = []
     var ready: (() -> Void)?
     var transcript: ((String, Bool) -> Void)?
+    var rawTranscript: ((String, Bool) -> Void)?
+    var activity: ((TimeInterval, Bool) -> Void)?
     var failed: ((String) -> Void)?
     var range: ((NSRange) -> Void)?
     var finished: (() -> Void)?
     var speechFailed: ((String) -> Void)?
-    func listen(language: String, ready: @escaping () -> Void,
+    func listen(language: String, ready: @escaping () -> Void, activity: @escaping (TimeInterval, Bool) -> Void,
                 transcript: @escaping (String, Bool) -> Void, failed: @escaping (String) -> Void) {
         listenCount += 1; languages.append(language)
-        self.ready = ready; self.transcript = transcript; self.failed = failed
+        self.ready = ready; self.activity = activity; self.rawTranscript = transcript
+        self.transcript = { text, final in
+            activity(ProcessInfo.processInfo.systemUptime, true)
+            transcript(text, final)
+        }
+        self.failed = failed
         if autoReady { ready() }
     }
     func stopListening() { stopCount += 1 }
@@ -107,8 +116,10 @@ func runVoiceTests() -> Int32 {
         backend.transcript?("Clarify the tie rule", false)
         check("partial caption never submits", string(voice, "partial") == "Clarify the tie rule" && sends.isEmpty)
         backend.transcript?("Clarify the tie rule?", true)
-        check("default final is editable draft", string(voice, "draft") == "Clarify the tie rule?" && !bool(voice, "listening") && sends.isEmpty)
+        voice.finishSyntheticUtterance()
+        check("five-second sealed manual speech is editable draft", string(voice, "draft") == "Clarify the tie rule?" && !bool(voice, "listening") && sends.isEmpty)
         backend.transcript?("duplicate final", true)
+        voice.finishSyntheticUtterance()
         check("duplicate recognizer final ignored", string(voice, "draft") == "Clarify the tie rule?" && sends.isEmpty)
         check("existing draft cannot be silently replaced by recording", voice.perform(action: "voice_listen", params: [:]) == "VOICE_DRAFT_PENDING")
         voice.perform(action: "voice_draft", params: ["text": "Should ties use the lowest ID?"])
@@ -131,15 +142,17 @@ func runVoiceTests() -> Int32 {
         voice.perform(action: "voice_listen", params: [:])
         let late = backend.transcript
         backend.transcript?("I will group by customer", true)
-        check("handsfree final submits once", sends == ["I will group by customer"] && !bool(voice, "listening"))
+        voice.finishSyntheticUtterance()
+        check("handsfree five-second seal submits once", sends == ["I will group by customer"] && !bool(voice, "listening"))
         late?("I will group by customer", true)
         check("handsfree duplicate cannot spend another request", sends.count == 1)
         voice.update(host: host(reply: 2, text: "Check the tie condition."), provider: provider(), busy: false)
         voice.submissionFinished(ok: true)
-        check("speaker and mic are half duplex", bool(voice, "speaking") && !bool(voice, "listening") && backend.listenCount == 1)
+        check("backend without echo monitoring remains half duplex", bool(voice, "speaking") && !bool(voice, "listening") && backend.listenCount == 1)
         backend.finished?()
         check("explicit handsfree resumes after speech", bool(voice, "listening") && backend.listenCount == 2)
         backend.transcript?("Second plan", true)
+        voice.finishSyntheticUtterance()
         voice.submissionFinished(ok: false)
         check("request failure preserves review draft and disables auto retry", sends.count == 2 && string(voice, "draft") == "Second plan" && bool(voice, "handsfree") && !bool(voice, "listening") && string(voice, "error") == "VOICE_SUBMISSION_FAILED")
         voice.submissionFinished(ok: true)
@@ -224,7 +237,7 @@ func runVoiceTests() -> Int32 {
         voice.perform(action: "voice_clear", params: [:])
         voice.perform(action: "voice_listen", params: [:])
         voice.finishSyntheticUtterance()
-        check("bounded empty utterance ends capture", !bool(voice, "listening") && string(voice, "error") == "VOICE_NO_SPEECH")
+        check("empty acoustic endpoint never sends or closes capture", bool(voice, "listening") && string(voice, "draft").isEmpty)
         voice.stop()
     }
     do {
@@ -289,6 +302,7 @@ func runVoiceTests() -> Int32 {
         voice.perform(action: "voice_handsfree", params: ["enabled": true])
         voice.perform(action: "voice_listen", params: [:])
         backend.transcript?("A spoken plan before a real transport transition", true)
+        voice.finishSyntheticUtterance()
         voice.update(host: host(pending: true, canSend: false), provider: provider("connecting", authenticated: true), busy: true)
         check("connecting retains verified room and exact pending draft", bool(voice, "eligible") && string(voice, "draft") == "A spoken plan before a real transport transition")
         check("connecting preserves handsfree consent but stops capture", bool(voice, "handsfree") && !bool(voice, "listening") && !bool(voice, "can_listen") && string(voice, "status") == "WAITING")
@@ -298,6 +312,7 @@ func runVoiceTests() -> Int32 {
         backend.finished?()
         check("handsfree resumes after verified response finishes", bool(voice, "listening") && backend.listenCount == 2)
         backend.transcript?("Retryable second draft", true)
+        voice.finishSyntheticUtterance()
         voice.update(host: host(reply: 2, pending: true, canSend: false), provider: provider("connecting", authenticated: true), busy: true)
         voice.submissionFinished(ok: false)
         voice.update(host: host(reply: 2), provider: provider("unavailable", authenticated: true), busy: false)
@@ -317,7 +332,8 @@ func runVoiceTests() -> Int32 {
         backend.finished?()
         check("entry starts listening after introduction", bool(voice, "listening") && backend.listenCount == 1)
         backend.transcript?("My clarification", true)
-        check("default completed speech sends exactly once", sends == 1)
+        voice.finishSyntheticUtterance()
+        check("default five-second sealed speech sends exactly once", sends == 1)
         voice.submissionFinished(ok: true)
         voice.perform(action: "voice_pause", params: [:])
         voice.update(host: host(), provider: provider(), busy: false)
@@ -352,6 +368,109 @@ func runVoiceTests() -> Int32 {
         voice.perform(action: "voice_listen", params: [:]); backend.ready?()
         check("listen resumes automatic mode after interruption", bool(voice, "listening") && bool(voice, "handsfree"))
         voice.stop()
+    }
+    do {
+        var gate = TIAVoiceSilenceGate()
+        check("no acoustic evidence cannot seal", !gate.maySeal(at: 100))
+        gate.observe(10)
+        check("five-second minimum is exact", !gate.maySeal(at: 14.999) && gate.maySeal(at: 15))
+        gate.observe(14.9)
+        check("resumed candidate speech resets acoustic deadline", !gate.maySeal(at: 19.899) && gate.maySeal(at: 19.9))
+        gate.observe(13); gate.observe(.nan)
+        check("late or invalid activity cannot move deadline backwards", gate.lastActivity == 14.9)
+        check("monotonic backward sample fails closed", !gate.maySeal(at: 2))
+    }
+    do {
+        let (voice, backend) = fixture()
+        var sends = [String]()
+        voice.onSubmit = { _, text in sends.append(text) }
+        voice.perform(action: "voice_handsfree", params: ["enabled": true])
+        voice.perform(action: "voice_listen", params: [:])
+        backend.transcript?("I am still explaining", true)
+        check("recognizer early final never sends or stops listening", sends.isEmpty && bool(voice, "listening"))
+        voice.advanceSyntheticTime(by: 4.8)
+        check("under five seconds cannot seal finalized recognition", sends.isEmpty)
+        voice.injectSyntheticActivity()
+        voice.advanceSyntheticTime(by: 4.8)
+        check("actual speech resets deadline even with unchanged transcript", sends.isEmpty && bool(voice, "listening"))
+        voice.advanceSyntheticTime(by: 0.3)
+        check("five uninterrupted acoustic seconds submit once", sends == ["I am still explaining"])
+        voice.advanceSyntheticTime(by: 10)
+        backend.transcript?("late duplicate final", true)
+        check("duplicate final and stale timer cannot resubmit", sends.count == 1)
+        voice.stop()
+    }
+    do {
+        let backend = TIAVoiceMock(); backend.canMonitorDuringPlayback = true
+        let voice = TIAVoiceCompanion(backend: backend)
+        var sent = [(String, String)]()
+        voice.onSubmit = { sent.append(($0, $1)) }
+        voice.update(host: host(), provider: provider(), busy: false)
+        check("granted permission keeps echo-cancelled detector on during playback",
+              bool(voice, "speaking") && bool(voice, "listening") && bool(voice, "barge_in_monitoring"))
+        let oldFinish = backend.finished
+        let stops = backend.speechStopCount
+        backend.activity?(ProcessInfo.processInfo.systemUptime, false)
+        backend.rawTranscript?("Explain your plan.", true)
+        voice.advanceSyntheticTime(by: 5)
+        check("playback-only recognition cannot seal candidate text", sent.isEmpty && string(voice, "partial").isEmpty)
+        check("unconfirmed impulse does not interrupt interviewer playback", bool(voice, "speaking"))
+        voice.injectSyntheticActivity()
+        check("candidate acoustic onset stops playback before text arrives",
+              !bool(voice, "speaking") && bool(voice, "listening") && backend.speechStopCount == stops + 1)
+        voice.injectSyntheticTranscript("Skip the introduction and read the question", final: true)
+        check("barge-in recognition final alone cannot send", sent.isEmpty)
+        voice.finishSyntheticUtterance()
+        check("introduction interruption remains ordinary candidate dialogue",
+              sent.count == 1 && sent[0].0 == "clarify" && sent[0].1 == "Skip the introduction and read the question")
+        oldFinish?()
+        check("interrupted speech completion cannot restart capture", !bool(voice, "listening"))
+        voice.stop()
+    }
+    do {
+        var detector = TIACandidateSpeechDetector()
+        let silence = [Float](repeating: 0, count: 1024)
+        var impulse = silence; impulse[20] = 0.8
+        check("echo-cancelled silence cannot produce candidate onset", !silence.withUnsafeBufferPointer { detector.observe(samples: $0, sampleRate: 48000) })
+        check("isolated keyboard impulse cannot produce candidate onset", !impulse.withUnsafeBufferPointer { detector.observe(samples: $0, sampleRate: 48000) })
+        var active = false
+        for block in 0..<8 {
+            let radiansPerSample: Double = 2.0 * Double.pi * 200.0 / 48000.0
+            let speechBand: [Float] = (0..<1024).map { sample in
+                let phase = radiansPerSample * Double(block * 1024 + sample)
+                return Float(0.1 * sin(phase))
+            }
+            active = speechBand.withUnsafeBufferPointer { detector.observe(samples: $0, sampleRate: 48000) } || active
+        }
+        check("sustained post-AEC voice-band activity reaches onset detector", active)
+    }
+    do {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
+        func frame(_ value: Float) -> AVAudioPCMBuffer {
+            let result = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)!
+            result.frameLength = 1024
+            for index in 0..<1024 { result.floatChannelData![0][index] = value }
+            return result
+        }
+        var delivered = [Float]()
+        let pipe = TIARecognitionPipe(syntheticSink: { delivered.append($0.floatChannelData![0][0]) })
+        pipe.guardPlayback(true)
+        for _ in 0..<100 { pipe.append(frame(0.1), candidateOnset: false) }
+        check("interviewer playback never enters cumulative recognizer text", delivered.isEmpty)
+        for _ in 0..<8 { pipe.append(frame(0.4), candidateOnset: false) }
+        pipe.append(frame(0.4), candidateOnset: true)
+        check("candidate onset preserves bounded first syllable only", !delivered.isEmpty && delivered.count <= 8 && delivered.allSatisfy { $0 == 0.4 })
+        pipe.append(frame(0.5), candidateOnset: false)
+        check("recognition continues after candidate interrupts playback", delivered.last == 0.5)
+        delivered = []; pipe.guardPlayback(true)
+        pipe.append(frame(0.1), candidateOnset: false)
+        pipe.guardPlayback(false)
+        pipe.append(frame(0.7), candidateOnset: false)
+        check("normal playback completion discards retained echo frames", delivered == [0.7])
+        delivered = []; pipe.guardPlayback(true)
+        pipe.append(frame(0.1), candidateOnset: false); pipe.replace(nil)
+        pipe.append(frame(0.8), candidateOnset: false)
+        check("capture cancellation wipes playback pre-roll", delivered == [0.8])
     }
     print("Voice tests: \(checks - failures) passed, \(failures) failed; microphone captures: 0; synthesized audio: 0; provider requests: 0")
     return failures == 0 ? 0 : 1

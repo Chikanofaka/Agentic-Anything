@@ -1,0 +1,55 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 1,
+  "passed" : 10,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "10 real UI checks; 1 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 open Native API portal with zero paid calls"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 credential entered only through Native sheet"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 3 reviewed questions expose private-preparation button"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 native confirmation is required before any HTTP"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 cancellation preserves no-request no-reference state"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 separate Native confirmation allows one mock request"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 model result is sealed and never reaches WebKit"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "P0 three private references verify locally without additional model calls"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 second attempt is rejected without a second charge"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "C1B2 disconnect clears private memory without rerunning model"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

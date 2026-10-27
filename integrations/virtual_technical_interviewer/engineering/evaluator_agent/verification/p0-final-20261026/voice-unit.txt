@@ -1,0 +1,134 @@
+PASS voice exact empty command voice_listen
+PASS voice no command extras voice_listen
+PASS voice exact empty command voice_pause
+PASS voice no command extras voice_pause
+PASS voice exact empty command voice_replay
+PASS voice no command extras voice_replay
+PASS voice exact empty command voice_clear
+PASS voice no command extras voice_clear
+PASS voice exact empty command voice_send
+PASS voice no command extras voice_send
+PASS voice allowed candidate kind clarify
+PASS voice allowed candidate kind plan
+PASS voice allowed candidate kind test
+PASS voice allowed candidate kind help
+PASS voice no authority-bearing kind implement
+PASS voice no authority-bearing kind SQL
+PASS voice no authority-bearing kind score
+PASS voice no authority-bearing kind run
+PASS voice no authority-bearing kind admin
+PASS voice no arbitrary speech command
+PASS voice no renderer synthetic transcript
+PASS voice exact boolean mute
+PASS voice numeric boolean rejected
+PASS voice handsfree consent parameter exact
+PASS voice UTF8 draft bound
+PASS voice exact 4096-byte draft
+PASS voice rate cannot be boolean
+PASS voice rate bounded
+PASS voice language allowlist
+PASS voice unverified room rejects recording
+PASS voice stored credential is not verification
+PASS voice tutorial cannot use live voice submit
+PASS voice verified room becomes ready
+PASS voice no restored autoplay or microphone
+PASS voice initial committed caption visible without playback
+PASS voice voice needs explicit opt-in
+PASS voice explicit listen accepted
+PASS voice partial caption never submits
+PASS voice five-second sealed manual speech is editable draft
+PASS voice duplicate recognizer final ignored
+PASS voice existing draft cannot be silently replaced by recording
+PASS voice edited draft requires explicit send
+PASS voice existing text request receives exact edited content
+PASS voice pending duplicate send rejected
+PASS voice pending draft immutable
+PASS voice successful send clears draft
+PASS voice handsfree opt-in alone never records
+PASS voice handsfree five-second seal submits once
+PASS voice handsfree duplicate cannot spend another request
+PASS voice backend without echo monitoring remains half duplex
+PASS voice explicit handsfree resumes after speech
+PASS voice request failure preserves review draft and disables auto retry
+PASS voice late completion cannot restart failed recording
+PASS voice pause stops actual backend and stale callback
+PASS voice question transition invalidates recording and draft
+PASS voice disconnect stops capture and invalidates callback
+PASS voice reconnect never resumes capture or prior speech
+PASS voice permissions are explicit pending state
+PASS voice late permission grant after pause cannot record
+PASS voice device STT unavailable fails without auto fallback
+PASS voice provider wait suspends microphone
+PASS voice committed model reply only is spoken
+PASS voice caption range uses UTF16
+PASS voice out of bounds caption range rejected
+PASS voice speaker mute stops backend playback
+PASS voice late speaker completion cannot double-start mic
+PASS voice simulated events never spoken by live companion
+PASS voice turn limit can still play final interviewer reply
+PASS voice turn limit never resumes microphone
+PASS voice turn limit cannot send voice
+PASS voice local language and rate applied
+PASS voice same committed event does not repeat playback
+PASS voice recognizer output byte cap enforced
+PASS voice empty acoustic endpoint never sends or closes capture
+PASS voice silence endpoint creates a draft without paid send
+PASS voice focus loss clears ephemeral draft and stops capture
+PASS voice closed host removes ephemeral voice data
+PASS voice native test injection obeys lifecycle
+PASS voice microphone pause does not mute interviewer playback
+PASS voice missing installed voice reports typed failure
+PASS voice muted reply still updates committed captions
+PASS voice typed request preserves unfinished voice draft
+PASS voice late speech callbacks cannot resurrect closed room
+PASS voice synthetic transcript entrypoint disabled outside testing
+PASS voice missing submission route returns truthful action error
+PASS voice synchronous native rejection returns action failure
+PASS voice rejected manual send preserves editable draft
+PASS voice connecting retains verified room and exact pending draft
+PASS voice connecting preserves handsfree consent but stops capture
+PASS voice real connecting-to-commit transition preserves automatic speech
+PASS voice handsfree resumes after verified response finishes
+PASS voice recoverable unavailable preserves editable voice draft
+PASS voice unavailable stops auto submit and new recording
+PASS voice invalid credential still clears all ephemeral voice data
+PASS voice fresh entry enables handsfree and speaks committed introduction
+PASS voice entry starts listening after introduction
+PASS voice default five-second sealed speech sends exactly once
+PASS voice snapshot never reverses manual pause
+PASS voice new question resets automatic mode
+PASS voice permission failure never retries on snapshot
+PASS voice permission grant while inactive waits for foreground
+PASS voice foreground after permission starts exactly once
+PASS voice pause cancels deferred permission activation
+PASS voice already active permission starts immediately
+PASS voice permission pending preserves automatic preference
+PASS voice permission completion continues automatic listening
+PASS voice external interruption stops audio without changing preference
+PASS voice listen resumes automatic mode after interruption
+PASS voice no acoustic evidence cannot seal
+PASS voice five-second minimum is exact
+PASS voice resumed candidate speech resets acoustic deadline
+PASS voice late or invalid activity cannot move deadline backwards
+PASS voice monotonic backward sample fails closed
+PASS voice recognizer early final never sends or stops listening
+PASS voice under five seconds cannot seal finalized recognition
+PASS voice actual speech resets deadline even with unchanged transcript
+PASS voice five uninterrupted acoustic seconds submit once
+PASS voice duplicate final and stale timer cannot resubmit
+PASS voice granted permission keeps echo-cancelled detector on during playback
+PASS voice playback-only recognition cannot seal candidate text
+PASS voice unconfirmed impulse does not interrupt interviewer playback
+PASS voice candidate acoustic onset stops playback before text arrives
+PASS voice barge-in recognition final alone cannot send
+PASS voice introduction interruption remains ordinary candidate dialogue
+PASS voice interrupted speech completion cannot restart capture
+PASS voice echo-cancelled silence cannot produce candidate onset
+PASS voice isolated keyboard impulse cannot produce candidate onset
+PASS voice sustained post-AEC voice-band activity reaches onset detector
+PASS voice interviewer playback never enters cumulative recognizer text
+PASS voice candidate onset preserves bounded first syllable only
+PASS voice recognition continues after candidate interrupts playback
+PASS voice normal playback completion discards retained echo frames
+PASS voice capture cancellation wipes playback pre-roll
+Voice tests: 133 passed, 0 failed; microphone captures: 0; synthesized audio: 0; provider requests: 0
