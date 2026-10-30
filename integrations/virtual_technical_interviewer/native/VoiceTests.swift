@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import Speech
 
 private final class TIAVoiceMock: TIAVoiceBackend {
     var canMonitorDuringPlayback = false
@@ -428,6 +429,54 @@ func runVoiceTests() -> Int32 {
         voice.stop()
     }
     do {
+        let (voice, backend) = fixture()
+        var sends = 0
+        voice.onSubmit = { _, _ in sends += 1 }
+        voice.perform(action: "voice_handsfree", params: ["enabled": true])
+        voice.perform(action: "voice_listen", params: [:])
+        voice.injectSyntheticActivity()
+        voice.advanceSyntheticTime(by: 7.9)
+        check("speech without transcript gets bounded recognition grace", bool(voice, "listening") && sends == 0)
+        let stale = backend.rawTranscript
+        voice.advanceSyntheticTime(by: 0.2)
+        check("recognition stall unlocks paused draft without an AI request",
+              !bool(voice, "listening") && string(voice, "error") == "VOICE_RECOGNITION_STALLED" && sends == 0 && bool(voice, "handsfree"))
+        voice.perform(action: "voice_draft", params: ["text": "I can continue typing my plan."])
+        stale?("late failed recognition", true)
+        check("manual fallback is editable and cannot be overwritten by stalled recognizer",
+              string(voice, "draft") == "I can continue typing my plan." && sends == 0)
+        voice.perform(action: "voice_clear", params: [:])
+        voice.perform(action: "voice_listen", params: [:])
+        voice.advanceSyntheticTime(by: 10)
+        check("quiet candidate is not treated as a recognizer failure", bool(voice, "listening") && string(voice, "error").isEmpty)
+        voice.injectSyntheticTranscript("A recognized plan", final: false)
+        voice.perform(action: "voice_pause", params: [:])
+        check("intentional edit preserves partial and automatic preference without sending",
+              string(voice, "draft") == "A recognized plan" && !bool(voice, "listening") && bool(voice, "handsfree") && sends == 0)
+        voice.stop()
+    }
+    do {
+        let (voice, backend) = fixture()
+        var sends = 0
+        voice.onSubmit = { _, _ in sends += 1 }
+        voice.perform(action: "voice_listen", params: [:])
+        voice.injectSyntheticActivity()
+        voice.advanceSyntheticTime(by: 4)
+        voice.injectSyntheticTranscript("A partial answer arrived", final: false)
+        voice.injectSyntheticActivity()
+        voice.advanceSyntheticTime(by: 4.1)
+        check("transcription progress cancels the no-words watchdog without losing partial",
+              bool(voice, "listening") && string(voice, "partial") == "A partial answer arrived" && string(voice, "error").isEmpty && sends == 0)
+        voice.finishSyntheticUtterance()
+        check("recognized partial still follows the five-second manual seal",
+              !bool(voice, "listening") && string(voice, "draft") == "A partial answer arrived" && sends == 0)
+        voice.perform(action: "voice_clear", params: [:]); voice.perform(action: "voice_listen", params: [:])
+        voice.injectSyntheticActivity(); backend.failed?("VOICE_RECOGNITION_FAILED")
+        voice.advanceSyntheticTime(by: 9)
+        check("late watchdog cannot replace a reported backend failure", string(voice, "error") == "VOICE_RECOGNITION_FAILED" && sends == 0)
+        voice.stop()
+    }
+    do {
         var detector = TIACandidateSpeechDetector()
         let silence = [Float](repeating: 0, count: 1024)
         var impulse = silence; impulse[20] = 0.8
@@ -459,14 +508,23 @@ func runVoiceTests() -> Int32 {
         check("interviewer playback never enters cumulative recognizer text", delivered.isEmpty)
         for _ in 0..<8 { pipe.append(frame(0.4), candidateOnset: false) }
         pipe.append(frame(0.4), candidateOnset: true)
+        check("barge-in holds candidate pre-roll until fresh recognition is ready", delivered.isEmpty)
+        check("candidate handoff requests a fresh recognizer", pipe.endPlayback())
+        pipe.replace(SFSpeechAudioBufferRecognitionRequest())
         check("candidate onset preserves bounded first syllable only", !delivered.isEmpty && delivered.count <= 8 && delivered.allSatisfy { $0 == 0.4 })
+        let handedOffCount = delivered.count
+        pipe.replace(SFSpeechAudioBufferRecognitionRequest())
+        check("recognizer rotation cannot replay candidate pre-roll twice", delivered.count == handedOffCount)
         pipe.append(frame(0.5), candidateOnset: false)
         check("recognition continues after candidate interrupts playback", delivered.last == 0.5)
         delivered = []; pipe.guardPlayback(true)
         pipe.append(frame(0.1), candidateOnset: false)
-        pipe.guardPlayback(false)
+        check("normal playback completion also requests fresh recognition", pipe.endPlayback())
+        pipe.replace(SFSpeechAudioBufferRecognitionRequest())
         pipe.append(frame(0.7), candidateOnset: false)
         check("normal playback completion discards retained echo frames", delivered == [0.7])
+        pipe.append(frame(0.75), candidateOnset: false)
+        check("natural playback completion keeps forwarding candidate frames", delivered == [0.7, 0.75])
         delivered = []; pipe.guardPlayback(true)
         pipe.append(frame(0.1), candidateOnset: false); pipe.replace(nil)
         pipe.append(frame(0.8), candidateOnset: false)

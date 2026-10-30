@@ -13,6 +13,19 @@ final class TIATestHTTPProtocol: URLProtocol {
             let inner = String(data: try! JSONSerialization.data(withJSONObject: ["reply": text]), encoding: .utf8)!
             return Plan(payload: TIATestHTTPProtocol.envelope(inner, usage: usage))
         }
+        static func evaluator(_ text: String, spec: TIAModelRequest, usage: [String: Int]? = nil) -> Plan {
+            guard spec.evaluatorContract != nil,
+                  let value = try? StrictJSON.object(Data(text.utf8)) as? [String: Any],
+                  let rows = value["assessments"] as? [[Any]], rows.count == TIAEvaluatorReplyContract.ids.count
+            else { return reply(text, usage: usage) }
+            var mapped = [String: Any]()
+            for row in rows {
+                guard row.count == 4, let id = row[0] as? String else { return reply(text, usage: usage) }
+                mapped[id] = ["anchor": row[1], "evidence": row[2], "reason": row[3]]
+            }
+            let inner = String(data: try! JSONSerialization.data(withJSONObject: ["reply": mapped]), encoding: .utf8)!
+            return Plan(payload: TIATestHTTPProtocol.envelope(inner, usage: usage))
+        }
     }
     private static let lock = NSLock()
     private static var plans: [Plan] = []
@@ -183,6 +196,69 @@ func runProviderTests() -> Int32 {
         "evidence_policy": "tia-evaluator-evidence/v2", "continuity_policy": "tia-continuity/v3",
         "transcript": String(repeating: "x", count: 262144)])
     check("complete conversation capacity bound fails before transport", rejected { try TIAModelRequest(completeEvidence) })
+
+    // New long-dialogue evaluator contract constrains generation and validates
+    // the actual selected-question aliases again before reaching Python.
+    var typedInput: [String: Any] = [
+        "evidence_policy": "tia-evaluator-evidence/v2", "continuity_policy": "tia-continuity/v3",
+        "response_contract": TIAEvaluatorReplyContract.version,
+        "conversation": (1...15).map { ["actor": "candidate", "alias": "e\($0)", "event_id": "q1-event-\($0)"] },
+        "criteria": TIAEvaluatorReplyContract.ids.map { id in
+            ["id": id, "allowed_aliases": id == "T02" || id == "C01" ? ["e1", "e7", "e15"] : [],
+             "can_propose_anchor": id == "T02" || id == "C01"] as [String: Any]
+        }, "local_execution": ["status": "NOT_VERIFIED"]]
+    var typedDictionary = dictionary(role: "evaluator")
+    typedDictionary["input"] = try! TIAPreparerPackage.encoded(typedInput)
+    typedDictionary["max_output_tokens"] = 1600
+    let typedSpec = try! TIAModelRequest(typedDictionary)
+    let typedRequest = try! TIAOpenAIAdapter.request(key: key, model: model, spec: typedSpec)
+    let typedBody = try! JSONSerialization.jsonObject(with: typedRequest.httpBody!) as! [String: Any]
+    let typedFormat = (typedBody["text"] as! [String: Any])["format"] as! [String: Any]
+    let typedSchema = typedFormat["schema"] as! [String: Any]
+    let replySchema = (typedSchema["properties"] as! [String: Any])["reply"] as! [String: Any]
+    let properties = replySchema["properties"] as! [String: Any]
+    check("evaluator complete contract separately bounds 1600 tokens", typedSpec.outputTokens == 1600)
+    check("evaluator schema has exactly eleven required criterion objects", Set(replySchema["required"] as! [String]) == Set(TIAEvaluatorReplyContract.ids))
+    let branches = (properties["T02"] as! [String: Any])["anyOf"] as! [[String: Any]]
+    let citationItems = (((branches[1]["properties"] as! [String: Any])["evidence"] as! [String: Any])["items"] as! [String: Any])
+    check("native schema restricts model citations to allowed candidate aliases", citationItems["enum"] as? [String] == ["e1", "e7", "e15"])
+    let t01 = (properties["T01"] as! [String: Any])["properties"] as! [String: Any]
+    check("unverified SQL cannot generate correctness anchor", (t01["anchor"] as! [String: Any])["type"] as? String == "null")
+    var typedRows = Dictionary(uniqueKeysWithValues: TIAEvaluatorReplyContract.ids.map { ($0, ["anchor": NSNull(), "evidence": [], "reason": "No observed evidence."] as [String: Any]) })
+    typedRows["T02"] = ["anchor": 2, "evidence": ["e7", "e15"], "reason": "Candidate explains window semantics."]
+    typedRows["C01"] = ["anchor": 1, "evidence": ["e1"], "reason": "Candidate asks about row grain."]
+    func typedData(_ rows: [String: [String: Any]]) -> Data {
+        let encoded = try! JSONSerialization.data(withJSONObject: ["reply": rows], options: [.sortedKeys])
+        return TIATestHTTPProtocol.envelope(String(decoding: encoded, as: UTF8.self), usage: usage)
+    }
+    let typedReply = try! TIAOpenAIAdapter.parse(typedData(typedRows), status: 200, role: "evaluator", spec: typedSpec)
+    let hostRows = (try! StrictJSON.object(Data(typedReply.text.utf8)) as! [String: Any])["assessments"] as! [[Any]]
+    check("typed evaluator envelope canonicalizes ordered legacy Host rows", hostRows.count == 11 && hostRows[1][0] as? String == "T02" && hostRows[1][2] as? [String] == ["e7", "e15"])
+    for invalidCitations in [["q2-event-1"], ["q1-event-7"], ["e2"], ["e7", "e7"], []] {
+        var bad = typedRows; bad["T02"]!["evidence"] = invalidCitations
+        check("reject unknown cross-question nonallowed duplicate or missing citations", rejected { try TIAOpenAIAdapter.parse(typedData(bad), status: 200, role: "evaluator", spec: typedSpec) })
+    }
+    var badRows = typedRows; badRows["T02"]!["anchor"] = NSNull()
+    check("abstention cannot carry affirmative citations", rejected { try TIAOpenAIAdapter.parse(typedData(badRows), status: 200, role: "evaluator", spec: typedSpec) })
+    badRows = typedRows; badRows["T02"]!["anchor"] = true
+    check("evaluator anchor cannot be boolean", rejected { try TIAOpenAIAdapter.parse(typedData(badRows), status: 200, role: "evaluator", spec: typedSpec) })
+    badRows = typedRows; badRows.removeValue(forKey: "C06")
+    check("evaluator cannot silently omit criteria", rejected { try TIAOpenAIAdapter.parse(typedData(badRows), status: 200, role: "evaluator", spec: typedSpec) })
+    check("new evaluator does not accept unconstrained legacy string response", rejected { try TIAOpenAIAdapter.parse(TIATestHTTPProtocol.envelope("{\"reply\":\"{}\"}"), status: 200, role: "evaluator", spec: typedSpec) })
+    check("interviewer parser cannot accept structured evaluator output", rejected { try TIAOpenAIAdapter.parse(typedData(typedRows), status: 200) })
+    var wrongBudget = typedDictionary; wrongBudget["max_output_tokens"] = 600
+    check("new protocol cannot silently use old truncated budget", rejected { try TIAModelRequest(wrongBudget) })
+    typedInput["response_contract"] = "unknown"
+    typedDictionary["input"] = try! TIAPreparerPackage.encoded(typedInput)
+    check("unregistered evaluator protocol rejected before HTTP", rejected { try TIAModelRequest(typedDictionary) })
+    TIATestHTTPProtocol.reset([.init(payload: typedData(typedRows))])
+    let evaluatorTransport = TIAOpenAIAdapter(configuration: TIATestHTTPProtocol.configuration())
+    var evaluatorResult: Result<TIAProviderReply, TIAProviderFailure>?
+    evaluatorTransport.send(key: key, model: model, spec: typedSpec) { evaluatorResult = $0 }
+    spin({ evaluatorResult != nil }); evaluatorTransport.cancel()
+    if case .success(let reply)? = evaluatorResult {
+        check("mock HTTP typed evaluator retains selected alias and real usage", reply.text == typedReply.text && reply.usage == usage && TIATestHTTPProtocol.calls == 1)
+    } else { check("mock HTTP typed evaluator retains selected alias and real usage", false) }
 
     let portal = NativePortal(adapter: TIAOpenAIAdapter(configuration: TIATestHTTPProtocol.configuration()))
     TIATestHTTPProtocol.reset([.reply("Native verification", usage: usage), .reply("One candidate dialogue")])

@@ -1,0 +1,3 @@
+PASS Evaluator recovery restores immutable artifact offline without another request
+PASS Evaluator language switch preserves artifact and original frozen scores
+Native UI smoke: PASS — 2 real UI checks; 0 mocked HTTP requests; zero real provider requests

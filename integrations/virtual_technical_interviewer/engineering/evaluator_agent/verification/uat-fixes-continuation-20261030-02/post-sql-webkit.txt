@@ -1,0 +1,12 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+PASS Post SQL synthetic bus question records final code and closes without execution
+PASS Post SQL existing assessment remains distinct from later execution
+PASS Post SQL exact source and expected rows require an explicit matching-suite checkbox
+PASS Post SQL cancellation prevents a late local observation
+PASS Post SQL native consent and real local worker append three PASSED case observations
+UI check detail: success({
+    error = "HOST_TIMEOUT";
+    ok = 0;
+})
+Native portal visible: false
+Native UI smoke: FAIL — Post SQL private commits and path injection remain inaccessible from WebKit

@@ -1,0 +1,48 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 2,
+  "passed" : 8,
+  "post_sql_mode" : "NONE",
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "8 real UI checks; 2 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "mock live journey opens actual native paid-consent sheet"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "explicit activation alone remains unverified with zero requests"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "native mock HTTP response crosses Python commit and verifies preview"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "candidate help and real native transport keep model output unscored"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "preview uses compiled instruction provenance and compact accessible controls"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "host closure freezes LIVE_MODEL evidence with no SQL or scores"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "closed preview rejects a late turn without new HTTP or receipt edits"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "disconnect clears authentication and retains truthful usage history"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

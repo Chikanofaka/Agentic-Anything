@@ -396,8 +396,8 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate", "preparer_request", "preparer_verify"]);
-  const interruptActions = new Set(["preview_cancel", "disconnect"]);
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate", "post_sql_execute", "preparer_request", "preparer_verify"]);
+  const interruptActions = new Set(["preview_cancel", "post_sql_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
     busy = value;
@@ -411,6 +411,12 @@
     for (const element of app.querySelectorAll("[data-live-pending]")) element.hidden = !livePending;
   }
   function errorText(code) {
+    if (code === "EVALUATOR_UNCITED_OR_CROSS_QUESTION_EVIDENCE") return state.language === "zh"
+      ? "评估回复的证据引用未通过校验，因此没有保存分数。原始对话仍完整保留；再次评估需要一次新的明确授权。"
+      : "The evaluator reply failed citation validation, so no assessment was saved. Your transcript is preserved. Re-evaluation requires a new explicit authorization.";
+    if (code === "POSTGRES_SERVER_NOT_AVAILABLE") return state.language === "zh"
+      ? "此 Mac 未找到本地 PostgreSQL 执行器。SQL 尚未运行；模型审查不能替代执行结果。"
+      : "No local PostgreSQL executor was found on this Mac. SQL has not run; model review cannot substitute for execution.";
     const mapping = {
       INVALID_CREDENTIALS: "invalidCredential", INVALID_CREDENTIAL: "invalidCredential", UNAUTHORIZED: "invalidCredential",
       MODEL_UNAVAILABLE: "modelUnavailable", RATE_LIMIT: "rateLimited", RATE_LIMITED: "rateLimited",
@@ -1263,6 +1269,8 @@
     add(section, field.field);
     const question = questions.find(q => q.index === evaluatorQuestionIndex);
     const assessment = question.assessment;
+    const practice = communicationPracticeView(question);
+    add(section, postInterviewSQLPanel(question));
     if (assessment) {
       const summary = node("div"); summary.id = "evaluatorAssessment";
       add(summary, badge(`${assessment.provenance} · ${assessment.status}`, "accent"),
@@ -1279,25 +1287,32 @@
       const card = node("section", null, "setup-stat");
       card.id = axis === "technical" ? "evaluatorTechnical" : "evaluatorCommunication";
       const observed = Number.isFinite(summary.proposed_observed_points);
+      const recordedZero = axis === "communication" && practice;
       add(card, node("h3", title),
-        node("p", `${t("evaluatorPoints")}: ` + (observed
+        node("p", recordedZero ? (state.language === "zh" ? "本次记录中的沟通展示：0 / 40" : "Recorded communication demonstration: 0 / 40") : `${t("evaluatorPoints")}: ` + (observed
           ? `${summary.proposed_observed_points} / ${summary.covered_maximum_points}`
           : (assessment ? t("evaluatorNotObserved") : "NOT_EVALUATED"))),
         node("p", `${t("evaluatorCoverage")}: ${summary.observed_dimensions} / ${summary.total_dimensions} · ` +
           `${t("evaluatorWeight")}: ${summary.covered_maximum_points} / ${summary.proposed_maximum_points}`, "field-help"));
-      if (summary.missing_dimensions?.length)
+      if (recordedZero) add(card, node("p", state.language === "zh"
+        ? "此题只记录了代码或纯求助，没有解释性沟通。按练习规则记为零；这不证明沟通能力为零，也不能评估未录入的语音。"
+        : "Only code or a bare help request was recorded. No explanatory communication was demonstrated, so the practice value is zero. This does not measure ability or speech that was never captured.", "notice"));
+      if (summary.missing_dimensions?.length && !recordedZero)
         add(card, node("p", `${t("evaluatorUncertainty")}: ${summary.missing_dimensions.join(", ")}`, "field-help"));
       add(axes, card);
     }
     add(section, axes, node("p", t("evaluatorMissing"), "field-help"));
     for (const criterion of question.dimensions || []) {
       const item = node("details", null, "question-review"); item.id = `evaluatorCriterion-${criterion.id}`;
-      add(item, node("summary", `${criterion.id} · ${criterion.title} · ${criterion.status}`),
+      const practiceRow = practice?.dimensions.find(d => d.id === criterion.id);
+      add(item, node("summary", `${criterion.id} · ${criterion.title} · ${practiceRow?.status || criterion.status}`),
         node("p", `${t("evaluatorWeight")}: ${criterion.proposed_max_points}`, "field-help"));
+      if (practiceRow) add(item, node("p", `${state.language === "zh" ? "本次记录中的练习点数" : "Recorded practice points"}: 0 / ${practiceRow.maximum_points}`, "notice"),
+        node("p", `${state.language === "zh" ? "保留原模型状态" : "Original model status retained"}: ${criterion.status}`, "field-help"));
       if (Number.isInteger(criterion.anchor_0_to_4) && Number.isFinite(criterion.provisional_points)) {
         add(item, node("p", `${t("evaluatorAnchor")}: ${criterion.anchor_0_to_4} / 4 · ` +
           `${t("evaluatorPoints")}: ${criterion.provisional_points} / ${criterion.proposed_max_points}`, "field-help"));
-      } else add(item, node("p", criterion.status === "NOT_EVALUATED" ? "NOT_EVALUATED" : t("evaluatorNotObserved"), "field-help"));
+      } else if (!practiceRow) add(item, node("p", criterion.status === "NOT_EVALUATED" ? "NOT_EVALUATED" : t("evaluatorNotObserved"), "field-help"));
       add(item, node("p", `${t("evaluatorRationale")}: ${criterion.reason || ""}`, "field-help"),
         node("p", `${t("evaluatorConfidence")}: ${criterion.confidence}`, "field-help"));
       for (const evidence of criterion.evidence || []) {
@@ -1320,7 +1335,8 @@
       }
       add(section, item);
     }
-    if (state.native_evaluator_interrupted)
+    if (state.native_evaluator_error_code) add(section, node("p", errorText(state.native_evaluator_error_code), "notice"));
+    else if (state.native_evaluator_interrupted)
       add(section, node("p", t("nativeTrainerInterrupted"), "notice"));
     if (state.native_evaluator_pending) {
       add(section, node("p", t("nativeTrainerPending"), "notice"));
@@ -1352,6 +1368,70 @@
     add(provenance, node("p", "Report SHA-256", "field-help"), node("code", report.sha256, "digest"));
     add(section, provenance);
     return section;
+  }
+
+  // A separate, source-bound practice observation; saved model ratings stay intact.
+  function communicationPracticeView(question) {
+    const value = question?.practice_communication;
+    if (value?.policy !== "tia-recorded-communication/v1" ||
+        value.status !== "NO_RECORDED_DEMONSTRATION" || value.points !== 0 ||
+        value.maximum_points !== 40 || !Array.isArray(value.dimensions) || value.dimensions.length !== 6) return null;
+    return value;
+  }
+
+  function postInterviewSQLPanel(question) {
+    const data = state.post_interview_sql;
+    if (!data || state.screen !== "REHEARSAL_COMPLETE") return null;
+    const zh = state.language === "zh", index = question.index;
+    const panel = node("section", null, "receipt-card"); panel.id = "postInterviewSQL";
+    add(panel, node("h3", zh ? "实际运行此题 SQL · 本地测试" : "Run this question’s SQL · local tests"),
+      node("p", zh ? "使用已冻结的最后一次 SQL 提交，在临时 PostgreSQL 中与预期结果逐例比较。结果标为面试后验证；不会修改原始对话，也不代表覆盖官方隐藏测试或全部边界。"
+        : "Compare the frozen final SQL submission with expected results in temporary PostgreSQL. Results are marked as post-interview verification. They do not change your transcript or establish coverage of official hidden tests or every edge case.", "notice"));
+    const selected = data.results?.[String(index)];
+    if (selected) {
+      add(panel, node("p", `${selected.status} · ${selected.passed} / ${selected.total} · AFTER_INTERVIEW`, "notice"));
+      for (const item of selected.cases || []) add(panel, node("p", `${item.label || item.id || "Case"}: ${item.status || item.result?.status || "NOT_RUN"} · ${item.reason || item.result?.reason || item.result?.error_code || ""}`, "field-help"));
+      add(panel, node("p", zh ? "本次本地测试记录独立保存。若需要 AI 结合新结果重新评估，请使用下方评估按钮并明确授权。"
+        : "This local test record is saved separately. To have AI review the new results, explicitly authorize a new evaluation below.", "field-help"));
+    }
+    if (data.pending) {
+      add(panel, node("p", zh ? "本地 SQL 测试进行中…" : "Local SQL tests are running…", "notice"));
+      const cancel = button("postSQLCancel", zh ? "取消本地测试" : "Cancel local tests", () => act("post_sql_cancel"));
+      cancel.dataset.interrupt = "true"; add(panel, cancel);
+      return panel;
+    }
+    const suites = Array.isArray(data.suites) ? data.suites : [];
+    const options = suites.map(x => [x.id || x.suite_id, x.title || x.label || x.id || x.suite_id]);
+    if (!options.length) return panel;
+    const reviewed = data.review?.question_index === index ? data.review : null;
+    const field = selectField("postSQLSuite", zh ? "选择并核对与题目匹配的测试集" : "Select and review the suite matching your question", options,
+      reviewed?.suite_id || options[0][0]);
+    add(panel, field.field, button("postSQLReview", zh ? "查看用例与预期结果" : "Review cases and expected results",
+      () => act("post_sql_review", {question_index:index, suite_id:field.select.value}), "secondary"));
+    if (reviewed) {
+      const cases = node("details", null, "question-review"); cases.id = "postSQLCases"; cases.open = true;
+      add(cases, node("summary", `${reviewed.title || reviewed.suite_id} · ${reviewed.case_count} ${zh ? "个本地用例" : "local cases"}`));
+      for (const assumption of [reviewed.assumptions].flat().filter(Boolean)) add(cases, node("p", assumption, "notice"));
+      for (const item of reviewed.cases || []) {
+        const detail = node("details", null, "question-review");
+        add(detail, node("summary", item.label || "Case"),
+          node("pre", JSON.stringify(item.fixture, null, 2), "transcript-text")); add(cases, detail);
+      }
+      add(cases, node("code", reviewed.review_sha256, "digest"));
+      const label = node("label", null, "field-help"), checkbox = node("input"); checkbox.type="checkbox"; checkbox.id="postSQLMatches";
+      add(label, checkbox, document.createTextNode(zh ? " 我已核对题意、假设与预期结果；此测试集适用于该题。"
+        : " I reviewed the question, assumptions and expected results; this suite matches the task."));
+      const execute = button("postSQLExecute", zh ? "运行已核对用例 · 无 AI 请求" : "Run reviewed cases · no AI request",
+        () => act("post_sql_execute", {review_sha256:reviewed.review_sha256}), "primary");
+      execute.dataset.unavailable="true"; execute.disabled=true;
+      checkbox.addEventListener("change", () => {
+        const ready = checkbox.checked && field.select.value === reviewed.suite_id;
+        execute.dataset.unavailable=String(!ready); execute.disabled=busy || !ready;
+      });
+      field.select.addEventListener("change", () => {checkbox.checked=false; execute.dataset.unavailable="true"; execute.disabled=true;});
+      add(panel, cases, label, execute);
+    }
+    return panel;
   }
 
   function nativeTrainerPanel() {
@@ -1605,6 +1685,10 @@
         add(group, node("p", `${axis}: ${item.observed_provisional_points ?? "NOT_EVALUATED"} / ${item.covered_weight ?? 0} ` +
           `(${item.observed_dimensions || 0}/${item.total_dimensions || 0} dimensions) · NOT_SCORED`, "field-help"));
       }
+      const practice = question.practice_communication;
+      if (practice?.status === "NO_RECORDED_DEMONSTRATION") add(group, node("p", zh
+        ? "本次记录中的沟通展示：0 / 40（没有解释性沟通记录；保留原模型评估）"
+        : "Recorded communication demonstration: 0 / 40 (no explanation recorded; original model review retained)", "notice"));
       const sql = question.sql || {};
       add(group, node("p", `${zh ? "SQL执行" : "SQL execution"}: ${sql.local_execution || "NOT_VERIFIED"} · ` +
         `${zh ? "静态审查" : "Static SQL review"}: ${sql.static_review || "UNAVAILABLE"} · ` +

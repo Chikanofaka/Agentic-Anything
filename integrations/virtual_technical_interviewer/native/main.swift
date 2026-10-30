@@ -29,11 +29,16 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var lastState: [String: Any] = [:]
     private var portalSheet: NSAlert?
     private var smoke: TIAUISmoke?
-    let uiTesting = CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-evaluator-recovery-test") || CommandLine.arguments.contains("--ui-voice-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
+    let uiTesting = CommandLine.arguments.contains("--ui-post-sql-test") || CommandLine.arguments.contains("--ui-post-sql-recovery-test") || CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-evaluator-recovery-test") || CommandLine.arguments.contains("--ui-voice-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") || CommandLine.arguments.contains("--ui-self-test") || CommandLine.arguments.contains("--ui-recovery-test") || CommandLine.arguments.contains("--ui-setup-test") || CommandLine.arguments.contains("--ui-live-test") || CommandLine.arguments.contains("--ui-live-recovery-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-preparer-test") || CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-adaptive-recovery-test")
     private var liveRequestID: String?
     private var liveGeneration: String?
     private var liveStage = "idle"
     private var privatePreparation: TIAPreparerSeal?
+    private var postSQLRunner = TIAPostInterviewSQLRunner()
+    private var postSQLID: String?
+    private var postSQLToken: String?
+    private var postSQLStage = "idle"
+    private var postSQLCancellationID: String?
     private var oracleOperationID: String?
     private var cancellationIDs = [String]()
     private var evaluatorTestAttempt = 0
@@ -54,7 +59,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     .reply("Before choosing a query, explain how you will handle tied timestamps and NULL dates.", usage: ["input_tokens": 120, "output_tokens": 24, "total_tokens": 144]),
                     .reply("State your own diagnosis first. Which edge case will you check next?", usage: ["input_tokens": 150, "output_tokens": 18, "total_tokens": 168])
                 ] : [])
-                if CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+                if CommandLine.arguments.contains("--ui-post-sql-test") || CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") {
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for SQL grading Q1"),
                         .reply("Please explain your own candidate SQL.")
@@ -126,6 +131,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             worker?.onFailure = { [weak self] in
                 guard let self = self else { return }
                 self.voice.stop(); self.portal.disconnect()
+                self.postSQLRunner.cancel()
+                self.finishPostSQL(ok: false, error: "LOCAL_CONTROLLER_UNAVAILABLE")
                 self.finishLive(ok: false, error: "LOCAL_CONTROLLER_UNAVAILABLE")
                 self.busy = false
                 self.emit(["ok": false, "state": self.lastState, "error": "LOCAL_CONTROLLER_UNAVAILABLE"])
@@ -170,7 +177,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         NSApp.mainMenu = menu
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
-    func applicationWillTerminate(_ notification: Notification) { privatePreparation?.cancelVerification(); voice.stop(); portal.disconnect(); worker?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { postSQLRunner.cancel(); privatePreparation?.cancelVerification(); voice.stop(); portal.disconnect(); worker?.stop() }
     func applicationDidResignActive(_ notification: Notification) {
         // OS permission sheets may temporarily resign activation. The audio
         // backend checks actual App activation again before starting capture.
@@ -232,6 +239,10 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         // Cancellation remains available while a paid request is pending. The
         // renderer can request cancellation but cannot call prepare/commit itself.
+        if action == "post_sql_cancel" || (postSQLID != nil && (action == "disconnect" || action == "preview_cancel")) {
+            if action == "disconnect" { portal.disconnect() }
+            cancelPostSQL(id: id); return
+        }
         if action == "disconnect" || action == "preview_cancel" {
             cancelLive(id: id, disconnect: action == "disconnect"); return
         }
@@ -258,6 +269,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                 emit(["id": id, "ok": false, "error": "INVALID_EVALUATOR_QUESTION"]); return
             }
             beginEvaluator(id: id, questionIndex: index.intValue); return
+        }
+        if action == "post_sql_execute" {
+            beginPostSQL(id: id, reviewSHA: params["review_sha256"] as? String ?? ""); return
         }
         if action == "grade_execute" {
             guard let review = lastState["grading_review"] as? [String: Any],
@@ -417,6 +431,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         Send ONE paid OpenAI evaluation for closed interview question \(questionIndex + 1)?
 
         The native Host will select bounded candidate answer and event evidence.
+        Maximum 1600 output tokens for this evaluation request.
         One request may incur charges even if later cancelled or rejected.
         This is a provisional evidence-linked assessment, NOT an independent
         SQL execution, certified competency grade or hiring prediction.
@@ -476,7 +491,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     (self.portal.publicState["request_limit"] as? Int ?? 0) else {
                 self.cancelPrepared(error: "PAID_CONSENT_OR_BUDGET_EXPIRED"); return
             }
-            if self.uiTesting && CommandLine.arguments.contains("--ui-evaluator-test") {
+            if self.uiTesting && (CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-post-sql-test")) {
                 // Only synthetic transport. Use admissible aliases from the actual
                 // controller packet so the test traverses the production validator.
                 guard let input = try? StrictJSON.object(Data(spec.input.utf8)) as? [String: Any],
@@ -496,14 +511,14 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     self.cancelPrepared(error: "INVALID_SYNTHETIC_EVALUATOR_REPLY"); return
                 }
                 self.evaluatorTestAttempt += 1
-                if self.evaluatorTestAttempt == 1 {
-                    var delayed = TIATestHTTPProtocol.Plan.reply(text)
+                if self.evaluatorTestAttempt == 1 && !CommandLine.arguments.contains("--ui-post-sql-test") {
+                    var delayed = TIATestHTTPProtocol.Plan.evaluator(text, spec: spec)
                     delayed.delay = 1.5
                     TIATestHTTPProtocol.enqueue([delayed])
-                } else if self.evaluatorTestAttempt == 2 {
+                } else if self.evaluatorTestAttempt == 2 && !CommandLine.arguments.contains("--ui-post-sql-test") {
                     TIATestHTTPProtocol.enqueue([.reply("{\"assessments\":[]}")])
                 } else {
-                    TIATestHTTPProtocol.enqueue([.reply(text, usage: ["input_tokens": 300, "output_tokens": 200, "total_tokens": 500])])
+                    TIATestHTTPProtocol.enqueue([.evaluator(text, spec: spec, usage: ["input_tokens": 300, "output_tokens": 200, "total_tokens": 500])])
                 }
             }
             self.liveStage = "evaluator_calling"
@@ -695,9 +710,10 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         let isTrainer = liveStage.hasPrefix("trainer_")
         let isEvaluator = liveStage.hasPrefix("evaluator_")
         liveStage = "cancelling"
-        let action = isEvaluator ? "native_cancel_evaluator" :
+        let rejected = isEvaluator && (error.hasPrefix("EVALUATOR_") || error == "INVALID_PROVIDER_RESPONSE")
+        let action = isEvaluator ? (rejected ? "native_reject_evaluator" : "native_cancel_evaluator") :
             (isTrainer ? "native_cancel_trainer" : "native_cancel_preview")
-        worker?.request(action) { [weak self] response in
+        worker?.request(action, params: rejected ? ["code": error] : [:]) { [weak self] response in
             guard let self = self else { return }
             if let state = response["state"] as? [String: Any] { self.lastState = state }
             self.finishLive(ok: false, error: error)
@@ -791,9 +807,10 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         let syntheticGradeConsent = ["--ui-evaluator-test", "--ui-grading-test", "--ui-smart-test", "--ui-trainer-test", "--ui-adaptive-test", "--ui-adaptive-stale-test"]
             .contains(where: { CommandLine.arguments.contains($0) }) && text.contains("Execute current candidate SQL")
         let syntheticTrainerConsent = CommandLine.arguments.contains("--ui-trainer-test") && text.contains("Send ONE bounded request to OpenAI")
-        let syntheticEvaluatorConsent = CommandLine.arguments.contains("--ui-evaluator-test") && text.contains("Send ONE paid OpenAI evaluation")
+        let syntheticEvaluatorConsent = (CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-post-sql-test")) && text.contains("Send ONE paid OpenAI evaluation")
+        let syntheticPostSQLConsent = CommandLine.arguments.contains("--ui-post-sql-test") && text.hasPrefix("Run 3 reviewed synthetic local PostgreSQL cases")
         let syntheticOracleConsent = CommandLine.arguments.contains("--ui-preparer-test") && text.contains("Verify private reference approaches")
-        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent || syntheticEvaluatorConsent || syntheticOracleConsent) {
+        if uiTesting && (syntheticVoiceConsent || syntheticGradeConsent || syntheticTrainerConsent || syntheticEvaluatorConsent || syntheticOracleConsent || syntheticPostSQLConsent) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 alert.buttons[0].performClick(nil)
             }
@@ -866,6 +883,74 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                 self.emit(["id": id, "ok": false, "state": self.lastState, "error": "ORACLE_VERIFICATION_UNAVAILABLE"])
             }
         }
+    }
+
+    private func beginPostSQL(id: String, reviewSHA: String) {
+        guard lastState["screen"] as? String == "REHEARSAL_COMPLETE",
+              let readout = lastState["post_interview_sql"] as? [String: Any],
+              let review = readout["review"] as? [String: Any],
+              review["review_sha256"] as? String == reviewSHA,
+              let assumptions = review["assumptions"] as? String,
+              let count = review["case_count"] as? Int,
+              let source = review["question_sha256"] as? String,
+              let sql = review["candidate_sql_sha256"] as? String,
+              let runtime = Bundle.main.resourceURL?.appendingPathComponent("runtime") else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "POST_SQL_STALE_REVIEW"]); return
+        }
+        confirm("Run \(count) reviewed synthetic local PostgreSQL cases against this saved SQL?\n\nConfirm the suite matches your question and that you reviewed its expected outputs.\n\n\(assumptions)\n\nQuestion: \(source)\nSQL: \(sql)\nReview: \(reviewSHA)\n\nThis runs after the interview in temporary isolated databases, without an API request. It does not prove all edge cases, change the frozen interview or assign a formal grade.") { [weak self] approved in
+            guard let self = self else { return }
+            guard approved else { self.respondWithState(id); return }
+            self.busy = true; self.postSQLID = id; self.postSQLToken = UUID().uuidString
+            self.postSQLStage = "preparing"
+            let token = self.postSQLToken!
+            self.worker?.request("native_prepare_post_sql", params: ["request_id": id, "generation": token, "review_sha256": reviewSHA]) { [weak self] reply in
+                guard let self = self, self.postSQLID == id else { return }
+                if let state = reply["state"] as? [String: Any] { self.lastState = state }
+                guard reply["ok"] as? Bool == true, let packet = reply["prepared"] as? [String: Any] else {
+                    self.finishPostSQL(ok: false, error: reply["error"] as? String ?? "POST_SQL_PREPARE_FAILED"); return
+                }
+                if self.postSQLToken != token { self.cancelPostSQLPrepared(); return }
+                self.postSQLStage = "executing"
+                let started = self.postSQLRunner.run(packet, runtime: runtime) { [weak self] result in
+                    guard let self = self, self.postSQLID == id, self.postSQLToken == token, self.postSQLStage == "executing" else { return }
+                    guard let result = result else { self.cancelPostSQLPrepared(error: "POST_SQL_EXECUTION_UNAVAILABLE"); return }
+                    self.postSQLStage = "committing"
+                    self.worker?.request("native_commit_post_sql", params: ["result": result]) { [weak self] response in
+                        guard let self = self else { return }
+                        if let state = response["state"] as? [String: Any] { self.lastState = state }
+                        if response["ok"] as? Bool == true { self.finishPostSQL(ok: true, error: nil) }
+                        else { self.cancelPostSQLPrepared(error: response["error"] as? String ?? "POST_SQL_COMMIT_FAILED") }
+                    }
+                }
+                if !started { self.cancelPostSQLPrepared(error: "POST_SQL_EXECUTION_UNAVAILABLE") }
+                else { self.emit(["ok": true, "state": self.lastState]) }
+            }
+        }
+    }
+    private func cancelPostSQL(id: String) {
+        guard postSQLID != nil else { respondWithState(id); return }
+        guard postSQLStage != "committing" else {
+            emit(["id": id, "ok": false, "state": lastState, "error": "COMMIT_ALREADY_SUBMITTED"]); return
+        }
+        postSQLToken = nil; postSQLCancellationID = id; postSQLRunner.cancel()
+        if postSQLStage == "executing" { cancelPostSQLPrepared() }
+    }
+    private func cancelPostSQLPrepared(error: String = "POST_SQL_CANCELLED") {
+        guard postSQLStage != "cancelling" else { return }
+        postSQLStage = "cancelling"
+        worker?.request("native_cancel_post_sql") { [weak self] reply in
+            guard let self = self else { return }
+            if let state = reply["state"] as? [String: Any] { self.lastState = state }
+            self.finishPostSQL(ok: false, error: error)
+        }
+    }
+    private func finishPostSQL(ok: Bool, error: String?) {
+        guard let id = postSQLID else { return }
+        postSQLID = nil; postSQLToken = nil; postSQLStage = "idle"; busy = false
+        var reply: [String: Any] = ["id": id, "ok": ok, "state": lastState]
+        if let error = error { reply["error"] = error }
+        emit(reply)
+        if let cancellation = postSQLCancellationID { postSQLCancellationID = nil; respondWithState(cancellation) }
     }
 
     private func beginPrivatePreparer(id: String) {
@@ -1043,7 +1128,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-rehearsal-test") {
             // Test-only synthetic credential and bounded MOCK_HTTP requests.
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "10")
-        } else if CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+        } else if CommandLine.arguments.contains("--ui-post-sql-test") || CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
         if CommandLine.arguments.contains("--ui-voice-test") {

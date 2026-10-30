@@ -56,13 +56,22 @@ def _verified_grade(grade, question_hash, events, *, skipped=False):
     if (grade.get('correctness') != 'VERIFIED_LOCAL_FIXTURE' or
             not isinstance(details, dict) or details.get('status') not in VERIFIED_STATUSES):
         return dict(default, reason='LOCAL_EXECUTION_NOT_VERIFIED')
+    suite = grade.get('schema') == 'tia-post-interview-sql-accuracy/v1'
+    total = grade.get('total_approved_fixtures')
+    passed = grade.get('passed_fixtures')
+    if suite:
+        observation = grade.get('post_interview_observation') or {}
+        cases = observation.get('cases') or []
+        if (type(total) is not int or not 1 <= total <= 6 or type(passed) is not int or not 0 <= passed <= total
+                or len(cases) != total or sum(c.get('status') == 'PASSED' for c in cases) != passed
+                or any(c.get('status') not in VERIFIED_STATUSES for c in cases)):
+            return dict(default, reason='GRADE_EVIDENCE_MISMATCH')
     if (grade.get('source') != 'EPHEMERAL_POSTGRESQL_LOCAL' or
             grade.get('approval_kind') != 'NATIVE_HUMAN_CONFIRMATION' or
             grade.get('official_hidden_tests') is not False or
             grade.get('question_sha256') != question_hash or
-            grade.get('total_approved_fixtures') != 1 or
-            grade.get('passed_fixtures') not in (0, 1) or
-            (details['status'] == 'PASSED') != (grade['passed_fixtures'] == 1)):
+            (not suite and (total != 1 or passed not in (0, 1))) or
+            (details['status'] == 'PASSED') != (passed == total)):
         return dict(default, reason='GRADE_EVIDENCE_MISMATCH')
     target_id = grade.get('candidate_event_id')
     target_sha = grade.get('candidate_sql_sha256')
@@ -82,15 +91,15 @@ def _verified_grade(grade, question_hash, events, *, skipped=False):
     if type(sql) is not str or hashlib.sha256(sql.encode('utf-8')).hexdigest() != target_sha:
         return dict(default, reason='GRADE_SQL_HASH_MISMATCH')
     observation = {
-        'status': details['status'], 'reason': 'SINGLE_APPROVED_LOCAL_FIXTURE_ONLY',
-        'fixture_passed': grade['passed_fixtures'], 'fixture_total': 1,
+        'status': details['status'], 'reason': 'POST_INTERVIEW_REVIEWED_CASES_ONLY' if suite else 'SINGLE_APPROVED_LOCAL_FIXTURE_ONLY',
+        'fixture_passed': grade['passed_fixtures'], 'fixture_total': total,
         'candidate_event_id': target_id, 'candidate_sql_sha256': target_sha,
         'fixture_sha256': fixture_sha, 'backend': 'EPHEMERAL_POSTGRESQL_LOCAL',
     }
     if implementations[-1].get('id') != target_id:
         # Preserve the observed historical result but never count it as final.
         return dict(observation, status='NOT_VERIFIED', reason='TESTED_PRIOR_SQL_VERSION')
-    if skipped:
+    if skipped and not suite:
         return dict(observation, status='NOT_VERIFIED', reason='QUESTION_SKIPPED_AFTER_TEST')
     return observation
 

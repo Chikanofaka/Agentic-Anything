@@ -1,0 +1,44 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 5,
+  "passed" : 7,
+  "post_sql_mode" : "NONE",
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "7 real UI checks; 5 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "failure journey opens synthetic native consent"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "401 is visible and commits no false interviewer event"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "failure journey reopens synthetic native consent"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "native timeout creates no response and never automatically retries"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "explicit retry can verify via actual mocked transport"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "pending cancellation crosses native and controller without late commit"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "explicit retry reuses recorded candidate evidence then freezes receipt"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

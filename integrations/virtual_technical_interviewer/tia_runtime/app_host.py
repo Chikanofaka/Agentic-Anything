@@ -31,6 +31,7 @@ from .native_contract import PREPARE_FIELDS, COMMIT_FIELDS, validate_prepare, va
 from .rehearsal import create_plan, public_plan, question_from_review, MAX_REHEARSAL_TURNS, RehearsalError
 from .grading_binding import (GradingBindingError, inspect_binding, verify_grade_receipt, find_approved_pg_config)
 from .sql_accuracy import AccuracyError, grade_fixture
+from . import post_interview_sql as post_sql
 from .submission_language import project_language_reviews
 from .preflight_preparer import build_preflight_readiness
 from .host_adaptive_bridge import host_turn_policy, seconds_remaining, POLICY_VERSION, EVIDENCE_POLICY_VERSION
@@ -42,7 +43,8 @@ from .grounded_trainer import build_grounded_trainer
 from .smart_plan import (SmartPlanError, build_smart_plan, start_smart_progress,
                          record_smart_activity, smart_progress_summary)
 from .native_trainer import NativeTrainerError, prepare_native_trainer, commit_native_trainer
-from .native_evaluator import NativeEvaluatorError, build_evaluator_report, prepare_native_evaluator, commit_native_evaluator
+from .native_evaluator import (NativeEvaluatorError, build_evaluator_report, prepare_native_evaluator,
+                               commit_native_evaluator, STRUCTURED_REPLY_CONTRACT, LEGACY_REPLY_PROTOCOL)
 from .evaluator_v1_projection import project_v1_score
 from .evaluator_v1_mock import project_v1_mock, MockContractError
 from .time_intelligence import begin as begin_rehearsal_time, advance as advance_rehearsal_time, start_on_question_presented, request_started, request_finished, close_question, final_metrics, event as time_event
@@ -85,9 +87,13 @@ COMMAND_FIELDS = {
     "rehearsal_tick": set(),
     "smart_start": set(), "smart_record": {"task_id", "kind", "note", "artifact_sha256"},
     "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
+    "post_sql_review": {"question_index", "suite_id"},
+    "native_prepare_post_sql": {"request_id", "generation", "review_sha256"},
+    "native_commit_post_sql": {"result"}, "native_cancel_post_sql": set(),
     # Private native-only trainer IPC; never accepted by WebKit Bridge.
     "native_prepare_evaluator": {"request_id", "generation", "question_index"},
     "native_commit_evaluator": COMMIT_FIELDS, "native_cancel_evaluator": set(),
+    "native_reject_evaluator": {"code"},
     "native_prepare_trainer": {"request_id", "generation"},
     "native_commit_trainer": COMMIT_FIELDS, "native_cancel_trainer": set(),
 }
@@ -166,11 +172,19 @@ class TutorialHost:
         self._practice_question = None
         self._rehearsal = None
         self._grading_review = None
+        self._post_sql_review = None
+        self._post_sql_pending = None
+        self._post_sql_results = {}
+        self._post_sql_observations = []
+        self._evaluator_archive = []
         self._grading_observation = None
         self._replay_observation = None
         self._evaluator_pending = None
+        self._evaluator_protocol = None
+        self._evaluator_replay_protocol = None
         self._evaluator_assessments = {}
         self._evaluator_interrupted = False
+        self._evaluator_error_code = None
         self._trainer_pending = None
         self._native_trainer_feedback = None
         self._trainer_interrupted = False
@@ -234,7 +248,7 @@ class TutorialHost:
         prepare/commit still verify every installed source and fail closed.
         """
         try:
-            return build_evaluator_report(self._rehearsal, self._evaluator_assessments)
+            return build_evaluator_report(self._evaluation_plan(), self._evaluator_assessments)
         except NativeEvaluatorError:
             return {'schema': 'tia-evaluator-report/v1', 'status': 'UNAVAILABLE',
                     'error': 'EVALUATOR_SOURCE_UNAVAILABLE', 'questions': [],
@@ -274,6 +288,7 @@ class TutorialHost:
                 self._rehearsal,
                 self._live_controller.snapshot() if self._live_controller is not None else None)
             result['evaluator_report'] = self._evaluator_report()
+            result['post_interview_sql'] = self._post_sql_state()
             result['evaluator_v1_readout'] = project_v1_score(self._rehearsal)
             # E4D-02B read-only synthetic mock, never a candidate grade or persisted state.
             try:
@@ -282,6 +297,7 @@ class TutorialHost:
                 result['evaluator_v1_mock_readout'] = {'schema': 'tia-evaluator-v1-mock-readout/v1', 'status': 'UNAVAILABLE'}
             result['native_evaluator_pending'] = self._evaluator_pending is not None
             result['native_evaluator_interrupted'] = self._evaluator_interrupted
+            result['native_evaluator_error_code'] = self._evaluator_error_code
             result['evidence_scorecard'] = build_scorecard(self._rehearsal)
             result['communication_evidence'] = build_communication_evidence(self._rehearsal)
             result['grounded_trainer'] = build_grounded_trainer(self._rehearsal)
@@ -339,8 +355,10 @@ class TutorialHost:
         # old save digests must remain byte-for-byte compatible.
         public.pop("evaluator_v1_readout", None)  # display-only; preserve older save digests
         public.pop("evaluator_v1_mock_readout", None)  # no historical save/digest migration
-        for key in ("evaluator_report", "native_evaluator_pending", "native_evaluator_interrupted"):
+        for key in ("evaluator_report", "native_evaluator_pending", "native_evaluator_interrupted", "native_evaluator_error_code"):
             public.pop(key, None)
+        if not (self._post_sql_review or self._post_sql_pending or self._post_sql_results or self._evaluator_archive):
+            public.pop("post_interview_sql", None)
         public.pop("native_trainer_feedback", None)
         public.pop("native_trainer_pending", None)
         public.pop("native_trainer_interrupted", None)
@@ -359,6 +377,17 @@ class TutorialHost:
             raise HostError("INVALID_COMMAND")
         if action == 'rehearsal_start' and params and params.get('continuity_policy') not in ('tia-continuity/v2', 'tia-continuity/v3'):
             raise HostError('INVALID_CONTINUITY_POLICY')
+        if action == 'native_reject_evaluator' and (type(params['code']) is not str or not re.fullmatch(r'(?:EVALUATOR_[A-Z_]{1,70}|INVALID_PROVIDER_RESPONSE)', params['code'])):
+            raise HostError('INVALID_EVALUATOR_REJECTION')
+        if action == 'post_sql_review':
+            if type(params['question_index']) is not int or params['question_index'] not in range(3) or params['suite_id'] not in post_sql.SUITES:
+                raise HostError('POST_SQL_INVALID_SUITE')
+        if action == 'native_prepare_post_sql':
+            if (type(params['review_sha256']) is not str or post_sql.SHA.fullmatch(params['review_sha256']) is None or
+                    any(type(params[k]) is not str or re.fullmatch(r'[A-Za-z0-9_-]{1,80}', params[k]) is None for k in ('request_id','generation'))):
+                raise HostError('POST_SQL_INVALID_TOKEN')
+        if action == 'native_commit_post_sql' and (type(params['result']) is not dict or len(json.dumps(params['result']).encode()) > 16000):
+            raise HostError('POST_SQL_INVALID_RESULT')
         if action == 'native_prepare_preview':
             validate_prepare(params)
         if action == 'grade_inspect':
@@ -618,10 +647,17 @@ class TutorialHost:
         if action == 'rehearsal_tick':
             # Polls are Host-only time checkpoints. Nothing is charged.
             return
+        if action in ('post_sql_review','native_prepare_post_sql','native_commit_post_sql','native_cancel_post_sql'):
+            if self._evaluator_pending is not None or self._trainer_pending is not None:
+                raise HostError('NATIVE_REQUEST_PENDING')
+            self._post_sql_dispatch(action, params)
+            return
+        if self._post_sql_pending is not None:
+            raise HostError('POST_SQL_PENDING')
         if action in ('grade_inspect', 'grade_execute'):
             await self._grade_dispatch(action, params)
             return
-        if action in ('native_prepare_evaluator', 'native_commit_evaluator', 'native_cancel_evaluator'):
+        if action in ('native_prepare_evaluator', 'native_commit_evaluator', 'native_cancel_evaluator', 'native_reject_evaluator'):
             if self._trainer_pending is not None:
                 raise HostError('NATIVE_TRAINER_PENDING')
             self._native_evaluator_dispatch(action, params)
@@ -1014,12 +1050,52 @@ class TutorialHost:
         except SmartPlanError as error:
             raise HostError(error.code) from None
 
+    def _evaluation_plan(self):
+        return post_sql.evaluation_plan(self._rehearsal, self._post_sql_results) if self._post_sql_results else self._rehearsal
+
+    def _post_sql_state(self):
+        return {'schema': post_sql.SCHEMA, 'review': copy.deepcopy(self._post_sql_review),
+                'pending': self._post_sql_pending is not None, 'results': copy.deepcopy(self._post_sql_results),
+                'assessment_archive': copy.deepcopy(self._evaluator_archive),
+                'observations': copy.deepcopy(self._post_sql_observations),
+                'suites': [{'id': key, 'title': item['title'], 'assumptions': item['assumptions']} for key,item in post_sql.SUITES.items()]}
+
+    def _post_sql_dispatch(self, action, params):
+        if action == 'native_cancel_post_sql':
+            if self._post_sql_pending is None: raise HostError('POST_SQL_NOT_PENDING')
+            self._post_sql_pending = None
+            return
+        if self.screen != 'REHEARSAL_COMPLETE': raise HostError('POST_SQL_REQUIRES_CLOSED_INTERVIEW')
+        try:
+            if action == 'post_sql_review':
+                if self._post_sql_pending is not None: raise HostError('POST_SQL_PENDING')
+                self._post_sql_review = post_sql.review(self._rehearsal,params['question_index'],params['suite_id'])
+            elif action == 'native_prepare_post_sql':
+                if self._post_sql_pending is not None or self._post_sql_review is None or params['review_sha256'] != self._post_sql_review['review_sha256']:
+                    raise HostError('POST_SQL_STALE_REVIEW')
+                self._post_sql_pending, self._prepared_return = post_sql.prepare(self._rehearsal,self._post_sql_review,params['request_id'],params['generation'])
+            else:
+                if self._post_sql_pending is None: raise HostError('POST_SQL_NOT_PENDING')
+                result = post_sql.commit(self._rehearsal,self._post_sql_pending,params['result'])
+                index = str(result['question_index'])
+                # Preserve the original assessment as an archive, never reinterpret
+                # its citations against post-interview execution evidence.
+                if index in self._evaluator_assessments:
+                    self._evaluator_archive.append({'question_index': int(index), 'reason': 'NEW_POST_INTERVIEW_EXECUTION',
+                        'assessment': self._evaluator_assessments.pop(index)})
+                self._post_sql_observations.append(copy.deepcopy(result))
+                self._post_sql_results[index] = result
+                self._post_sql_pending = None
+        except post_sql.PostSQLError as error:
+            raise HostError(error.code) from None
+
     def _native_evaluator_dispatch(self, action, params):
-        if action == 'native_cancel_evaluator':
+        if action in ('native_cancel_evaluator', 'native_reject_evaluator'):
             if self._evaluator_pending is None:
                 raise HostError('EVALUATOR_NOT_PENDING')
             self._evaluator_pending = None
-            self._evaluator_interrupted = True
+            self._evaluator_interrupted = action == 'native_cancel_evaluator'
+            self._evaluator_error_code = params['code'] if action == 'native_reject_evaluator' else None
             return
         if (self._rehearsal is None or self._rehearsal['status'] not in
                 ('COMPLETE', 'TIMED_OUT', 'CLOCK_INTEGRITY_HOLD') or
@@ -1031,10 +1107,14 @@ class TutorialHost:
                 raise HostError('EVALUATOR_ALREADY_REQUESTED')
             try:
                 pending, prepared = prepare_native_evaluator(
-                    self._rehearsal, params['request_id'], params['generation'], self.language, index)
+                    self._evaluation_plan(), params['request_id'], params['generation'], self.language, index,
+                    **({'replay_protocol': LEGACY_REPLY_PROTOCOL}
+                       if self._evaluator_replay_protocol == LEGACY_REPLY_PROTOCOL else {}))
             except NativeEvaluatorError as error:
                 raise HostError(error.code) from None
             self._evaluator_pending = pending
+            self._evaluator_protocol = self._evaluator_replay_protocol or STRUCTURED_REPLY_CONTRACT
+            self._evaluator_error_code = None
             self._evaluator_interrupted = False
             self._prepared_return = prepared
             return
@@ -1044,9 +1124,12 @@ class TutorialHost:
         if str(index) in self._evaluator_assessments:
             raise HostError('EVALUATOR_ALREADY_REQUESTED')
         try:
-            artifact = commit_native_evaluator(self._rehearsal, self._evaluator_pending, params)
+            artifact = commit_native_evaluator(self._evaluation_plan(), self._evaluator_pending, params,
+                **({'replay_protocol': LEGACY_REPLY_PROTOCOL}
+                   if self._evaluator_protocol == LEGACY_REPLY_PROTOCOL else {}))
         except NativeEvaluatorError as error:
             raise HostError(error.code) from None
+        self._evaluator_error_code = None
         self._evaluator_assessments[str(index)] = artifact
         self._evaluator_pending = None
         self._evaluator_interrupted = False
@@ -1419,7 +1502,11 @@ class TutorialHost:
                                          {"action", "params", "tick_seconds", "outcome", "wall_seconds"},
                                          {"action", "params", "tick_seconds", "outcome", "wall_seconds", "grade_observation"},
                                          {"action", "params", "tick_seconds", "outcome", "wall_seconds", "adaptive_policy_version"},
-                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "reply_guard_version"})
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "reply_guard_version"},
+                                         {"action", "params", "tick_seconds", "outcome", "wall_seconds", "evaluator_protocol_version"})
+                    or ('evaluator_protocol_version' in item and (
+                        item['action'] != 'native_prepare_evaluator'
+                        or item['evaluator_protocol_version'] != STRUCTURED_REPLY_CONTRACT))
                     or ('adaptive_policy_version' in item and (
                         item['action'] != 'native_prepare_preview'
                         or item['params'].get('operation') != 'reply'
@@ -1441,6 +1528,11 @@ class TutorialHost:
             self._tick = item['tick_seconds']
             self._wall_sample = item.get('wall_seconds')
             self._replay_observation = item.get('grade_observation')
+            # Missing metadata is the shipped protocol, never a request to
+            # reinterpret old transaction IDs using new prompt/context bytes.
+            self._evaluator_replay_protocol = (
+                item.get('evaluator_protocol_version', LEGACY_REPLY_PROTOCOL)
+                if item['action'] == 'native_prepare_evaluator' else None)
             outcome = 'OK'
             self._adaptive_replay_mode = (
                 item.get('adaptive_policy_version', 'LEGACY') if item['action'] == 'native_prepare_preview'
@@ -1459,6 +1551,7 @@ class TutorialHost:
             prior_tick = self._tick
             self._replay_observation = None
         self._adaptive_replay_mode = None
+        self._evaluator_replay_protocol = None
         if self._state_digest() != document["state_sha256"]:
             raise HostError("INVALID_SAVE")
         self._journal = copy.deepcopy(document["journal"])
@@ -1475,6 +1568,8 @@ class TutorialHost:
         # the time until restart remains in the per-question wait bucket.
         if self._live_controller and self._live_controller.native_pending is not None:
             await self.command('native_cancel_preview', {})
+        if self._post_sql_pending is not None:
+            await self.command('native_cancel_post_sql', {})
         if self._evaluator_pending is not None:
             await self.command('native_cancel_evaluator', {})
         if self._trainer_pending is not None:
@@ -1519,8 +1614,10 @@ class TutorialHost:
                           provider_usage_source='Native activation snapshot only; complete session request count unavailable',
                           evaluator_v1_readout=project_v1_score(self._rehearsal),
                           evaluator_report=self._evaluator_report(),
+                          post_interview_sql=self._post_sql_state(),
                           native_evaluator_pending=self._evaluator_pending is not None,
                           native_evaluator_interrupted=self._evaluator_interrupted,
+                          native_evaluator_error_code=self._evaluator_error_code,
                           rehearsal=public_plan(self._rehearsal),
                           evidence_scorecard=build_scorecard(self._rehearsal),
                           communication_evidence=build_communication_evidence(self._rehearsal),
@@ -1614,6 +1711,8 @@ class TutorialHost:
                     else POLICY_VERSION)
             if action == 'native_commit_preview' and outcome == 'OK' and self._last_reply_guard_accepted:
                 entry['reply_guard_version'] = REPLY_GUARD_VERSION
+            if action == 'native_prepare_evaluator':
+                entry['evaluator_protocol_version'] = STRUCTURED_REPLY_CONTRACT
             if action == 'grade_execute' and self._grading_observation is not None:
                 # On replay only the persisted, source-bound observation is used.
                 entry['grade_observation'] = copy.deepcopy(self._grading_observation)
@@ -1639,7 +1738,7 @@ class TutorialHost:
             result = await self.command(request["action"], request["params"])
             if request["action"] == "export":
                 return {"id": request_id, "ok": True, "state": self.state(), "export": result}
-            if request['action'] in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator'):
+            if request['action'] in ('native_prepare_preview', 'native_prepare_trainer', 'native_prepare_evaluator', 'native_prepare_post_sql'):
                 return {'id': request_id, 'ok': True, 'state': result,
                         'prepared': copy.deepcopy(self._prepared_return)}
             return {"id": request_id, "ok": True, "state": result}

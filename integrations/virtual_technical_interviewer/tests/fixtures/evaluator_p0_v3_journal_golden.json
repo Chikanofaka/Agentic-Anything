@@ -1,0 +1,942 @@
+{
+  "assessment": {
+    "authority": "MODEL_PROPOSAL_ONLY",
+    "communication": {
+      "coverage": 0.15,
+      "covered_maximum_points": 6,
+      "missing_dimensions": [
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C06"
+      ],
+      "normalization": "NONE",
+      "observed_dimensions": 1,
+      "proposed_maximum_points": 40,
+      "proposed_observed_points": 3.0,
+      "provisional": true,
+      "score_status": "NOT_SCORED",
+      "total_dimensions": 6
+    },
+    "communication_score": "NOT_SCORED",
+    "context_input_sha256": "17583c30247972a0a8362547eff77a2d3641c646ae1eb9b94af5a73a64ee2205",
+    "decision_trace": {
+      "input_candidate_event_ids": [
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:3",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:5"
+      ],
+      "input_excerpt_truncated_count": 0,
+      "input_interviewer_event_ids": [
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:2",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:4",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:6"
+      ],
+      "ordered_input_event_ids": [
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:2",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:3",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:4",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:5",
+        "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:6"
+      ],
+      "rejected_criterion_ids": [],
+      "schema": "tia-evaluator-decision-trace/v1",
+      "semantic_truth": "HUMAN_REVIEW_REQUIRED",
+      "static_sql_review": {
+        "candidate_event_id": "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:5",
+        "candidate_text_sha256": "17db4fd369edb9244b9f91d9aeed145c3d04ad8ba6e95d06247f07a63527d11a",
+        "correctness": "NOT_VERIFIED",
+        "excerpt_truncated": false,
+        "execution": "NOT_RUN",
+        "status": "STATIC_REVIEW_ONLY"
+      }
+    },
+    "dimensions": [
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "technical",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "T01",
+        "proposed_max_points": 24,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Solution correctness and output integrity"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "technical",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "T02",
+        "proposed_max_points": 13,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Technical model and algorithmic understanding"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "technical",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "T03",
+        "proposed_max_points": 10,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Planning/decomposition and requirement coverage"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "technical",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "T04",
+        "proposed_max_points": 9,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Testing/debugging/repair"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "technical",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "T05",
+        "proposed_max_points": 4,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Resource efficiency and maintainability"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": 2,
+        "axis": "communication",
+        "confidence": "HUMAN_REVIEW_REQUIRED",
+        "evidence": [
+          {
+            "alias": "e1",
+            "event_id": "rehearsal-cc2809042f5742f18bd318632a3d128a-q1:3",
+            "kind": "clarify",
+            "span": {
+              "end": 82,
+              "start": 0,
+              "unit": "UTF8_BYTES"
+            },
+            "text_sha256": "781c9f31d3aae362e2231b2746662c0b1e87f0999e47e64e7588a5e991e0faa0"
+          }
+        ],
+        "id": "C01",
+        "proposed_max_points": 6,
+        "provisional_points": 3.0,
+        "reason": "The cited clarification establishes the requirement.",
+        "status": "MODEL_PROPOSED",
+        "title": "Clarification and expectation alignment"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "communication",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "C02",
+        "proposed_max_points": 7,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Explainable plan and in-flight narration"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "communication",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "C03",
+        "proposed_max_points": 7,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Progress/evidence narrative"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "communication",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "C04",
+        "proposed_max_points": 9,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Gap-to-action translation and bounded assistance request"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "communication",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "C05",
+        "proposed_max_points": 7,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Feedback integration and collaboration-to-execution"
+      },
+      {
+        "admissibility_audit": {
+          "disallowed_proposal_anchor": null,
+          "discarded_irrelevant_citations": [],
+          "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW"
+        },
+        "anchor_0_to_4": null,
+        "axis": "communication",
+        "confidence": "NOT_ASSESSED",
+        "evidence": [],
+        "id": "C06",
+        "proposed_max_points": 4,
+        "provisional_points": null,
+        "reason": "Insufficient evidence for this criterion.",
+        "status": "NOT_OBSERVED",
+        "title": "Professional closure and synthesis"
+      }
+    ],
+    "formula": "max_points * anchor / 4",
+    "formula_version": "tia-observed-proposed-points/v1",
+    "independent_vs_assisted": "NOT_ESTABLISHED",
+    "language": "en",
+    "limits": [
+      "Single local fixture is not general correctness certification.",
+      "Proposed subweights and anchors are uncalibrated; no hiring inference.",
+      "Missing dimensions remain unknown; no renormalization or bonus."
+    ],
+    "model_identifier": "synthetic-prior-evaluator",
+    "overall_grade": "NOT_SCORED",
+    "prompt_sha256": "ddc56e1f2d125c6bcdfebeddb926bc03ebadaeac409b788b1a3d004b62d52055",
+    "proposal": {
+      "assessments": [
+        [
+          "T01",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "T02",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "T03",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "T04",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "T05",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "C01",
+          2,
+          [
+            "e1"
+          ],
+          "The cited clarification establishes the requirement."
+        ],
+        [
+          "C02",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "C03",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "C04",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "C05",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ],
+        [
+          "C06",
+          null,
+          [],
+          "Insufficient evidence for this criterion."
+        ]
+      ]
+    },
+    "provenance": "LIVE_MODEL",
+    "question_index": 0,
+    "question_record_sha256": "037b6098f5891ceab7dc3000a28b1667fdb799dc92b4bd85c7392a2cf3bee09e",
+    "question_sha256": "1e7594c39667f9623368bc063f10062871ded960ffe4fdfbbaabd514f9971deb",
+    "rubric_version": "tia-60-40-owner-hypothesis-v0.3",
+    "schema": "tia-native-evaluator-assessment/v1",
+    "semantic_truth": "HUMAN_REVIEW_REQUIRED",
+    "sha256": "0ddb9361c4fab0eb7a9019bcca77bf3294b0d76d4cfa51e6dd74e3481a1e0c93",
+    "source_sha256": {
+      "agents/evaluator/AGENTS.md": "e49017d6caa71532d2096d5d7b2226b5540257691447a66fb375ed81ac9a307c",
+      "agents/evaluator/identity.md": "96178b91bec8f5dd8073de982cc9327e15db1574de98cab875248c575e3d3c97",
+      "agents/evaluator/skills.md": "59e89655f5d3d73f7f00e2ef151c7d7a089e6b11d7e7c6e2e740dcad196be374",
+      "agents/evaluator/soul.md": "a7a1170d3d454ac04c28cf6edff14160ba023e03b5390c80dcd82aaec0be73ba",
+      "engine/evaluator_p0_guards.py": "9d0ea4b95ffda4f852b2f7ee5eb0f467d49fc82e21b31ddf5291aa011e864886",
+      "engine/evaluator_p0_guards_v2.py": "5206af8fb616016afd70cc4c29423f82eec9160d0453ebaa0a1c4209fad99692",
+      "engine/native_evaluator.py": "d7bd8da1ef6fd45ccce6703fb2b9477139dc8a6af5c31327b73f66b7c82107ff",
+      "evidence/frozen_question": "037b6098f5891ceab7dc3000a28b1667fdb799dc92b4bd85c7392a2cf3bee09e",
+      "policy/evaluator_rubric_v1.json": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f"
+    },
+    "status": "PENDING_HUMAN_REVIEW",
+    "technical": {
+      "coverage": 0.0,
+      "covered_maximum_points": 0,
+      "missing_dimensions": [
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05"
+      ],
+      "normalization": "NONE",
+      "observed_dimensions": 0,
+      "proposed_maximum_points": 60,
+      "proposed_observed_points": null,
+      "provisional": true,
+      "score_status": "NOT_SCORED",
+      "total_dimensions": 5
+    },
+    "technical_score": "NOT_SCORED",
+    "usage": null,
+    "validation": {
+      "arithmetic_host_computed": true,
+      "citation_binding": true,
+      "semantic_gate": "NECESSARY_CONDITIONS_ONLY",
+      "unfamiliar_case_observed": false,
+      "validated_semantic_quality": false
+    }
+  },
+  "completed_document": {
+    "document_sha256": "9ae6308efb81d4f36eb23fa278460e3f41f633c7f915929aafded7c89e73c1cb",
+    "instance_id": "cc2809042f5742f18bd318632a3d128a",
+    "journal": [
+      {
+        "action": "choose_real",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_continue",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_config",
+        "outcome": "OK",
+        "params": {
+          "config": {
+            "difficulty": "HARD",
+            "duration_minutes": 45,
+            "interviewer_mechanism": "STRICT_CHALLENGING",
+            "question_source": "BYOQ",
+            "technical_environment": "POSTGRESQL"
+          }
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_set",
+        "outcome": "OK",
+        "params": {
+          "index": 0,
+          "raw_text": "{\"problem_statement\": \"Question 0: compute a distinct keyed rollup without duplicates.\", \"task\": \"Explain and implement aggregate solution for dataset number 0.\", \"schema\": \"Orders0(order_id INTEGER, customer_id INTEGER, amount DECIMAL)\", \"example_input\": \"[(1, 2, 3)]\", \"expected_output\": \"[(2, 3)]\", \"environment\": \"POSTGRESQL\", \"source\": \"LEETCODE\", \"constraints\": \"A row per order\", \"source_reference\": \"\"}",
+          "source": "LEETCODE"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_confirm",
+        "outcome": "OK",
+        "params": {
+          "fields": {
+            "constraints": "A row per order",
+            "environment": "POSTGRESQL",
+            "example_input": "[(1, 2, 3)]",
+            "expected_output": "[(2, 3)]",
+            "problem_statement": "Question 0: compute a distinct keyed rollup without duplicates.",
+            "schema": "Orders0(order_id INTEGER, customer_id INTEGER, amount DECIMAL)",
+            "source": "LEETCODE",
+            "source_reference": "",
+            "task": "Explain and implement aggregate solution for dataset number 0."
+          },
+          "index": 0,
+          "raw_sha256": "767e85b57c96b4a53da906804ab3ba178dcf1650cec9c75052f7a2118643e758"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_set",
+        "outcome": "OK",
+        "params": {
+          "index": 1,
+          "raw_text": "{\"problem_statement\": \"Question 1: compute a distinct keyed rollup without duplicates.\", \"task\": \"Explain and implement aggregate solution for dataset number 1.\", \"schema\": \"Orders1(order_id INTEGER, customer_id INTEGER, amount DECIMAL)\", \"example_input\": \"[(1, 2, 3)]\", \"expected_output\": \"[(2, 3)]\", \"environment\": \"POSTGRESQL\", \"source\": \"LEETCODE\", \"constraints\": \"A row per order\", \"source_reference\": \"\"}",
+          "source": "LEETCODE"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_confirm",
+        "outcome": "OK",
+        "params": {
+          "fields": {
+            "constraints": "A row per order",
+            "environment": "POSTGRESQL",
+            "example_input": "[(1, 2, 3)]",
+            "expected_output": "[(2, 3)]",
+            "problem_statement": "Question 1: compute a distinct keyed rollup without duplicates.",
+            "schema": "Orders1(order_id INTEGER, customer_id INTEGER, amount DECIMAL)",
+            "source": "LEETCODE",
+            "source_reference": "",
+            "task": "Explain and implement aggregate solution for dataset number 1."
+          },
+          "index": 1,
+          "raw_sha256": "5d04042d950cb9974af8ce9a54528d6230cbf5d808790c27c2df875b20c31e17"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_set",
+        "outcome": "OK",
+        "params": {
+          "index": 2,
+          "raw_text": "{\"problem_statement\": \"Question 2: compute a distinct keyed rollup without duplicates.\", \"task\": \"Explain and implement aggregate solution for dataset number 2.\", \"schema\": \"Orders2(order_id INTEGER, customer_id INTEGER, amount DECIMAL)\", \"example_input\": \"[(1, 2, 3)]\", \"expected_output\": \"[(2, 3)]\", \"environment\": \"POSTGRESQL\", \"source\": \"LEETCODE\", \"constraints\": \"A row per order\", \"source_reference\": \"\"}",
+          "source": "LEETCODE"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_confirm",
+        "outcome": "OK",
+        "params": {
+          "fields": {
+            "constraints": "A row per order",
+            "environment": "POSTGRESQL",
+            "example_input": "[(1, 2, 3)]",
+            "expected_output": "[(2, 3)]",
+            "problem_statement": "Question 2: compute a distinct keyed rollup without duplicates.",
+            "schema": "Orders2(order_id INTEGER, customer_id INTEGER, amount DECIMAL)",
+            "source": "LEETCODE",
+            "source_reference": "",
+            "task": "Explain and implement aggregate solution for dataset number 2."
+          },
+          "index": 2,
+          "raw_sha256": "f7efe109629c12e293c7c40aad189950a05cbede632596f3f2200485c78ea3b9"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_start",
+        "outcome": "OK",
+        "params": {
+          "continuity_policy": "tia-continuity/v3"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "kind": "clarify",
+          "mechanism": "STRICT_CHALLENGING",
+          "operation": "verify",
+          "request_id": "mock-1",
+          "text": ""
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "model": "synthetic-mock",
+          "reply": {
+            "reply": "Synthetic host-governed response"
+          },
+          "request_id": "mock-1",
+          "transaction_id": "7eb4479b2a9e039aff1e554839d563227c5fe4bbfd985fdbe359eeee1bddfe3c",
+          "usage": null
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_preview",
+        "adaptive_policy_version": "E4C2B1",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "kind": "clarify",
+          "mechanism": "STRICT_CHALLENGING",
+          "operation": "reply",
+          "request_id": "mock-2",
+          "text": "Could you clarify the earliest order requirement? My plan is to group by customer."
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "model": "synthetic-mock",
+          "reply": {
+            "reply": "Synthetic host-governed response"
+          },
+          "request_id": "mock-2",
+          "transaction_id": "8e15a3406cb408a9e5b9236ecba31d247170addd0cf2f05b1ffae6d2faa2415d",
+          "usage": null
+        },
+        "reply_guard_version": "E4C2B2A",
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_preview",
+        "adaptive_policy_version": "E4C2B1",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "kind": "implement",
+          "mechanism": "STRICT_CHALLENGING",
+          "operation": "reply",
+          "request_id": "mock-3",
+          "text": "SELECT 1;"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "model": "synthetic-mock",
+          "reply": {
+            "reply": "Synthetic host-governed response"
+          },
+          "request_id": "mock-3",
+          "transaction_id": "7c2cc23ea3ff7bfb37b044a3971ffec4e1d3aca7a2cf13cd12bad07495e82d20",
+          "usage": null
+        },
+        "reply_guard_version": "E4C2B2A",
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_submit",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_skip",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_skip",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_evaluator",
+        "outcome": "OK",
+        "params": {
+          "generation": "prior-generation",
+          "question_index": 0,
+          "request_id": "prior-evaluator"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_evaluator",
+        "outcome": "OK",
+        "params": {
+          "generation": "prior-generation",
+          "model": "synthetic-prior-evaluator",
+          "reply": {
+            "reply": "{\"assessments\":[[\"T01\",null,[],\"Insufficient evidence for this criterion.\"],[\"T02\",null,[],\"Insufficient evidence for this criterion.\"],[\"T03\",null,[],\"Insufficient evidence for this criterion.\"],[\"T04\",null,[],\"Insufficient evidence for this criterion.\"],[\"T05\",null,[],\"Insufficient evidence for this criterion.\"],[\"C01\",2,[\"e1\"],\"The cited clarification establishes the requirement.\"],[\"C02\",null,[],\"Insufficient evidence for this criterion.\"],[\"C03\",null,[],\"Insufficient evidence for this criterion.\"],[\"C04\",null,[],\"Insufficient evidence for this criterion.\"],[\"C05\",null,[],\"Insufficient evidence for this criterion.\"],[\"C06\",null,[],\"Insufficient evidence for this criterion.\"]]}"
+          },
+          "request_id": "prior-evaluator",
+          "transaction_id": "2911b661bfd17b8cd12bbffe39752f74f7f7aacadc3ca2dc37088bf0d963c378",
+          "usage": null
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      }
+    ],
+    "protocol": "tia-native-tutorial/v1",
+    "schema": "tia-tutorial-save/v1",
+    "state_sha256": "2e5d5133ae3d802c9d940c3beeec0e2bf5b87e0ce1cade5658c33d7cd1d2c7bf"
+  },
+  "origin": "Synthetic ContinuityV3Tests dialogue; evaluator executed from git edd8c75; no user session or provider request.",
+  "pending_document": {
+    "document_sha256": "ce94b38daeb16678e64d7b1a91bd91d61eb462b113245e2433fd5a4a4a1b113c",
+    "instance_id": "cc2809042f5742f18bd318632a3d128a",
+    "journal": [
+      {
+        "action": "choose_real",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_continue",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_config",
+        "outcome": "OK",
+        "params": {
+          "config": {
+            "difficulty": "HARD",
+            "duration_minutes": 45,
+            "interviewer_mechanism": "STRICT_CHALLENGING",
+            "question_source": "BYOQ",
+            "technical_environment": "POSTGRESQL"
+          }
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_set",
+        "outcome": "OK",
+        "params": {
+          "index": 0,
+          "raw_text": "{\"problem_statement\": \"Question 0: compute a distinct keyed rollup without duplicates.\", \"task\": \"Explain and implement aggregate solution for dataset number 0.\", \"schema\": \"Orders0(order_id INTEGER, customer_id INTEGER, amount DECIMAL)\", \"example_input\": \"[(1, 2, 3)]\", \"expected_output\": \"[(2, 3)]\", \"environment\": \"POSTGRESQL\", \"source\": \"LEETCODE\", \"constraints\": \"A row per order\", \"source_reference\": \"\"}",
+          "source": "LEETCODE"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_confirm",
+        "outcome": "OK",
+        "params": {
+          "fields": {
+            "constraints": "A row per order",
+            "environment": "POSTGRESQL",
+            "example_input": "[(1, 2, 3)]",
+            "expected_output": "[(2, 3)]",
+            "problem_statement": "Question 0: compute a distinct keyed rollup without duplicates.",
+            "schema": "Orders0(order_id INTEGER, customer_id INTEGER, amount DECIMAL)",
+            "source": "LEETCODE",
+            "source_reference": "",
+            "task": "Explain and implement aggregate solution for dataset number 0."
+          },
+          "index": 0,
+          "raw_sha256": "767e85b57c96b4a53da906804ab3ba178dcf1650cec9c75052f7a2118643e758"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_set",
+        "outcome": "OK",
+        "params": {
+          "index": 1,
+          "raw_text": "{\"problem_statement\": \"Question 1: compute a distinct keyed rollup without duplicates.\", \"task\": \"Explain and implement aggregate solution for dataset number 1.\", \"schema\": \"Orders1(order_id INTEGER, customer_id INTEGER, amount DECIMAL)\", \"example_input\": \"[(1, 2, 3)]\", \"expected_output\": \"[(2, 3)]\", \"environment\": \"POSTGRESQL\", \"source\": \"LEETCODE\", \"constraints\": \"A row per order\", \"source_reference\": \"\"}",
+          "source": "LEETCODE"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_confirm",
+        "outcome": "OK",
+        "params": {
+          "fields": {
+            "constraints": "A row per order",
+            "environment": "POSTGRESQL",
+            "example_input": "[(1, 2, 3)]",
+            "expected_output": "[(2, 3)]",
+            "problem_statement": "Question 1: compute a distinct keyed rollup without duplicates.",
+            "schema": "Orders1(order_id INTEGER, customer_id INTEGER, amount DECIMAL)",
+            "source": "LEETCODE",
+            "source_reference": "",
+            "task": "Explain and implement aggregate solution for dataset number 1."
+          },
+          "index": 1,
+          "raw_sha256": "5d04042d950cb9974af8ce9a54528d6230cbf5d808790c27c2df875b20c31e17"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_set",
+        "outcome": "OK",
+        "params": {
+          "index": 2,
+          "raw_text": "{\"problem_statement\": \"Question 2: compute a distinct keyed rollup without duplicates.\", \"task\": \"Explain and implement aggregate solution for dataset number 2.\", \"schema\": \"Orders2(order_id INTEGER, customer_id INTEGER, amount DECIMAL)\", \"example_input\": \"[(1, 2, 3)]\", \"expected_output\": \"[(2, 3)]\", \"environment\": \"POSTGRESQL\", \"source\": \"LEETCODE\", \"constraints\": \"A row per order\", \"source_reference\": \"\"}",
+          "source": "LEETCODE"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "setup_question_confirm",
+        "outcome": "OK",
+        "params": {
+          "fields": {
+            "constraints": "A row per order",
+            "environment": "POSTGRESQL",
+            "example_input": "[(1, 2, 3)]",
+            "expected_output": "[(2, 3)]",
+            "problem_statement": "Question 2: compute a distinct keyed rollup without duplicates.",
+            "schema": "Orders2(order_id INTEGER, customer_id INTEGER, amount DECIMAL)",
+            "source": "LEETCODE",
+            "source_reference": "",
+            "task": "Explain and implement aggregate solution for dataset number 2."
+          },
+          "index": 2,
+          "raw_sha256": "f7efe109629c12e293c7c40aad189950a05cbede632596f3f2200485c78ea3b9"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_start",
+        "outcome": "OK",
+        "params": {
+          "continuity_policy": "tia-continuity/v3"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "kind": "clarify",
+          "mechanism": "STRICT_CHALLENGING",
+          "operation": "verify",
+          "request_id": "mock-1",
+          "text": ""
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "model": "synthetic-mock",
+          "reply": {
+            "reply": "Synthetic host-governed response"
+          },
+          "request_id": "mock-1",
+          "transaction_id": "7eb4479b2a9e039aff1e554839d563227c5fe4bbfd985fdbe359eeee1bddfe3c",
+          "usage": null
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_preview",
+        "adaptive_policy_version": "E4C2B1",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "kind": "clarify",
+          "mechanism": "STRICT_CHALLENGING",
+          "operation": "reply",
+          "request_id": "mock-2",
+          "text": "Could you clarify the earliest order requirement? My plan is to group by customer."
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "model": "synthetic-mock",
+          "reply": {
+            "reply": "Synthetic host-governed response"
+          },
+          "request_id": "mock-2",
+          "transaction_id": "8e15a3406cb408a9e5b9236ecba31d247170addd0cf2f05b1ffae6d2faa2415d",
+          "usage": null
+        },
+        "reply_guard_version": "E4C2B2A",
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_preview",
+        "adaptive_policy_version": "E4C2B1",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "kind": "implement",
+          "mechanism": "STRICT_CHALLENGING",
+          "operation": "reply",
+          "request_id": "mock-3",
+          "text": "SELECT 1;"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_commit_preview",
+        "outcome": "OK",
+        "params": {
+          "generation": "synthetic-generation",
+          "model": "synthetic-mock",
+          "reply": {
+            "reply": "Synthetic host-governed response"
+          },
+          "request_id": "mock-3",
+          "transaction_id": "7c2cc23ea3ff7bfb37b044a3971ffec4e1d3aca7a2cf13cd12bad07495e82d20",
+          "usage": null
+        },
+        "reply_guard_version": "E4C2B2A",
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_submit",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_skip",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "rehearsal_skip",
+        "outcome": "OK",
+        "params": {},
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      },
+      {
+        "action": "native_prepare_evaluator",
+        "outcome": "OK",
+        "params": {
+          "generation": "prior-generation",
+          "question_index": 0,
+          "request_id": "prior-evaluator"
+        },
+        "tick_seconds": 0.0,
+        "wall_seconds": 1792800000.0
+      }
+    ],
+    "protocol": "tia-native-tutorial/v1",
+    "schema": "tia-tutorial-save/v1",
+    "state_sha256": "2e5d5133ae3d802c9d940c3beeec0e2bf5b87e0ce1cade5658c33d7cd1d2c7bf"
+  }
+}

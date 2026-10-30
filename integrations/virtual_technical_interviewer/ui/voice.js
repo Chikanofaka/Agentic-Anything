@@ -19,7 +19,8 @@
       privacy: "Audio stays on this Mac. On-device speech recognition must be available. Only speech you send becomes interview text sent to the already authorized AI provider. No audio API calls.",
       statusPermission: "Waiting for microphone permission", statusReady: "Ready · mic paused", statusListen: "Listening on this Mac", statusSpeak: "Interviewer speaking", statusWaiting: "Waiting for interviewer", statusPaused: "Mic paused", statusMuted: "Voice muted",
       statusUnavailable: "Local speech unavailable", failed: "Voice action could not finish. You can keep using the text interview.", permission: "Allow microphone and speech recognition in macOS Privacy & Security, then try again.", unavailable: "On-device recognition is unavailable for this language. Choose another installed language or use the text interview.", cancelled: "Voice action cancelled. No new request was sent.", limit: "The approved turn or request limit has been reached. Use the interview controls to continue.",
-      count: "Approved AI requests", listeningEdit: "Pause the microphone to edit your draft.",
+      count: "Approved AI requests", listeningEdit: "Click the draft or Edit draft to pause the mic and type.", edit: "Edit draft",
+      stalled: "Speech was detected, but no words arrived. The mic is paused. Type here, or press Listen to try local recognition again.",
     },
     zh: {
       title: "面试官", companion: "面试官语音伙伴", open: "展开语音伙伴", collapse: "收起语音伙伴",
@@ -35,7 +36,8 @@
       privacy: "音频留在这台 Mac 上，须支持设备端识别。只有你发送的文字会成为面试记录，并交给已授权的 AI 服务。没有音频 API 调用。",
       statusPermission: "等待麦克风授权", statusReady: "已就绪 · 麦克风暂停", statusListen: "正在本机听取", statusSpeak: "面试官正在朗读", statusWaiting: "正在等待面试官", statusPaused: "麦克风已暂停", statusMuted: "朗读已静音",
       statusUnavailable: "本地识别不可用", failed: "语音操作未能完成；你仍可通过文字继续面试。", permission: "请在 macOS“隐私与安全性”中允许麦克风与语音识别后重试。", unavailable: "当前语言的设备端识别不可用。请选择其他已安装语言或通过文字继续。", cancelled: "语音操作已取消，没有发送新请求。", limit: "已达到授权的交互或请求上限，请使用面试控制继续。",
-      count: "已授权 AI 请求", listeningEdit: "暂停麦克风后可编辑草稿。",
+      count: "已授权 AI 请求", listeningEdit: "点击草稿或“编辑草稿”，即可暂停收音并输入文字。", edit: "编辑草稿",
+      stalled: "检测到讲话，但识别没有返回文字。已暂停麦克风。可在这里输入，或点击“开始听取”重试本地识别。",
     },
   };
   let send = null, host = null, voice = {}, refs = null;
@@ -62,6 +64,7 @@
   const hasTurn = () => host?.live_preview?.can_send === true && !host.live_preview.pending;
   const errorMessage = code => {
     if (!code) return "";
+    if (code === "VOICE_RECOGNITION_STALLED") return t("stalled");
     if (/PERMISSION|DENIED|RESTRICTED/.test(code)) return t("permission");
     if (/UNAVAILABLE|ON_DEVICE|RECOGNITION_UNSUPPORTED/.test(code)) return t("unavailable");
     if (/CANCELLED/.test(code)) return t("cancelled");
@@ -155,6 +158,19 @@
     const draftLabel = node("label"); draftLabel.htmlFor = "voiceDraft";
     const draft = node("textarea", "voiceDraft"); draft.rows = 3; draft.maxLength = 4096;
     draft.setAttribute("aria-describedby", "voiceDraftHelp voiceByteCount"); draft.setAttribute("spellcheck", "true");
+    const editDraft = () => {
+      if (actionPending || host?.live_preview?.pending || !eligible()) return;
+      perform(async () => {
+        // Native pause atomically preserves the latest partial and invalidates
+        // late recognizer callbacks before this draft becomes editable.
+        if (voice.listening || voice.listening_requested) await command("voice_pause");
+        draft.focus({preventScroll: true});
+      });
+    };
+    const edit = button("voiceEdit", editDraft);
+    for (const event of ["pointerdown", "focus"]) draft.addEventListener(event, () => {
+      if (voice.listening || voice.listening_requested) editDraft();
+    });
     draft.addEventListener("compositionstart", () => { composing = true; });
     draft.addEventListener("compositionend", () => { composing = false; draftInput(); });
     const draftInput = () => { localDraft = draft.value; draftDirty = true; draftRevision += 1; localError = ""; paintControls(); };
@@ -172,7 +188,7 @@
       await flushDraft(); await command("voice_send");
     }), "voice-primary");
     const draftActions = node("div", null, "voice-row"); draftActions.append(clear, submit);
-    form.append(kindLabel, kind, draftLabel, draft, partial, byteCount, draftHelp, draftActions);
+    form.append(kindLabel, kind, draftLabel, edit, draft, partial, byteCount, draftHelp, draftActions);
     const handsfreeRow = node("label", null, "voice-check");
     const handsfree = node("input", "voiceHandsfree"); handsfree.type = "checkbox";
     const handsfreeText = node("span"); handsfreeRow.append(handsfree, handsfreeText);
@@ -200,7 +216,7 @@
     const error = node("p", "voiceError", "voice-error"); error.setAttribute("role", "alert"); error.hidden = true;
     panel.append(local, captionLabel, caption, playback, form, handsfreeRow, handsfreeNote, settings, help, budget, error);
     root.append(header, panel); document.body.append(root);
-    refs = {root, header, handle, toggle, name, status, mic, mute, panel, local, captionLabel, caption, replay, kindLabel, kind, draftLabel, draft, partial, byteCount, draftHelp, clear, submit, handsfree, handsfreeText, handsfreeNote, summary, languageLabel, language, rateLabel, rate, privacy, help, budget, error};
+    refs = {root, header, handle, toggle, name, status, mic, mute, panel, local, captionLabel, caption, replay, kindLabel, kind, draftLabel, edit, draft, partial, byteCount, draftHelp, clear, submit, handsfree, handsfreeText, handsfreeNote, summary, languageLabel, language, rateLabel, rate, privacy, help, budget, error};
     handle.addEventListener("pointerdown", event => {
       if (event.button !== 0) return;
       const bounds = root.getBoundingClientRect();
@@ -244,7 +260,7 @@
   }
   function paintControls() {
     if (!refs) return;
-    const bytes = encoder.encode(localDraft).length;
+    const bytes = encoder.encode(voice.listening && !draftDirty ? string(voice.partial, 4096) || localDraft : localDraft).length;
     const pending = !!host?.live_preview?.pending;
     const wantsMic = voice.listening === true || voice.listening_requested === true;
     refs.mic.disabled = !eligible() || (!wantsMic && (actionPending || pending || !hasTurn()));
@@ -256,6 +272,8 @@
     text(refs.mute, t(voice.muted ? "unmute" : "mute"));
     refs.replay.disabled = !eligible() || !voice.caption || actionPending || voice.muted === true;
     refs.draft.readOnly = voice.listening === true || pending || actionPending;
+    refs.edit.disabled = !eligible() || pending || actionPending;
+    text(refs.edit, t("edit"));
     refs.draft.setAttribute("aria-invalid", String(bytes > 4096));
     text(refs.byteCount, `${bytes} / 4096 ${t("bytes")}`);
     refs.byteCount.classList.toggle("voice-over-limit", bytes > 4096);
@@ -289,7 +307,8 @@
     refs.rate.value = [0.8, 1, 1.2].includes(voice.rate) ? String(voice.rate) : "1.2";
     refs.handsfree.checked = voice.handsfree === true;
     refs.draft.placeholder = t("placeholder");
-    if (refs.draft.value !== localDraft && !composing) refs.draft.value = localDraft;
+    const displayedDraft = voice.listening && !draftDirty ? string(voice.partial, 4096) || localDraft : localDraft;
+    if (refs.draft.value !== displayedDraft && !composing) refs.draft.value = displayedDraft;
     const partial = string(voice.partial, 4096); refs.partial.hidden = !partial;
     text(refs.partial, partial ? `${t("partial")} ${partial}` : "");
     const activation = host.activation || {};

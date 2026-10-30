@@ -75,6 +75,7 @@ final class TIARecognitionPipe: @unchecked Sendable {
     private let lock = NSLock()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var guardingPlayback = false
+    private var awaitingFreshRequest = false
     private var preRoll = [AVAudioPCMBuffer]()
     private var preRollSeconds = 0.0
     private let syntheticSink: ((AVAudioPCMBuffer) -> Void)?
@@ -82,11 +83,27 @@ final class TIARecognitionPipe: @unchecked Sendable {
     func replace(_ value: SFSpeechAudioBufferRecognitionRequest?) {
         lock.lock(); defer { lock.unlock() }
         request = value
-        if value == nil { preRoll.removeAll(); preRollSeconds = 0; guardingPlayback = false }
+        if value == nil {
+            preRoll.removeAll(); preRollSeconds = 0; guardingPlayback = false; awaitingFreshRequest = false
+        } else if awaitingFreshRequest && !guardingPlayback {
+            awaitingFreshRequest = false
+            for frame in preRoll { deliver(frame) }
+            preRoll.removeAll(); preRollSeconds = 0
+        }
     }
     func guardPlayback(_ value: Bool) {
         lock.lock(); defer { lock.unlock() }
-        guardingPlayback = value; preRoll.removeAll(); preRollSeconds = 0
+        guardingPlayback = value; awaitingFreshRequest = value
+        preRoll.removeAll(); preRollSeconds = 0
+    }
+    // Return whether a new recognition task must receive the candidate handoff.
+    // On ordinary playback completion discard buffered echo; on barge-in keep
+    // the bounded candidate pre-roll until replace() installs the fresh request.
+    func endPlayback() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if guardingPlayback { preRoll.removeAll(); preRollSeconds = 0 }
+        guardingPlayback = false
+        return awaitingFreshRequest
     }
     private func deliver(_ buffer: AVAudioPCMBuffer) {
         if let syntheticSink { syntheticSink(buffer) } else { request?.append(buffer) }
@@ -94,7 +111,7 @@ final class TIARecognitionPipe: @unchecked Sendable {
     func append(_ buffer: AVAudioPCMBuffer, candidateOnset: Bool) {
         lock.lock(); defer { lock.unlock() }
         guard buffer.frameLength > 0, buffer.format.sampleRate > 0 else { return }
-        if !guardingPlayback { deliver(buffer); return }
+        if !guardingPlayback && !awaitingFreshRequest { deliver(buffer); return }
         // Audio tap buffers are reused by AVAudioEngine. Retain a bounded copy,
         // never the borrowed pointer, and wipe it on stop/end of playback.
         guard let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength) else { return }
@@ -108,14 +125,12 @@ final class TIARecognitionPipe: @unchecked Sendable {
             memcpy(to, from, Int(source[index].mDataByteSize))
         }
         preRoll.append(copy); preRollSeconds += Double(copy.frameLength) / copy.format.sampleRate
-        while preRollSeconds > 0.16, preRoll.count > 1 {
+        let limit = guardingPlayback ? 0.16 : 0.5
+        while preRollSeconds > limit, preRoll.count > 1 {
             let oldest = preRoll.removeFirst()
             preRollSeconds -= Double(oldest.frameLength) / oldest.format.sampleRate
         }
-        guard candidateOnset else { return }
-        guardingPlayback = false
-        for frame in preRoll { deliver(frame) }
-        preRoll.removeAll(); preRollSeconds = 0
+        if candidateOnset { guardingPlayback = false }
     }
 }
 
@@ -145,6 +160,8 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
     private var task: SFSpeechRecognitionTask?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var recognizer: SFSpeechRecognizer?
+    private var recognitionTranscript: ((String, Bool) -> Void)?
+    private var recognitionFailed: ((String) -> Void)?
     private var tapInstalled = false
     private var generation = UUID()
     private var utterance: AVSpeechUtterance?
@@ -225,7 +242,11 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
         let format = input.outputFormat(forBus: 0)
         guard format.channelCount > 0, format.sampleRate > 0 else { failed("VOICE_MIC_UNAVAILABLE"); return }
         completedText = ""; recognizer = local
-        beginSegment(local, token: token, transcript: transcript, failed: failed)
+        recognitionTranscript = transcript; recognitionFailed = failed
+        // An Apple recognition task with no supplied frames can finalize or
+        // stall during the introduction. Start it only when playback ends or
+        // candidate onset opens the acoustic gate.
+        if utterance == nil { beginSegment(local, token: token, transcript: transcript, failed: failed) }
         audioPipe.guardPlayback(utterance != nil)
         let pipe = audioPipe
         var detector = TIACandidateSpeechDetector()
@@ -235,6 +256,7 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
                                           sampleRate: buffer.format.sampleRate)
             // Even the first plausible frame holds off a pending seal. The
             // sustained onset threshold gates barge-in, not silence continuity.
+            pipe.append(buffer, candidateOnset: spoken)
             if detector.possibleSpeech {
                 let time = ProcessInfo.processInfo.systemUptime
                 DispatchQueue.main.async {
@@ -242,7 +264,6 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
                     activity(time, spoken)
                 }
             }
-            pipe.append(buffer, candidateOnset: spoken)
         }
         tapInstalled = true
         do { engine.prepare(); try engine.start(); ready() }
@@ -289,6 +310,7 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
         recognitionSegment = UUID(); audioPipe.replace(nil)
         request?.endAudio(); task?.cancel(); completedText = ""
         task = nil; request = nil; recognizer = nil
+        recognitionTranscript = nil; recognitionFailed = nil
     }
 
     func speak(_ text: String, language: String, rate: Double,
@@ -307,9 +329,10 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
         synthesizer.speak(speech)
     }
     func stopSpeaking() {
-        audioPipe.guardPlayback(false)
+        let wasSpeaking = utterance != nil
         utterance = nil; speechRange = nil; speechFinished = nil
         synthesizer.stopSpeaking(at: .immediate)
+        if wasSpeaking { handoffPlayback() }
     }
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString range: NSRange,
                            utterance: AVSpeechUtterance) {
@@ -326,9 +349,14 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
     private func finish(_ utterance: AVSpeechUtterance) {
         guard self.utterance === utterance else { return }
         let callback = speechFinished
-        audioPipe.guardPlayback(false)
         self.utterance = nil; speechRange = nil; speechFinished = nil
+        handoffPlayback()
         callback?()
+    }
+    private func handoffPlayback() {
+        guard audioPipe.endPlayback(), engine.isRunning, let local = recognizer,
+              let transcript = recognitionTranscript, let failed = recognitionFailed else { return }
+        beginSegment(local, token: generation, transcript: transcript, failed: failed)
     }
 }
 
@@ -356,6 +384,8 @@ final class TIAVoiceCompanion {
     private var generation = UUID()
     private var speechGeneration = UUID()
     private var silenceTimer: Timer?
+    private var recognitionTimer: Timer?
+    private var firstUntranscribedActivity: TimeInterval?
     private var silenceGate = TIAVoiceSilenceGate()
     private var syntheticTimeOffset: TimeInterval = 0
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime + syntheticTimeOffset }
@@ -572,6 +602,7 @@ final class TIAVoiceCompanion {
         guard testing, seconds.isFinite, seconds >= 0, seconds <= 60 else { return }
         syntheticTimeOffset += seconds
         finishUtterance(token: generation)
+        checkRecognitionProgress(token: generation)
     }
 
     private func boundedReply(_ text: String) -> String { text.utf8.count <= 16384 ? text : "" }
@@ -594,6 +625,7 @@ final class TIAVoiceCompanion {
     }
     private func suspendListening() {
         generation = UUID(); silenceTimer?.invalidate(); silenceTimer = nil
+        recognitionTimer?.invalidate(); recognitionTimer = nil; firstUntranscribedActivity = nil
         silenceGate = TIAVoiceSilenceGate(); candidateDetected = false
         if listening || permissionPending { backend.stopListening() }
         listening = false; permissionPending = false
@@ -624,10 +656,24 @@ final class TIAVoiceCompanion {
     private func candidateActivity(at time: TimeInterval, confirmed: Bool = true, token: UUID) {
         guard generation == token, listening, eligible, requested, !busy, !submitting else { return }
         silenceGate.observe(time)
-        if confirmed { candidateDetected = true }
+        if confirmed {
+            candidateDetected = true
+            if partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && firstUntranscribedActivity == nil {
+                firstUntranscribedActivity = time
+                recognitionTimer = timer(after: 8) { [weak self] in self?.checkRecognitionProgress(token: token) }
+            }
+        }
         if speaking && confirmed { cancelSpeech() }
         armSilenceCheck(token: token)
         emit()
+    }
+    private func checkRecognitionProgress(token: UUID) {
+        guard generation == token, listening, eligible, !busy, !submitting,
+              let started = firstUntranscribedActivity, now - started >= 8,
+              partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        // Recover to an editable, paused state instead of displaying Listening
+        // forever after detected speech produced no words. Never spend/retry AI.
+        pause(); error = "VOICE_RECOGNITION_STALLED"; emit()
     }
     private func armSilenceCheck(token: UUID) {
         guard let remaining = silenceGate.remaining(at: now) else { return }
@@ -644,6 +690,9 @@ final class TIAVoiceCompanion {
         // Never promote playback-only recognition to a candidate turn.
         guard !speaking || candidateDetected else { return }
         partial = text
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            recognitionTimer?.invalidate(); recognitionTimer = nil; firstUntranscribedActivity = nil
+        }
         if !speaking, silenceGate.maySeal(at: now) { finishUtterance(token: token) }
         emit()
     }

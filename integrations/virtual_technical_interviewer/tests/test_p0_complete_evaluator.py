@@ -113,4 +113,63 @@ class CompleteEvaluatorTests(unittest.TestCase):
         self.assertTrue(gates.reason_self_contradicts('Some debugging hints implied but no explicit repair or testing details'))
         self.assertTrue(gates.reason_self_contradicts('没有明确测试证据。'))
 
+
+class StructuredEvaluatorContractTests(unittest.TestCase):
+    def test_new_request_binds_structured_envelope_without_changing_identities(self):
+        plan = source(); plan['continuity_policy'] = 'tia-continuity/v3'
+        pending, spec = ev.prepare_native_evaluator(plan, RID, GEN, 'en', 0)
+        packet = json.loads(spec['input'])
+        self.assertEqual(packet['response_contract'], 'tia-evaluator-structured/v2')
+        self.assertEqual(spec['max_output_tokens'], 1600)
+        self.assertEqual(spec['prompt_sha256'], hashlib.sha256(spec['instructions'].encode()).hexdigest())
+        for path, digest in ev.compile_evaluator_profile()['source_sha256'].items():
+            self.assertEqual(spec['source_sha256'][path], digest)
+        self.assertIn('not event_id, position, or interviewer IDs', spec['instructions'])
+        self.assertEqual(pending['input_sha256'], hashlib.sha256(spec['input'].encode()).hexdigest())
+
+    def test_long_selected_question_good_aliases_commit_all_three_questions(self):
+        plan = source(); plan['continuity_policy'] = 'tia-continuity/v3'
+        # Synthetic regression mirrors 15/13/3 message workload; no real UAT text.
+        plan['results'][2] = copy.deepcopy(plan['results'][1])
+        for index, count in enumerate((7, 6, 1)):
+            events = []
+            for n in range(count):
+                events += [event('candidate', 'clarify', f'q{index}-c{n}', 'Could you clarify the output? My plan is to group by month.'),
+                           event('interviewer', 'reply', f'q{index}-i{n}', 'Explain the grouping and the expected output.')]
+            plan['results'][index]['session']['events'] = events
+        artifacts = {}
+        for index in range(3):
+            pending, spec = ev.prepare_native_evaluator(plan, RID, GEN, 'en', index)
+            value = proposal(spec, {'T02': 2, 'C01': 2})
+            artifact = ev.commit_native_evaluator(plan, pending, commitment(pending, value))
+            artifacts[str(index)] = artifact
+            refs = [e['event_id'] for d in artifact['dimensions'] for e in d['evidence']]
+            self.assertTrue(refs)
+            self.assertTrue(all(e.startswith(f'q{index}-') for e in refs))
+        report = ev.build_evaluator_report(plan, artifacts)
+        self.assertEqual(report['summary']['assessed_questions'], 3)
+        self.assertTrue(all(len(q['dimensions']) == 11 for q in report['questions']))
+
+    def test_unknown_and_cross_question_refs_still_fail_host_validation(self):
+        plan = source(); plan['continuity_policy'] = 'tia-continuity/v3'
+        pending, spec = ev.prepare_native_evaluator(plan, RID, GEN, 'en', 0)
+        for reference in ('other-question-clarification', 'e999', 'interviewer-2'):
+            value = proposal(spec, {'T02': 2})
+            value['assessments'][1][2] = [reference]
+            with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_UNCITED_OR_CROSS_QUESTION_EVIDENCE'):
+                ev.commit_native_evaluator(plan, pending, commitment(pending, value))
+
+    def test_shipped_p0_full_context_assessment_is_preserved_byte_for_byte(self):
+        from pathlib import Path
+        artifact = json.loads((Path(__file__).parent / 'fixtures' / 'evaluator_p0_v3_golden.json').read_text())
+        self.assertEqual(artifact['sha256'], 'a055c93e294bd4ee757d7b86d8bbcf17da77b5d2e69d4746ba95153e99413cf2')
+        original = copy.deepcopy(artifact)
+        plan = source(); plan['continuity_policy'] = 'tia-continuity/v3'
+        report = ev.build_evaluator_report(plan, {'0': artifact})
+        self.assertEqual(artifact, original)
+        saved = report['questions'][0]['assessment']
+        self.assertEqual(saved['status'], 'LEGACY_CONTEXT_REVIEW_REQUIRED')
+        self.assertEqual(saved['sha256'], original['sha256'])
+        self.assertEqual(saved['dimensions'], original['dimensions'])
+
 if __name__ == '__main__': unittest.main()

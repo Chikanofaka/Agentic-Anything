@@ -17,6 +17,7 @@ from .evidence_scorecard import build_scorecard
 from .persistence import strict_json
 from .evaluator_p0_guards import eligible_aliases, reason_self_contradicts, static_sql_signals
 from .evaluator_full_scheme import compile_full_scheme
+from .communication_demonstration import recorded_communication
 from . import evaluator_p0_guards_v2 as guards_v2
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,6 +60,16 @@ def _text_sha(value):
 
 CONTINUITY_POLICY = 'tia-continuity/v3'
 COMPLETE_CONTEXT_LIMIT = 262144
+STRUCTURED_REPLY_CONTRACT = 'tia-evaluator-structured/v2'
+LEGACY_REPLY_PROTOCOL = 'tia-evaluator-p0-reply/v1'
+STRUCTURED_OUTPUT_TOKENS = 1600
+# Shipped P0 full-context evaluator: retain immutable historical proposals.
+P0_V6_CODE_SOURCES = {
+    'engine/native_evaluator.py': 'd7bd8da1ef6fd45ccce6703fb2b9477139dc8a6af5c31327b73f66b7c82107ff',
+    'engine/evaluator_p0_guards.py': '9d0ea4b95ffda4f852b2f7ee5eb0f467d49fc82e21b31ddf5291aa011e864886',
+    'engine/evaluator_p0_guards_v2.py': '5206af8fb616016afd70cc4c29423f82eec9160d0453ebaa0a1c4209fad99692',
+}
+
 # Exact shipped d3b7f8c implementation identity for the unchanged legacy branch.
 P0_V5_CODE_SOURCES = {
     'engine/native_evaluator.py': '21d0836384f47fe7f1764607e9232e9605dba10facfbd52b0623e7eb8fbc64e5',
@@ -160,6 +171,28 @@ def compile_evaluator_profile(base_dir=None):
             'authority_source': manifest['authority_source']}
 
 
+
+def _effective_profile(plan):
+    profile = compile_evaluator_profile()
+    if _complete_context(plan):
+        # Python owns the effective protocol instruction; native only encodes it.
+        # Preserve installed identities/rubric and the original legacy protocol.
+        profile['instructions'] += (
+            '\nHOST RESPONSE ENVELOPE v2: For this request, replace the legacy reply-string '
+            'format above with the strict native JSON schema. Return {"reply":{'
+            '"T01":{"anchor":null,"evidence":[],"reason":"No verified execution evidence."},...}}. '
+            'Include exactly all eleven criterion keys T01..T05 and C01..C06. '
+            'Each has anchor, evidence and reason. Use only the criterion-specific supplied '
+            'allowed_aliases (e1, e2, ...), not event_id, position, or interviewer IDs. '
+            'A null anchor requires an empty evidence array; an observed anchor requires '
+            '1 to 4 distinct allowed aliases. An empty allowlist requires null and []. '
+            'Reasons must be concise, 8 to 60 characters. Do not output a JSON-encoded string '
+            'or the legacy assessments array. Native converts the envelope for Host validation. '
+            'No new grading, SQL execution, evidence, or score authority is granted.')
+        profile['prompt_sha256'] = _text_sha(profile['instructions'])
+    return profile
+
+
 def _card(plan):
     try:
         if type(plan) is not dict or plan.get('status') not in ('ACTIVE', 'COMPLETE', 'TIMED_OUT', 'CLOCK_INTEGRITY_HOLD'):
@@ -241,7 +274,7 @@ def _criteria(profile, candidates, replies, accuracy, *, complete=False):
     return dimensions
 
 
-def _context(plan, index, language, profile, card):
+def _context(plan, index, language, profile, card, *, legacy_reply=False):
     question = plan['questions'][index]
     metrics = card['questions'][index]
     candidates, replies, omitted = _evidence(plan, index)
@@ -276,6 +309,15 @@ def _context(plan, index, language, profile, card):
     if _complete_context(plan):
         packet['schema'] = 'tia-native-evaluator-input/v2'
         packet['evidence_policy'] = 'tia-evaluator-evidence/v2'
+        if not legacy_reply:
+            packet['response_contract'] = STRUCTURED_REPLY_CONTRACT
+        if metrics['accuracy']['reason'] == 'POST_INTERVIEW_REVIEWED_CASES_ONLY':
+            # Supplemental deterministic observations are explicitly post-interview.
+            # Keep fixture inputs and private oracle SQL out of the model packet.
+            packet['local_execution'].update(
+                fixture_passed=metrics['accuracy']['fixture_passed'],
+                fixture_total=metrics['accuracy']['fixture_total'],
+                execution_time='AFTER_INTERVIEW')
         packet['continuity_policy'] = CONTINUITY_POLICY
         packet['admissibility_guard_version'] = 'tia-evaluator-p0-admissibility/v2'
         packet['question'] = {key: question.get(key, '') if type(question.get(key)) is str else ''
@@ -297,7 +339,12 @@ def _context(plan, index, language, profile, card):
     return packet
 
 
-def prepare_native_evaluator(plan, request_id, generation, language, question_index):
+def prepare_native_evaluator(plan, request_id, generation, language, question_index, *, replay_protocol=None):
+    # Only the Host's journal replay selects the shipped protocol. WebKit/native
+    # command fields cannot select it, and new requests always use the current one.
+    if replay_protocol not in (None, LEGACY_REPLY_PROTOCOL):
+        raise NativeEvaluatorError('INVALID_EVALUATOR_REPLAY_PROTOCOL')
+    legacy_reply = replay_protocol == LEGACY_REPLY_PROTOCOL
     if (type(request_id) is not str or not IDENTIFIER.fullmatch(request_id) or
             type(generation) is not str or not IDENTIFIER.fullmatch(generation) or
             language not in ('en', 'zh') or type(language) is not str or
@@ -306,19 +353,21 @@ def prepare_native_evaluator(plan, request_id, generation, language, question_in
     card = _card(plan)
     if plan['status'] != 'COMPLETE' or len(plan.get('results', [])) != 3:
         raise NativeEvaluatorError('EVALUATOR_EVIDENCE_NOT_READY')
-    profile = compile_evaluator_profile()
-    packet = _context(plan, question_index, language, profile, card)
+    profile = compile_evaluator_profile() if legacy_reply else _effective_profile(plan)
+    packet = _context(plan, question_index, language, profile, card, legacy_reply=legacy_reply)
     content = _canonical(packet)
     source_hash = _source_digest(plan, question_index)
     token = _sha({'schema': 'tia-native-evaluator-transaction/v1', 'request_id': request_id,
                   'generation': generation, 'question_index': question_index,
                   'question_record_sha256': source_hash, 'input_sha256': _text_sha(content),
                   'prompt_sha256': profile['prompt_sha256']})
-    sources = dict(profile['source_sha256'], **{'evidence/frozen_question': source_hash}, **_p0_code_sources(plan))
+    code_sources = P0_V6_CODE_SOURCES if legacy_reply and _complete_context(plan) else _p0_code_sources(plan)
+    sources = dict(profile['source_sha256'], **{'evidence/frozen_question': source_hash}, **code_sources)
     spec = {'schema_version': 'tia-native-request/v1', 'transaction_id': token,
             'request_id': request_id, 'generation': generation, 'role': 'evaluator',
             'instructions': profile['instructions'], 'input': content,
-            'schema_name': 'tia_evaluator_reply', 'max_output_tokens': 600,
+            'schema_name': 'tia_evaluator_reply',
+            'max_output_tokens': STRUCTURED_OUTPUT_TOKENS if _complete_context(plan) and not legacy_reply else 600,
             'prompt_sha256': profile['prompt_sha256'], 'source_sha256': sources}
     pending = {'transaction_id': token, 'request_id': request_id, 'generation': generation,
                'question_index': question_index, 'language': language,
@@ -403,7 +452,7 @@ def _metadata(params):
     return model, copy.deepcopy(usage)
 
 
-def commit_native_evaluator(plan, pending, params):
+def commit_native_evaluator(plan, pending, params, *, replay_protocol=None):
     if type(pending) is not dict or type(params) is not dict:
         raise NativeEvaluatorError('EVALUATOR_NOT_PENDING')
     if set(params) != {'transaction_id', 'request_id', 'generation', 'reply', 'model', 'usage'}:
@@ -413,7 +462,8 @@ def commit_native_evaluator(plan, pending, params):
             raise NativeEvaluatorError('STALE_EVALUATOR_REQUEST')
     try:
         current, spec = prepare_native_evaluator(plan, pending['request_id'], pending['generation'],
-                                                 pending['language'], pending['question_index'])
+                                                 pending['language'], pending['question_index'],
+                                                 replay_protocol=replay_protocol)
     except (KeyError, TypeError, NativeEvaluatorError):
         raise NativeEvaluatorError('EVALUATOR_SOURCE_CHANGED') from None
     if current != pending:
@@ -467,7 +517,8 @@ def build_evaluator_report(plan, evaluations=None):
     if plan is None:
         return None
     card = _card(plan)
-    profile = compile_evaluator_profile()
+    profile = _effective_profile(plan)
+    legacy_prompt_sha = compile_evaluator_profile()['prompt_sha256']
     if evaluations is None:
         evaluations = {}
     if type(evaluations) is not dict or set(evaluations) - {'0', '1', '2'}:
@@ -492,7 +543,7 @@ def build_evaluator_report(plan, evaluations=None):
                         artifact.get('communication_score') != 'NOT_SCORED' or artifact.get('overall_grade') != 'NOT_SCORED' or
                         artifact.get('sha256') != _sha({k: v for k, v in artifact.items() if k != 'sha256'}) or
                         artifact.get('question_record_sha256') != _source_digest(plan, index) or
-                        artifact.get('prompt_sha256') != profile['prompt_sha256'] or
+                        artifact.get('prompt_sha256') not in (profile['prompt_sha256'], legacy_prompt_sha) or
                         artifact.get('rubric_version') != profile['rubric']['rubric_version'] or
                         artifact.get('formula_version') != 'tia-observed-proposed-points/v1' or
                         artifact.get('formula') != 'max_points * anchor / 4' or
@@ -506,7 +557,9 @@ def build_evaluator_report(plan, evaluations=None):
                             dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
                                  **P0_V4_CODE_SOURCES),
                             dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
-                                 **P0_V5_CODE_SOURCES))):
+                                 **P0_V5_CODE_SOURCES),
+                            dict(profile['source_sha256'], **{'evidence/frozen_question': _source_digest(plan, index)},
+                                 **P0_V6_CODE_SOURCES))):
 
                     raise ValueError('artifact binding')
                 packet = _context(plan, index, artifact['language'], profile, card)
@@ -536,6 +589,7 @@ def build_evaluator_report(plan, evaluations=None):
         questions.append({'index': index, 'title': metric['title'], 'eligible': bool(closed and candidates and artifact is None),
                           'assessment': copy.deepcopy(artifact), 'dimensions': dimensions,
                           'technical': _axis(dimensions, 'technical'), 'communication': _axis(dimensions, 'communication'),
+                          'practice_communication': recorded_communication(plan, index),
                           'raw_metrics': {'accuracy': copy.deepcopy(metric['accuracy']), 'behavior': copy.deepcopy(metric['behavior']),
                                           'time': copy.deepcopy(metric['time'])},
                           'static_sql_review': static_sql_signals(plan['questions'][index], candidates),

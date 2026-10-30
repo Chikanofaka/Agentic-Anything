@@ -39,7 +39,83 @@ final class TIAUISmoke {
     private var adaptiveTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-test") }
     private var adaptiveStaleTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-stale-test") }
     private var adaptiveRecoveryTesting: Bool { CommandLine.arguments.contains("--ui-adaptive-recovery-test") }
+    private var postSQLTesting: Bool { CommandLine.arguments.contains("--ui-post-sql-test") }
+    private var postSQLRecovering: Bool { CommandLine.arguments.contains("--ui-post-sql-recovery-test") }
     private var steps: [Step] {
+        if postSQLRecovering { return [Step(label: "Post SQL replay restores observations and assessments without database or API work", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');const s=await snap();
+          return {ok:s.screen==='REHEARSAL_COMPLETE'&&s.activation.state==='offline'&&s.activation.requests_total===0
+            &&s.post_interview_sql.pending===false&&s.post_interview_sql.results['0'].status==='PASSED'
+            &&s.post_interview_sql.observations.length===1&&s.post_interview_sql.assessment_archive.length===1
+            &&s.evaluator_report.questions[0].raw_metrics.accuracy.fixture_total===3
+            &&s.evaluator_report.questions[0].assessment.dimensions[0].anchor_0_to_4===2
+            &&s.evidence_scorecard.questions[0].accuracy.status==='NOT_VERIFIED'&&!s.recovery_error};
+        """)] }
+        if postSQLTesting { return [
+        Step(label: "E25B opens native consent for synthetic fixture-only interview", code: """
+          await until(()=>document.documentElement.dataset.tiaReady==='true');
+          await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
+        """),
+        Step(label: "Post SQL synthetic bus question records final code and closes without execution", code: """
+          await until(()=>window.tiaState.activation.state==='activated-unverified');await press('prepareSetup','CONFIG');
+          await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,difficulty:'HARD',question_source:'BYOQ',interviewer_mechanism:'STRICT_CHALLENGING'}});
+          for(let i=0;i<3;i++){
+            const f={problem_statement:'Synthetic bus capacity question '+i,task:'Return person_name of the last person who fits in 1000 kg, boarding in turn order.',schema:'Queue(person_id INTEGER, person_name TEXT, weight INTEGER, turn INTEGER)',example_input:'(1,A,400,1),(2,B,600,2)',expected_output:'B',environment:'POSTGRESQL',source:'OWNER',constraints:'Unique turns, positive weights; first person fits.',source_reference:''};
+            const r=await request('setup_question_set',{index:i,source:'OWNER',raw_text:JSON.stringify(f)});
+            await request('setup_question_confirm',{index:i,fields:r.setup_questions[i].fields,raw_sha256:r.setup_questions[i].raw_sha256});
+          }
+          await press('startRehearsal','API_PORTAL');await press('verifyPreview','LIVE_PREVIEW');
+          await request('preview_send',{kind:'implement',text:'WITH ordered AS (SELECT person_name, turn, sum(weight) OVER (ORDER BY turn) AS total FROM Queue) SELECT person_name FROM ordered WHERE total <= 1000 ORDER BY turn DESC LIMIT 1'});
+          await request('rehearsal_submit');await request('rehearsal_skip');await request('rehearsal_skip');await screen('REHEARSAL_COMPLETE');
+          const s=await snap();window.postOriginal={record:stable(s.rehearsal),score:s.evidence_scorecard.sha256};
+          return {ok:s.activation.requests_total===2&&s.evidence_scorecard.questions[0].accuracy.status==='NOT_VERIFIED'&&!!el('postInterviewSQL')};
+        """),
+        Step(label: "Post SQL existing assessment remains distinct from later execution", code: """
+          await request('evaluator_generate',{question_index:0});const s=await snap();
+          window.postOldAssessment=s.evaluator_report.questions[0].assessment.sha256;
+          return {ok:s.activation.requests_total===3&&s.evaluator_report.questions[0].dimensions[0].anchor_0_to_4===null};
+        """),
+        Step(label: "Post SQL exact source and expected rows require an explicit matching-suite checkbox", code: """
+          el('postSQLSuite').value='bus_last_person';el('postSQLSuite').dispatchEvent(new Event('change'));
+          await press('postSQLReview');const s=await snap(),r=s.post_interview_sql.review;
+          if(!r||r.question_index!==0||r.suite_id!=='bus_last_person'||r.case_count!==3||!el('postSQLExecute').disabled)return {ok:false};
+          el('postSQLMatches').click();if(el('postSQLExecute').disabled)return {ok:false};
+          el('postSQLSuite').value='monthly_transactions';el('postSQLSuite').dispatchEvent(new Event('change'));
+          if(el('postSQLMatches').checked||!el('postSQLExecute').disabled)return {ok:false};
+          el('postSQLSuite').value='bus_last_person';el('postSQLSuite').dispatchEvent(new Event('change'));
+          return {ok:!!el('postSQLCases')&&el('postSQLCases').textContent.includes('expected')&&r.question_sha256===s.rehearsal.questions[0].content_sha256};
+        """),
+        Step(label: "Post SQL cancellation prevents a late local observation", code: """
+          el('postSQLMatches').click();el('postSQLExecute').click();await until(()=>window.tiaState?.post_interview_sql?.pending===true);
+          await request('post_sql_cancel');await pause(500);const s=await snap();
+          return {ok:!s.post_interview_sql.pending&&s.post_interview_sql.observations.length===0
+            &&s.evaluator_report.questions[0].assessment.sha256===window.postOldAssessment&&s.activation.requests_total===3};
+        """),
+        Step(label: "Post SQL native consent and real local worker append three PASSED case observations", code: """
+          el('postSQLMatches').click();el('postSQLExecute').click();
+          let s;for(let i=0;i<240;i++){await pause(500);s=window.tiaState;if(s?.post_interview_sql?.results?.['0']&&!document.querySelector('[aria-busy="true"]'))break;}
+          const v=s?.post_interview_sql?.results?.['0'];
+          return {ok:v?.status==='PASSED'&&v.passed===3&&v.total===3&&v.execution_time==='AFTER_INTERVIEW'
+            &&s.post_interview_sql.assessment_archive[0].assessment.sha256===window.postOldAssessment
+            &&s.evaluator_report.questions[0].assessment===null&&!el('evaluatorGenerate').disabled
+            &&s.activation.requests_total===3&&s.evidence_scorecard.sha256===window.postOriginal.score&&stable(s.rehearsal)===window.postOriginal.record};
+        """),
+        Step(label: "Post SQL private commits and path injection remain inaccessible from WebKit", code: """
+          for(const [action,params] of [['native_commit_post_sql',{result:{status:'PASSED'}}],['native_reject_evaluator',{code:'INVALID_PROVIDER_RESPONSE'}],['post_sql_execute',{review_sha256:'a'.repeat(64),path:'/tmp/injected'}]]){
+            try{await request(action,params);return {ok:false};}catch(e){if(e.message!=='INVALID_BRIDGE_REQUEST')return {ok:false,error:e.message};}
+          }
+          const s=await snap();return {ok:s.post_interview_sql.observations.length===1&&s.activation.requests_total===3};
+        """),
+        Step(label: "Post SQL explicit reevaluation uses new verification without replacing original records", code: """
+          await press('evaluatorGenerate');await until(()=>!!window.tiaState?.evaluator_report?.questions?.[0]?.assessment&&!document.querySelector('[aria-busy="true"]'));
+          const s=await snap(),q=s.evaluator_report.questions[0];
+          return {ok:q.raw_metrics.accuracy.status==='PASSED'&&q.raw_metrics.accuracy.fixture_total===3
+            &&q.assessment.dimensions[0].anchor_0_to_4===2&&q.assessment.sha256!==window.postOldAssessment
+            &&s.activation.requests_total===4&&s.transport_mode==='MOCK_HTTP'&&s.post_interview_sql.assessment_archive.length===1
+            &&stable(s.rehearsal)===window.postOriginal.record&&s.evidence_scorecard.sha256===window.postOriginal.score};
+        """),
+        ] }
+
         if evaluatorRecovering {
             return [
                 Step(label: "Evaluator recovery restores immutable artifact offline without another request", code: """
@@ -479,11 +555,12 @@ final class TIAUISmoke {
             &&s.native_evaluator_interrupted===true&&s.evaluator_report.questions[0].assessment===null
             &&s.activation.requests_used===3&&s.evidence_scorecard.sha256===window.evaluatorOriginal.score};
         """),
-        Step(label: "Evaluator malformed semantic response cannot commit or retry automatically", code: """
+        Step(label: "Evaluator malformed structured response is diagnosed without commit or automatic retry", code: """
           try{await request('evaluator_generate',{question_index:0});return {ok:false};}
-          catch(e){if(e.message!=='INVALID_EVALUATOR_REPLY')return {ok:false,error:e.message};}
+          catch(e){if(e.message!=='INVALID_PROVIDER_RESPONSE')return {ok:false,error:e.message};}
           await pause(250);const s=await snap();
           return {ok:s.evaluator_report.questions[0].assessment===null&&!s.native_evaluator_pending
+            &&s.native_evaluator_error_code==='INVALID_PROVIDER_RESPONSE'&&s.native_evaluator_interrupted===false
             &&s.activation.requests_used===4&&s.evidence_scorecard.sha256===window.evaluatorOriginal.score};
         """),
         Step(label: "Evaluator reconnect opens native consent without losing frozen report", code: """
@@ -941,7 +1018,7 @@ final class TIAUISmoke {
     func run() {
         do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
         catch { end(false, "Cannot create synthetic test directory"); return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 90) { [weak self] in self?.end(false, "UI watchdog timeout") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (postSQLTesting ? 180 : 90)) { [weak self] in self?.end(false, "UI watchdog timeout") }
         step()
     }
     private func step() {
@@ -982,7 +1059,7 @@ final class TIAUISmoke {
                     guard error == nil, let tiff = image?.tiffRepresentation,
                           let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:])
                     else { self.end(false, "Snapshot failed"); return }
-                    do { try png.write(to: self.directory.appendingPathComponent((self.evaluatorRecovering ? "evaluator-recovery-" : self.evaluatorTesting ? "evaluator-" : self.adaptiveRecoveryTesting ? "adaptive-recovery-" : self.adaptiveStaleTesting ? "adaptive-stale-" : self.adaptiveTesting ? "adaptive-" : self.preparerTesting ? "preparer-" : self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
+                    do { try png.write(to: self.directory.appendingPathComponent((self.postSQLRecovering ? "post-sql-recovery-" : self.postSQLTesting ? "post-sql-" : self.evaluatorRecovering ? "evaluator-recovery-" : self.evaluatorTesting ? "evaluator-" : self.adaptiveRecoveryTesting ? "adaptive-recovery-" : self.adaptiveStaleTesting ? "adaptive-stale-" : self.adaptiveTesting ? "adaptive-" : self.preparerTesting ? "preparer-" : self.failureTesting ? "failure-" : self.gradingTesting ? "grading-" : self.rehearsalTesting ? "rehearsal-" : self.liveRecovering ? "live-recovery-" : self.liveTesting ? "live-" : self.recovering ? "recovery-" : self.setupTesting ? "setup-" : "") + String(format: "%02d.png", number))) }
                     catch { self.end(false, "Snapshot write failed"); return }
                     self.step()
                 }
@@ -1002,9 +1079,9 @@ final class TIAUISmoke {
         guard !done else { return }; done = true
         let receipt: [String: Any] = ["schema": "tia-native-ui-test/v1", "passed": receipts.count,
             "failed": success ? 0 : 1, "tests": receipts, "summary": message,
-            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": setupTesting || liveTesting || failureTesting || rehearsalTesting || gradingTesting || preparerTesting, "human_uat": "NOT_RUN", "adaptive_mode": adaptiveTesting ? "POSITIVE" : adaptiveStaleTesting ? "STALE" : adaptiveRecoveryTesting ? "RECOVERY" : "NONE"]
+            "api_requests": 0, "mock_http_requests": TIATestHTTPProtocol.calls, "transport": "MOCK_HTTP", "real_credentials_used": false, "synthetic_credential_fixture_used": postSQLTesting || setupTesting || liveTesting || failureTesting || rehearsalTesting || gradingTesting || preparerTesting, "human_uat": "NOT_RUN", "post_sql_mode": postSQLTesting ? "EXECUTION" : postSQLRecovering ? "RECOVERY" : "NONE", "adaptive_mode": adaptiveTesting ? "POSITIVE" : adaptiveStaleTesting ? "STALE" : adaptiveRecoveryTesting ? "RECOVERY" : "NONE"]
         if let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: directory.appendingPathComponent(evaluatorRecovering ? "ui-evaluator-recovery-receipt.json" : evaluatorTesting ? "ui-evaluator-receipt.json" : adaptiveRecoveryTesting ? "ui-adaptive-recovery-receipt.json" : adaptiveStaleTesting ? "ui-adaptive-stale-receipt.json" : adaptiveTesting ? "ui-adaptive-receipt.json" : preparerTesting ? "ui-preparer-receipt.json" : failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
+            try? data.write(to: directory.appendingPathComponent(postSQLRecovering ? "ui-post-sql-recovery-receipt.json" : postSQLTesting ? "ui-post-sql-receipt.json" : evaluatorRecovering ? "ui-evaluator-recovery-receipt.json" : evaluatorTesting ? "ui-evaluator-receipt.json" : adaptiveRecoveryTesting ? "ui-adaptive-recovery-receipt.json" : adaptiveStaleTesting ? "ui-adaptive-stale-receipt.json" : adaptiveTesting ? "ui-adaptive-receipt.json" : preparerTesting ? "ui-preparer-receipt.json" : failureTesting ? "ui-provider-failure-receipt.json" : gradingTesting ? "ui-grading-receipt.json" : rehearsalTesting ? "ui-rehearsal-receipt.json" : liveRecovering ? "ui-live-recovery-receipt.json" : liveTesting ? "ui-live-receipt.json" : recovering ? "ui-recovery-receipt.json" : setupTesting ? "ui-setup-receipt.json" : "ui-test-receipt.json"))
         }
         print("Native UI smoke: \(success ? "PASS" : "FAIL") — \(message)")
         finish(success ? 0 : 1)

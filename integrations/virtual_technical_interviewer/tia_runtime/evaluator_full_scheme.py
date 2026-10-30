@@ -122,6 +122,7 @@ def compile_full_scheme(report):
         per_q.append({'index':index,'title':q.get('title',''), 'evaluation_status':status,
                       'technical':summary['technical'],'communication':summary['communication'],
                       'dimensions':rows,'sql':sql_status,
+                      'practice_communication':copy.deepcopy(q.get('practice_communication')),
                       'blocked_criterion_ids':[r['id'] for r in rows if r['blocked']],
                       'required_next_action':('NONE_NO_AUTOMATIC_REEVALUATION' if historical else
                          'EVALUATE_WITH_SEPARATE_CONSENT' if not current else 'SEMANTIC_REVIEW_REQUIRED')})

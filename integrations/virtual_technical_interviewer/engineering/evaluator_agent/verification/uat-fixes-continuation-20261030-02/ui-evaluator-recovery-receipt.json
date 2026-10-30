@@ -1,0 +1,24 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 0,
+  "passed" : 2,
+  "post_sql_mode" : "NONE",
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "2 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : false,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "Evaluator recovery restores immutable artifact offline without another request"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Evaluator language switch preserves artifact and original frozen scores"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

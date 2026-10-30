@@ -1,0 +1,15 @@
+{
+  "assertions_weakened": false,
+  "human_uat": "NOT_RUN",
+  "product_code_changed_for_rerun": false,
+  "real_microphone_used": false,
+  "real_provider_calls": 0,
+  "reason": "Previous integrated run received no pointer events at native mouse drag; isolated unchanged executable passed all 25 checks. Exact OS/window-delivery cause is unproven. Original failure receipt is preserved.",
+  "schema": "tia-voice-uat-rerun/v1",
+  "source_sha256": {
+    "native/Voice.swift": "79fc53d4205bc1be7a1e2689faf0af4e7bd00d61bcd0c0129fa2d3004c60ba7b",
+    "native/VoiceTests.swift": "efdc632bd2eaf6e25c38566a2761d2c43221fcc78eb47be0ce308fa0c838cec5",
+    "native/VoiceUISmoke.swift": "92efa5cfd8708aa64661df2e46e42df9830ddb5d7f9ec062b9d12022d9955b54",
+    "ui/voice.js": "2336eadda8a7c72b40552db1a7c32a41eff82481ba0743f01083a562460a71b4"
+  }
+}

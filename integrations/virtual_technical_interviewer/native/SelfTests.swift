@@ -89,7 +89,8 @@ func runNativeTests() -> Int32 {
     check("S03D finish rejects extra fields", BridgePolicy.validate(request("setup_questions_finish", ["bypass": true])) == nil)
     for action in ["native_prepare_preview", "native_commit_preview", "native_cancel_preview",
                    "native_prepare_trainer", "native_commit_trainer", "native_cancel_trainer",
-                   "native_prepare_evaluator", "native_commit_evaluator", "native_cancel_evaluator"] {
+                   "native_prepare_evaluator", "native_commit_evaluator", "native_cancel_evaluator", "native_reject_evaluator",
+                   "native_prepare_post_sql", "native_commit_post_sql", "native_cancel_post_sql"] {
         check("native-only handshake " + action, BridgePolicy.validate(request(action)) == nil)
     }
     check("bounded preview input", BridgePolicy.validate(request("preview_send", ["kind": "plan", "text": "one row per customer"])) != nil)
@@ -106,6 +107,12 @@ func runNativeTests() -> Int32 {
     check("E25B execute rejects invalid SHA", BridgePolicy.validate(request("grade_execute", ["fixture_sha256": "not-a-hash"])) == nil)
     check("E25B execute rejects path injection", BridgePolicy.validate(request("grade_execute", ["fixture_sha256": digest, "fixture_path": "/tmp/other.db"])) == nil)
     check("E25B native-only execution commit rejected", BridgePolicy.validate(request("native_commit_grade", ["status": "PASSED"])) == nil)
+    check("post SQL review accepts approved suite", BridgePolicy.validate(request("post_sql_review", ["question_index": 0, "suite_id": "bus_last_person"])) != nil)
+    check("post SQL review rejects boolean index", BridgePolicy.validate(request("post_sql_review", ["question_index": true, "suite_id": "bus_last_person"])) == nil)
+    check("post SQL review rejects arbitrary suite", BridgePolicy.validate(request("post_sql_review", ["question_index": 0, "suite_id": "file:///tmp/test"])) == nil)
+    check("post SQL execution exact binding", BridgePolicy.validate(request("post_sql_execute", ["review_sha256": digest])) != nil)
+    check("post SQL execution rejects code authority", BridgePolicy.validate(request("post_sql_execute", ["review_sha256": digest, "sql": "select 1"])) == nil)
+    check("post SQL cancellation available", BridgePolicy.validate(request("post_sql_cancel")) != nil)
     // C1B Native-parser tests: 3 bound questions, wrong SHA, and injected grades.
     let syntheticHashes = [String(repeating: "a", count: 64), String(repeating: "b", count: 64), String(repeating: "c", count: 64)]
     let prepFields: [String: String] = ["problem_statement": "Find rows", "task": "Return ids",

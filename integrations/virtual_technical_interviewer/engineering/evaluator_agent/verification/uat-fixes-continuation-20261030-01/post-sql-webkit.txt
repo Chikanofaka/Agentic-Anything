@@ -1,0 +1,5 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+PASS Post SQL synthetic bus question records final code and closes without execution
+UI check detail: failure(Error Domain=WKErrorDomain Code=4 "A JavaScript exception occurred" UserInfo={WKJavaScriptExceptionLineNumber=0, WKJavaScriptExceptionMessage=Error: REQUEST_LIMIT_REACHED, WKJavaScriptExceptionColumnNumber=0, NSLocalizedDescription=A JavaScript exception occurred})
+Native portal visible: false
+Native UI smoke: FAIL — Post SQL existing assessment remains distinct from later execution

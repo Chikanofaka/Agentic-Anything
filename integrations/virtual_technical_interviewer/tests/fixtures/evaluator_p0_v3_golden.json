@@ -1,0 +1,400 @@
+{
+  "schema": "tia-native-evaluator-assessment/v1",
+  "status": "PENDING_HUMAN_REVIEW",
+  "provenance": "LIVE_MODEL",
+  "authority": "MODEL_PROPOSAL_ONLY",
+  "question_index": 0,
+  "question_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "question_record_sha256": "4207c6bbfcdd31b13b683649615f935ca83411a57126bb7f9f6c26a230aa6700",
+  "context_input_sha256": "8e6a5537d8592521da669588a3c998a61ba7fa4ba7be285c454da6c9b748fe6a",
+  "prompt_sha256": "ddc56e1f2d125c6bcdfebeddb926bc03ebadaeac409b788b1a3d004b62d52055",
+  "source_sha256": {
+    "agents/evaluator/identity.md": "96178b91bec8f5dd8073de982cc9327e15db1574de98cab875248c575e3d3c97",
+    "agents/evaluator/soul.md": "a7a1170d3d454ac04c28cf6edff14160ba023e03b5390c80dcd82aaec0be73ba",
+    "agents/evaluator/AGENTS.md": "e49017d6caa71532d2096d5d7b2226b5540257691447a66fb375ed81ac9a307c",
+    "agents/evaluator/skills.md": "59e89655f5d3d73f7f00e2ef151c7d7a089e6b11d7e7c6e2e740dcad196be374",
+    "policy/evaluator_rubric_v1.json": "48b0bbffaf3a895f08786335cfb84f7073b49564f24594d9081d09a6b0326c8f",
+    "evidence/frozen_question": "4207c6bbfcdd31b13b683649615f935ca83411a57126bb7f9f6c26a230aa6700",
+    "engine/native_evaluator.py": "d7bd8da1ef6fd45ccce6703fb2b9477139dc8a6af5c31327b73f66b7c82107ff",
+    "engine/evaluator_p0_guards.py": "9d0ea4b95ffda4f852b2f7ee5eb0f467d49fc82e21b31ddf5291aa011e864886",
+    "engine/evaluator_p0_guards_v2.py": "5206af8fb616016afd70cc4c29423f82eec9160d0453ebaa0a1c4209fad99692"
+  },
+  "language": "en",
+  "rubric_version": "tia-60-40-owner-hypothesis-v0.3",
+  "formula_version": "tia-observed-proposed-points/v1",
+  "formula": "max_points * anchor / 4",
+  "proposal": {
+    "assessments": [
+      [
+        "T01",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "T02",
+        2,
+        [
+          "e1"
+        ],
+        "Evidence requires review."
+      ],
+      [
+        "T03",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "T04",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "T05",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "C01",
+        2,
+        [
+          "e1"
+        ],
+        "Evidence requires review."
+      ],
+      [
+        "C02",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "C03",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "C04",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "C05",
+        null,
+        [],
+        "Not observed in this record."
+      ],
+      [
+        "C06",
+        null,
+        [],
+        "Not observed in this record."
+      ]
+    ]
+  },
+  "dimensions": [
+    {
+      "id": "T01",
+      "title": "Solution correctness and output integrity",
+      "axis": "technical",
+      "proposed_max_points": 24,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "T02",
+      "title": "Technical model and algorithmic understanding",
+      "axis": "technical",
+      "proposed_max_points": 13,
+      "status": "MODEL_PROPOSED",
+      "anchor_0_to_4": 2,
+      "provisional_points": 6.5,
+      "reason": "Evidence requires review.",
+      "confidence": "HUMAN_REVIEW_REQUIRED",
+      "evidence": [
+        {
+          "alias": "e1",
+          "event_id": "clarify-1",
+          "kind": "clarify",
+          "text_sha256": "a49ba9bcc779ee71c250551e71af0122a199afd74bca049aa99771baa5338b81",
+          "span": {
+            "end": 125,
+            "start": 0,
+            "unit": "UTF8_BYTES"
+          }
+        }
+      ],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "T03",
+      "title": "Planning/decomposition and requirement coverage",
+      "axis": "technical",
+      "proposed_max_points": 10,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "T04",
+      "title": "Testing/debugging/repair",
+      "axis": "technical",
+      "proposed_max_points": 9,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "T05",
+      "title": "Resource efficiency and maintainability",
+      "axis": "technical",
+      "proposed_max_points": 4,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "C01",
+      "title": "Clarification and expectation alignment",
+      "axis": "communication",
+      "proposed_max_points": 6,
+      "status": "MODEL_PROPOSED",
+      "anchor_0_to_4": 2,
+      "provisional_points": 3.0,
+      "reason": "Evidence requires review.",
+      "confidence": "HUMAN_REVIEW_REQUIRED",
+      "evidence": [
+        {
+          "alias": "e1",
+          "event_id": "clarify-1",
+          "kind": "clarify",
+          "text_sha256": "a49ba9bcc779ee71c250551e71af0122a199afd74bca049aa99771baa5338b81",
+          "span": {
+            "end": 125,
+            "start": 0,
+            "unit": "UTF8_BYTES"
+          }
+        }
+      ],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "C02",
+      "title": "Explainable plan and in-flight narration",
+      "axis": "communication",
+      "proposed_max_points": 7,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "C03",
+      "title": "Progress/evidence narrative",
+      "axis": "communication",
+      "proposed_max_points": 7,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "C04",
+      "title": "Gap-to-action translation and bounded assistance request",
+      "axis": "communication",
+      "proposed_max_points": 9,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "C05",
+      "title": "Feedback integration and collaboration-to-execution",
+      "axis": "communication",
+      "proposed_max_points": 7,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    },
+    {
+      "id": "C06",
+      "title": "Professional closure and synthesis",
+      "axis": "communication",
+      "proposed_max_points": 4,
+      "status": "NOT_OBSERVED",
+      "anchor_0_to_4": null,
+      "provisional_points": null,
+      "reason": "Not observed in this record.",
+      "confidence": "NOT_ASSESSED",
+      "evidence": [],
+      "admissibility_audit": {
+        "gate": "ELIGIBLE_FOR_HUMAN_SEMANTIC_REVIEW",
+        "disallowed_proposal_anchor": null,
+        "discarded_irrelevant_citations": []
+      }
+    }
+  ],
+  "decision_trace": {
+    "schema": "tia-evaluator-decision-trace/v1",
+    "input_candidate_event_ids": [
+      "clarify-1",
+      "candidate-1",
+      "followup-1"
+    ],
+    "input_interviewer_event_ids": [
+      "interviewer-2"
+    ],
+    "ordered_input_event_ids": [
+      "clarify-1",
+      "candidate-1",
+      "interviewer-2",
+      "followup-1"
+    ],
+    "input_excerpt_truncated_count": 0,
+    "rejected_criterion_ids": [],
+    "static_sql_review": {
+      "candidate_event_id": "candidate-1",
+      "candidate_text_sha256": "6738b8f7cd76fff840e1f3b87126f6f4ad14a9827d6dc5f130082047568f082a",
+      "correctness": "NOT_VERIFIED",
+      "excerpt_truncated": false,
+      "execution": "NOT_RUN",
+      "status": "STATIC_REVIEW_ONLY"
+    },
+    "semantic_truth": "HUMAN_REVIEW_REQUIRED"
+  },
+  "technical": {
+    "proposed_observed_points": 6.5,
+    "covered_maximum_points": 13,
+    "proposed_maximum_points": 60,
+    "observed_dimensions": 1,
+    "total_dimensions": 5,
+    "missing_dimensions": [
+      "T01",
+      "T03",
+      "T04",
+      "T05"
+    ],
+    "coverage": 0.21666666666666667,
+    "score_status": "NOT_SCORED",
+    "normalization": "NONE",
+    "provisional": true
+  },
+  "communication": {
+    "proposed_observed_points": 3.0,
+    "covered_maximum_points": 6,
+    "proposed_maximum_points": 40,
+    "observed_dimensions": 1,
+    "total_dimensions": 6,
+    "missing_dimensions": [
+      "C02",
+      "C03",
+      "C04",
+      "C05",
+      "C06"
+    ],
+    "coverage": 0.15,
+    "score_status": "NOT_SCORED",
+    "normalization": "NONE",
+    "provisional": true
+  },
+  "model_identifier": "gpt-4.1-mini",
+  "usage": {
+    "input_tokens": 200,
+    "output_tokens": 100,
+    "total_tokens": 300
+  },
+  "technical_score": "NOT_SCORED",
+  "communication_score": "NOT_SCORED",
+  "overall_grade": "NOT_SCORED",
+  "semantic_truth": "HUMAN_REVIEW_REQUIRED",
+  "independent_vs_assisted": "NOT_ESTABLISHED",
+  "validation": {
+    "citation_binding": true,
+    "arithmetic_host_computed": true,
+    "validated_semantic_quality": false,
+    "semantic_gate": "NECESSARY_CONDITIONS_ONLY",
+    "unfamiliar_case_observed": false
+  },
+  "limits": [
+    "Single local fixture is not general correctness certification.",
+    "Proposed subweights and anchors are uncalibrated; no hiring inference.",
+    "Missing dimensions remain unknown; no renormalization or bonus."
+  ],
+  "sha256": "a055c93e294bd4ee757d7b86d8bbcf17da77b5d2e69d4746ba95153e99413cf2"
+}

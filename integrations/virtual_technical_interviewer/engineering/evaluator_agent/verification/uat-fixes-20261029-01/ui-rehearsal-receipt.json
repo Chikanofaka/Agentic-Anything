@@ -1,0 +1,67 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 9,
+  "passed" : 13,
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "13 real UI checks; 9 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "E1 native rehearsal portal uses synthetic consent only"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E1 three distinct question imports and confirmations render start action"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "V2 rehearsal: dispatch Start only"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "V2 rehearsal: confirm Host started in API Portal"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "V2 rehearsal: dispatch Verify only"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "V2 rehearsal: confirm Native\/Host first reply"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "V2 rehearsal: verify interactive WebKit room"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E4 source-bound examples render in real WebKit room without grading"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E2 timer starts on first presented question, exposes local-only clock"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "P0 six successive turns stay on Q1 until explicit Final Submit"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E1 finish Q1, skip Q2, open Q3 without extra calls"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E1 Q3 uses original question context and freezes unscored three-question outcome"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "E2 score-free three-question time ledger remains exportable"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

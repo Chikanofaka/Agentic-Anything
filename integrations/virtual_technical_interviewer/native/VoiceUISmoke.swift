@@ -95,12 +95,19 @@ final class TIAVoiceUISmoke {
           await until(()=>el('voicePartial')?.textContent.includes('Synthetic unfinished clarification'));
           const s=await snap();return {ok:s.activation.requests_used===1&&s.live_preview.candidate_turns_used===0
             &&!s.live_preview.session.events.some(e=>e.actor==='candidate')&&el('voiceHandsfree').checked===false
+            &&el('voiceDraft').value==='Synthetic unfinished clarification'&&el('voiceDraft').readOnly
             &&el('previewResponse').value==='SELECT customer_id, COUNT(*) FROM VoiceItems0 GROUP BY customer_id;'};
+        """),
+        Step(label: "Edit draft pauses capture and preserves partial without spending a request", code: """
+          await press('voiceEdit');await until(()=>!el('voiceDraft').readOnly);
+          const s=await snap();const ok=!s.voice.listening&&s.activation.requests_used===1
+            &&el('voiceDraft').value==='Synthetic unfinished clarification'&&document.activeElement===el('voiceDraft');
+          await press('voiceClear');await press('voiceMic');return {ok};
         """, action: .transcript("Synthetic clarification from local speech", true)),
         Step(label: "Manual-mode speech waits five seconds before becoming an editable draft", code: """
           await pause(800);
-          if(el('voiceDraft')?.value==='Synthetic clarification from local speech')return {ok:false};
-          await until(()=>el('voiceDraft')?.value==='Synthetic clarification from local speech');await pause(450);
+          if(!el('voiceDraft')?.readOnly)return {ok:false};
+          await until(()=>!el('voiceDraft')?.readOnly&&el('voiceDraft')?.value==='Synthetic clarification from local speech');await pause(450);
           const s=await snap();return {ok:s.activation.requests_used===1&&s.live_preview.candidate_turns_used===0
             &&!el('voiceDraft').readOnly&&!s.live_preview.session.events.some(e=>e.actor==='candidate')};
         """),
@@ -132,7 +139,7 @@ final class TIAVoiceUISmoke {
           await choose('voiceKind','plan');await press('voiceMic');return {ok:window.tiaState.live_preview.can_send===true};
         """, action: .transcript("I will group by customer and check the row grain before implementation.", true)),
         Step(label: "Second spoken plan is committed with independent unscored evidence", code: """
-          await until(()=>el('voiceDraft')?.value.includes('check the row grain'));
+          await until(()=>!el('voiceDraft')?.readOnly&&el('voiceDraft')?.value.includes('check the row grain'));
           await press('voiceSend');await until(()=>window.tiaState.live_preview.candidate_turns_used===2
             &&window.tiaState.activation.requests_used===3&&!document.querySelector('[aria-busy="true"]'));
           const s=await snap(),c=s.live_preview.session.events.filter(e=>e.actor==='candidate');

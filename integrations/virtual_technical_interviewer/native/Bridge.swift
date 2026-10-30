@@ -28,7 +28,7 @@ enum BridgePolicy {
         return url.standardizedFileURL.path == entry.standardizedFileURL.path
     }
     static let emptyActions: Set<String> = [
-        "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
+        "post_sql_cancel", "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
         "tutorial_complete", "tutorial_replay", "choose_real", "reset",
         "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch",
         "preview_verify", "preview_close", "preview_cancel", "trainer_request", "preparer_request", "smart_start", "rehearsal_submit", "rehearsal_skip", "rehearsal_tick"
@@ -55,6 +55,16 @@ enum BridgePolicy {
                   let index = params["question_index"] as? NSNumber,
                   CFGetTypeID(index) != CFBooleanGetTypeID(),
                   (0...2).contains(index.intValue), index.doubleValue == Double(index.intValue) else { return nil }
+        } else if action == "post_sql_review" {
+            guard Set(params.keys) == ["question_index", "suite_id"],
+                  let index = params["question_index"] as? NSNumber,
+                  CFGetTypeID(index) != CFBooleanGetTypeID(), (0...2).contains(index.intValue),
+                  index.doubleValue == Double(index.intValue),
+                  let suite = params["suite_id"] as? String,
+                  ["delivery_first_orders", "monthly_transactions", "bus_last_person"].contains(suite) else { return nil }
+        } else if action == "post_sql_execute" {
+            guard Set(params.keys) == ["review_sha256"], let hash = params["review_sha256"] as? String,
+                  hash.range(of: "\\A[0-9a-f]{64}\\z", options: .regularExpression) != nil else { return nil }
         } else if action == "grade_inspect" {
             guard Set(params.keys) == ["fixture_json"],
                   let fixture = params["fixture_json"] as? String,
