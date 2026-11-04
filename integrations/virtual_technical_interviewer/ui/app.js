@@ -1270,7 +1270,6 @@
     const question = questions.find(q => q.index === evaluatorQuestionIndex);
     const assessment = question.assessment;
     const practice = communicationPracticeView(question);
-    add(section, postInterviewSQLPanel(question));
     if (assessment) {
       const summary = node("div"); summary.id = "evaluatorAssessment";
       add(summary, badge(`${assessment.provenance} · ${assessment.status}`, "accent"),
@@ -1338,21 +1337,17 @@
     if (state.native_evaluator_error_code) add(section, node("p", errorText(state.native_evaluator_error_code), "notice"));
     else if (state.native_evaluator_interrupted)
       add(section, node("p", t("nativeTrainerInterrupted"), "notice"));
-    if (state.native_evaluator_pending) {
+    const checkout = state.checkout_evaluation || {};
+    if (state.native_evaluator_pending || checkout.status === "RUNNING") {
       add(section, node("p", t("nativeTrainerPending"), "notice"));
     } else if (!assessment) {
-      const activation = state.activation || {};
-      const available = activation.live_enabled === true && Number.isInteger(activation.request_limit) &&
-        Number.isInteger(activation.requests_used) && activation.requests_used < activation.request_limit;
-      add(section, node("p", t("evaluatorPrivacy"), "notice"));
-      if (!available) add(section, node("p", t("evaluatorBudget"), "notice"),
-        button("evaluatorConnect", t("portal"), () => act("api_portal"), "secondary"));
-      if (!question.eligible) add(section, node("p", t("evaluatorNoEvidence"), "field-help"));
-      const generate = button("evaluatorGenerate", t("evaluatorGenerate"),
-        () => act("evaluator_generate", {question_index: evaluatorQuestionIndex}), "primary");
-      generate.dataset.unavailable = String(!available || !question.eligible);
-      generate.disabled = busy || generate.dataset.unavailable === "true";
-      add(section, generate);
+      const progress = `${checkout.completed || 0} / ${checkout.total || 3}`;
+      add(section, node("p", state.language === "zh"
+        ? `结算评估：${checkout.status || "PENDING"} · ${progress}。评估使用进入面试时批准的原生会话额度；不会在此逐题弹窗。`
+        : `Checkout evaluation: ${checkout.status || "PENDING"} · ${progress}. It uses the native session allowance approved before the interview; there is no per-question checkout prompt.`, "notice"));
+      if (checkout.status === "PAUSED" || checkout.status === "FAILED")
+        add(section, button("checkoutResume", state.language === "zh" ? "继续结算评估" : "Resume checkout evaluation",
+          () => act("checkout_resume"), "secondary"));
     }
     const provenance = node("details", null, "question-review"); provenance.id = "evaluatorProvenance";
     add(provenance, node("summary", t("evaluatorSources")),
@@ -1599,7 +1594,7 @@
         typeof event?.payload?.text === "string" && event.payload.text.length > 0) : [];
       const detail = node("details", null, "question-review");
       detail.id = `interviewTranscriptQ${i + 1}`;
-      detail.open = i === 0;
+      detail.open = false;
       const title = questions[i]?.title || (chinese ? "题目" : "Question");
       add(detail, node("summary", `Q${i + 1} · ${title} · ${events.length} ${chinese ? "条消息" : "messages"}`));
       if (!Array.isArray(all)) {
@@ -1652,6 +1647,7 @@
     const scheme = report?.full_scheme;
     if (state.screen !== "REHEARSAL_COMPLETE" || scheme?.schema !== "tia-evaluator-full-scheme/v1") return null;
     const zh = state.language === "zh";
+    const checkout = scheme.checkout_summary || {};
     const section = node("section", null, "receipt-card");
     section.id = "evaluatorFullScheme";
     add(section,
@@ -1661,15 +1657,19 @@
         : "Host-derived provisional observations only. Missing evidence is not zero; uncalibrated weights do not produce final grades.", "notice"),
       node("p", `${scheme.status} · ${scheme.formal_authority} · Overall: NOT_SCORED`, "field-help"));
     const overview = node("div", null, "setup-grid");
-    for (const [key, title] of [["technical", zh ? "技术能力" : "Technical"],
-                                ["communication", zh ? "沟通能力" : "Communication"]]) {
-      const a = scheme[key] || {};
+    for (const [key, title] of [["technical", zh ? "技术" : "Technical"],
+                                ["communication", zh ? "沟通" : "Communication"],
+                                ["combined", zh ? "综合" : "Combined"]]) {
+      const a = checkout[key] || {};
       const tile = node("section", null, "setup-stat");
-      const pts = Number.isFinite(a.observed_provisional_points) ? a.observed_provisional_points : "NOT_EVALUATED";
+      const earned = Number.isFinite(a.earned_percent_of_total) ? `${a.earned_percent_of_total}%` : "NOT_EVALUATED";
+      const points = Number.isFinite(a.observed_provisional_points) ? a.observed_provisional_points : "NOT_EVALUATED";
       add(tile, node("h3", title),
-        node("p", `${zh ? "已有证据建议点数" : "Evidence-backed proposed points"}: ${pts} / ${a.covered_weight || 0}`),
-        node("p", `${zh ? "三题权重覆盖" : "Three-question evidence coverage"}: ${a.covered_weight || 0} / ${a.maximum_weight || 0} (${a.coverage_percent || 0}%)`, "field-help"),
-        node("p", `${zh ? "未观察权重" : "Unobserved weight"}: ${a.unobserved_weight ?? "?"} · Grade: NOT_SCORED`, "notice"));
+        node("p", `${zh ? "占三题总权重的已获比例" : "Earned against total interview weight"}: ${earned}`),
+        node("p", `${zh ? "建议点数" : "Provisional points"}: ${points} / ${a.maximum_weight || 0}`, "field-help"),
+        node("p", `${zh ? "已观察部分表现" : "Observed-only quality"}: ${Number.isFinite(a.observed_percent) ? a.observed_percent + "%" : "NOT_EVALUATED"}`, "field-help"),
+        node("p", `${zh ? "证据覆盖" : "Evidence coverage"}: ${a.covered_weight || 0} / ${a.maximum_weight || 0} (${a.coverage_percent || 0}%)`, "field-help"),
+        node("p", `${zh ? "缺失证据权重" : "Missing-evidence weight"}: ${a.unobserved_weight ?? "?"} · Grade: NOT_SCORED`, "notice"));
       add(overview, tile);
     }
     add(section, overview,
@@ -1810,7 +1810,12 @@
     add(main, heading(t(finalTitle)), node("p", t("rehearsalNote"), "notice"));
     if (rs.timing) add(main, rehearsalClock());
     add(main, fullInterviewTranscript());
-    add(main, evidenceScorecard(), communicationEvidence(), evaluatorPanel(), fullEvaluatorSchemePanel(), groundedTrainer(), nativeTrainerPanel(), smartPlanPanel(), evaluatorCloseoutPanel());
+    add(main, evaluatorPanel(), fullEvaluatorSchemePanel());
+    const diagnostics = node("details", null, "question-review");
+    diagnostics.id = "checkoutDiagnostics";
+    add(diagnostics, node("summary", state.language === "zh" ? "执行与证据诊断" : "Execution and evidence diagnostics"),
+      evidenceScorecard(), communicationEvidence());
+    add(main, diagnostics, groundedTrainer(), nativeTrainerPanel(), smartPlanPanel(), evaluatorCloseoutPanel());
     const offlineDemos = [evaluatorV1MvmPanel(), evaluatorV1MockPanel()].filter(Boolean);
     if (offlineDemos.length) {
       const demos = node("details", null, "question-review"); demos.id = "evaluatorOfflineDemos";

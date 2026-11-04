@@ -132,6 +132,33 @@ def compile_full_scheme(report):
         tot['coverage_percent']=round(tot['covered_weight']/tot['maximum_weight']*100,2)
         tot['grade']='NOT_SCORED'
 
+    def checkout_axis(axis):
+        item = aggregated[axis]
+        points = item['observed_provisional_points']
+        covered = item['covered_weight']
+        maximum = item['maximum_weight']
+        return {'observed_provisional_points': points, 'maximum_weight': maximum,
+            'covered_weight': covered, 'unobserved_weight': maximum-covered,
+            'earned_percent_of_total': round(points/maximum*100,2) if points is not None else None,
+            'observed_percent': round(points/covered*100,2) if points is not None and covered else None,
+            'coverage_percent': round(covered/maximum*100,2),
+            'status': 'PROVISIONAL_PARTIAL_EVIDENCE' if covered else 'NOT_EVALUATED',
+            'grade': 'NOT_SCORED'}
+    checkout_technical = checkout_axis('technical')
+    checkout_communication = checkout_axis('communication')
+    combined_points = sum(v for v in (checkout_technical['observed_provisional_points'],
+                                       checkout_communication['observed_provisional_points'])
+                          if v is not None)
+    combined_covered = checkout_technical['covered_weight'] + checkout_communication['covered_weight']
+    combined = {'observed_provisional_points': round(combined_points,4) if combined_covered else None,
+        'maximum_weight': 300, 'covered_weight': combined_covered,
+        'unobserved_weight': 300-combined_covered,
+        'earned_percent_of_total': round(combined_points/300*100,2) if combined_covered else None,
+        'observed_percent': round(combined_points/combined_covered*100,2) if combined_covered else None,
+        'coverage_percent': round(combined_covered/300*100,2),
+        'status': 'PROVISIONAL_PARTIAL_EVIDENCE' if combined_covered else 'NOT_EVALUATED',
+        'grade': 'NOT_SCORED'}
+
     out = {'schema':SCHEMA, 'source_rubric_version':report.get('rubric_version'),
            'prompt_sha256':report.get('prompt_sha256'), 'status':'PROVISIONAL_HUMAN_REVIEW_REQUIRED' if evaluated_count else 'NO_CURRENT_SEMANTIC_REVIEW',
            'formal_authority':'UNAPPROVED_SUBWEIGHTS_UNCALIBRATED',
@@ -141,6 +168,9 @@ def compile_full_scheme(report):
            'questions_total':3,'blocked_proposal_dimensions':rejected_count,
            'technical':aggregated['technical'],'communication':aggregated['communication'],
            'questions':per_q, 'drill_candidates':action_candidates[:10],
+           'checkout_summary': {'schema':'tia-evaluator-checkout-summary/v1',
+                'technical':checkout_technical, 'communication':checkout_communication,
+                'combined':combined, 'formal_grade':'NOT_SCORED'},
            'release_blockers':['HUMAN_SEMANTIC_REVIEW_NOT_CERTIFIED',
                 'SUBWEIGHTS_NOT_APPROVED','NO_AUTHORIZED_COMPREHENSIVE_SQL_FIXTURE_CERTIFICATION'],
            'limitations':['Coverage is measured against all three question weights, not an earned score.',

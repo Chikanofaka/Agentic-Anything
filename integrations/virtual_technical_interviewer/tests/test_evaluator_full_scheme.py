@@ -59,6 +59,26 @@ class FullSchemeTests(unittest.TestCase):
         self.assertEqual(s['technical']['observed_provisional_points'],0)
         self.assertEqual(s['technical']['covered_weight'],13)
 
+    def test_checkout_summary_separates_score_coverage_and_observed_quality(self):
+        s=compile_full_scheme(report_with_assessments(indices=(0,), proposed={
+            (0,'T02'):2, (0,'C02'):3}))
+        summary=s['checkout_summary']
+        self.assertEqual(summary['schema'],'tia-evaluator-checkout-summary/v1')
+        self.assertEqual(summary['technical']['earned_percent_of_total'],3.61)
+        self.assertEqual(summary['technical']['observed_percent'],50.0)
+        self.assertEqual(summary['technical']['coverage_percent'],7.22)
+        self.assertEqual(summary['combined']['observed_provisional_points'],11.75)
+        self.assertEqual(summary['combined']['earned_percent_of_total'],3.92)
+        self.assertEqual(summary['combined']['coverage_percent'],6.67)
+        self.assertEqual(summary['combined']['grade'],'NOT_SCORED')
+
+    def test_checkout_summary_keeps_missing_distinct_from_observed_zero(self):
+        empty=compile_full_scheme(report_with_assessments())['checkout_summary']['combined']
+        zero=compile_full_scheme(report_with_assessments(indices=(0,),proposed={(0,'T02'):0}))['checkout_summary']['technical']
+        self.assertIsNone(empty['earned_percent_of_total'])
+        self.assertEqual(zero['earned_percent_of_total'],0)
+        self.assertEqual(zero['observed_percent'],0)
+
     def test_blocked_anchor_never_awarded(self):
         s=compile_full_scheme(report_with_assessments(indices=(2,),proposed={(2,'C01'):2},blocked={(2,'C01')}))
         self.assertEqual(s['blocked_proposal_dimensions'],1)

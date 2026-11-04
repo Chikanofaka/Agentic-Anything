@@ -1054,10 +1054,18 @@ class TutorialHost:
         return post_sql.evaluation_plan(self._rehearsal, self._post_sql_results) if self._post_sql_results else self._rehearsal
 
     def _post_sql_state(self):
+        compatible = {}
+        if self._rehearsal is not None:
+            for index, question in enumerate(self._rehearsal.get('questions', [])):
+                try:
+                    compatible[str(index)] = post_sql.compatible_suite(question)
+                except post_sql.PostSQLError:
+                    compatible[str(index)] = None
         return {'schema': post_sql.SCHEMA, 'review': copy.deepcopy(self._post_sql_review),
                 'pending': self._post_sql_pending is not None, 'results': copy.deepcopy(self._post_sql_results),
                 'assessment_archive': copy.deepcopy(self._evaluator_archive),
                 'observations': copy.deepcopy(self._post_sql_observations),
+                'compatible_suites': compatible,
                 'suites': [{'id': key, 'title': item['title'], 'assumptions': item['assumptions']} for key,item in post_sql.SUITES.items()]}
 
     def _post_sql_dispatch(self, action, params):

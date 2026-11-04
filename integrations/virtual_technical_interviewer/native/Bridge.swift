@@ -28,7 +28,7 @@ enum BridgePolicy {
         return url.standardizedFileURL.path == entry.standardizedFileURL.path
     }
     static let emptyActions: Set<String> = [
-        "post_sql_cancel", "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
+        "post_sql_cancel", "checkout_resume", "snapshot", "tutorial_start", "tutorial_next", "tutorial_back",
         "tutorial_complete", "tutorial_replay", "choose_real", "reset",
         "export", "api_portal", "disconnect", "setup_continue", "setup_back", "setup_launch",
         "preview_verify", "preview_close", "preview_cancel", "trainer_request", "preparer_request", "smart_start", "rehearsal_submit", "rehearsal_skip", "rehearsal_tick"

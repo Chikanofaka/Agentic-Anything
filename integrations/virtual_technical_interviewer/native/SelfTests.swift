@@ -113,6 +113,8 @@ func runNativeTests() -> Int32 {
     check("post SQL execution exact binding", BridgePolicy.validate(request("post_sql_execute", ["review_sha256": digest])) != nil)
     check("post SQL execution rejects code authority", BridgePolicy.validate(request("post_sql_execute", ["review_sha256": digest, "sql": "select 1"])) == nil)
     check("post SQL cancellation available", BridgePolicy.validate(request("post_sql_cancel")) != nil)
+    check("checkout resume is a bounded empty action", BridgePolicy.validate(request("checkout_resume")) != nil)
+    check("checkout resume cannot grant authority", BridgePolicy.validate(request("checkout_resume", ["authorized": true])) == nil)
     // C1B Native-parser tests: 3 bound questions, wrong SHA, and injected grades.
     let syntheticHashes = [String(repeating: "a", count: 64), String(repeating: "b", count: 64), String(repeating: "c", count: 64)]
     let prepFields: [String: String] = ["problem_statement": "Find rows", "task": "Return ids",

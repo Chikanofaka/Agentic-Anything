@@ -740,23 +740,28 @@ final class TIAUISmoke {
           }
           const s=await snap();return {ok:s.live_preview.can_send===true&&s.live_preview.candidate_turns_used===6&&s.activation.requests_used===7&&s.rehearsal.current_index===0&&!s.live_preview.closed};
         """),
-        Step(label: "E1 finish Q1, skip Q2, open Q3 without extra calls", code: """
-          await press('finishRehearsalQuestion','API_PORTAL');let s=await snap();
-          if(s.rehearsal.results[0].outcome!=='SUBMITTED_UNVERIFIED'||s.rehearsal.current_index!==1)return {ok:false};
-          await request('rehearsal_skip');s=await snap();
-          return {ok:s.rehearsal.current_index===2&&s.rehearsal.results[1].outcome==='SKIPPED'&&s.activation.requests_used===7};
+        Step(label: "E1 finish Q1 and skip Q2 open the next questions automatically", code: """
+          await press('finishRehearsalQuestion','LIVE_PREVIEW');let s=await snap();
+          if(s.rehearsal.results[0].outcome!=='SUBMITTED_UNVERIFIED'||s.rehearsal.current_index!==1
+            ||s.activation.requests_used!==8||s.live_preview.verified_response_count!==1)return {ok:false};
+          await request('rehearsal_skip');await screen('LIVE_PREVIEW');s=await snap();
+          return {ok:s.rehearsal.current_index===2&&s.rehearsal.results[1].outcome==='SKIPPED'
+            &&s.activation.requests_used===9&&s.live_preview.verified_response_count===1};
         """),
         Step(label: "E1 Q3 uses original question context and freezes unscored three-question outcome", code: """
-          await press('verifyPreview','LIVE_PREVIEW');
           el('previewKind').value='implement';
           el('previewKind').dispatchEvent(new Event('change',{bubbles:true}));
           const input=el('previewResponse');input.value='SELECT customer_id, COUNT(*) AS total FROM Items2 GROUP BY customer_id;';
           input.dispatchEvent(new Event('input',{bubbles:true}));await press('sendPreview');
-          await until(()=>window.tiaState?.activation?.requests_used===9&&!document.querySelector('[aria-busy="true"]'));
+          await until(()=>window.tiaState?.activation?.requests_used===10&&!document.querySelector('[aria-busy="true"]'));
           await press('finishRehearsalQuestion','REHEARSAL_COMPLETE');
+          await until(()=>window.tiaState?.checkout_evaluation?.status==='COMPLETE'
+            &&window.tiaState?.activation?.requests_used===12&&!document.querySelector('[aria-busy="true"]'));
           const s=await snap();return {ok:s.rehearsal.status==='COMPLETE'&&s.rehearsal.results.length===3
             &&s.rehearsal.results[2].session.receipt.live_model_used===true&&s.rehearsal.execution==='NOT_RUN'
-            &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===9};
+            &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===12
+            &&s.checkout_evaluation.status==='COMPLETE'&&s.checkout_evaluation.completed===2
+            &&s.checkout_evaluation.total===2};
         """),
         Step(label: "E2 score-free three-question time ledger remains exportable", code: """
           const s=await snap();const t=s.rehearsal?.timing;

@@ -48,6 +48,38 @@ def canonical(value): return json.dumps(value,sort_keys=True,separators=(',',':'
 def sha(value): return hashlib.sha256(canonical(value).encode()).hexdigest()
 def text_sha(value): return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
+def compatible_suite(question):
+    """Return the sole locally approved suite matching the source schema.
+
+    Titles and model output are deliberately ignored: a suite is selected only
+    when its table name and every expected column are present in the immutable
+    question schema.  This prevents cross-question fixtures from becoming
+    apparent execution evidence.
+    """
+    if type(question) is not dict or type(question.get('schema')) is not str:
+        raise PostSQLError('POST_SQL_NO_COMPATIBLE_SUITE')
+    schema = question['schema']
+    matches = []
+    for suite_id, suite in SUITES.items():
+        table = re.search(r'(?i)(?:table\s*:\s*|\b)' + re.escape(suite['table']) + r'\b', schema)
+        columns = all(re.search(r'(?i)\b' + re.escape(name) + r'\b', schema)
+                      for name, _ in suite['columns'])
+        if table and columns:
+            matches.append(suite_id)
+    if len(matches) != 1:
+        raise PostSQLError('POST_SQL_NO_COMPATIBLE_SUITE' if not matches else 'POST_SQL_AMBIGUOUS_SUITE')
+    return matches[0]
+
+def _recognized_suite(question):
+    """Best-effort matcher used to protect known suites without rewriting
+    legacy/manual sessions whose schemas predate the approved suite catalog."""
+    try:
+        return compatible_suite(question)
+    except PostSQLError as error:
+        if error.code == 'POST_SQL_NO_COMPATIBLE_SUITE':
+            return None
+        raise
+
 def source(plan,index):
     if type(index) is not int or index not in range(3) or type(plan) is not dict or plan.get('status') not in ('COMPLETE','TIMED_OUT','CLOCK_INTEGRITY_HOLD') or len(plan.get('results',[]))!=3:
         raise PostSQLError('POST_SQL_REQUIRES_CLOSED_INTERVIEW')
@@ -77,6 +109,9 @@ def fixtures(suite_id, question_sha256):
 def review(plan,index,suite_id):
     binding,_=source(plan,index)
     if suite_id not in SUITES: raise PostSQLError('POST_SQL_INVALID_SUITE')
+    recognized = _recognized_suite(plan['questions'][index])
+    if recognized is not None and recognized != suite_id:
+        raise PostSQLError('POST_SQL_SUITE_QUESTION_MISMATCH')
     suite=SUITES[suite_id]; cases=fixtures(suite_id,binding['question_sha256'])
     out={'schema':SCHEMA,**binding,'suite_id':suite_id,'title':suite['title'],
          'assumptions':suite['assumptions'],'cases':cases,'case_count':len(cases),

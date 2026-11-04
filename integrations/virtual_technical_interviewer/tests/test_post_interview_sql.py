@@ -32,6 +32,22 @@ class PostSQLTests(unittest.IsolatedAsyncioTestCase):
         reviewed=self.host.state()['post_interview_sql']['review']
         return (await self.cmd('native_prepare_post_sql',{'request_id':'synthetic-sql','generation':'synthetic-generation','review_sha256':reviewed['review_sha256']}))['prepared']
 
+    def test_known_question_schema_selects_one_suite_and_rejects_cross_question_suite(self):
+        question={'schema':'''Table: Transactions\n| id | int |\n| country | varchar |\n| state | varchar |\n| amount | int |\n| trans_date | date |'''}
+        self.assertEqual(sql.compatible_suite(question),'monthly_transactions')
+        plan={'status':'COMPLETE','questions':[dict(question,environment='POSTGRESQL',content_sha256='a'*64)],
+              'results':[{'session':{'events':[{'actor':'candidate','kind':'implement','id':'e1','payload':{'text':'select 1'}}]}}]}
+        # Fill the unused slots so source() accepts the closed three-question shape.
+        plan['questions'] += [copy.deepcopy(plan['questions'][0]),copy.deepcopy(plan['questions'][0])]
+        plan['results'] += [copy.deepcopy(plan['results'][0]),copy.deepcopy(plan['results'][0])]
+        with self.assertRaisesRegex(sql.PostSQLError,'POST_SQL_SUITE_QUESTION_MISMATCH'):
+            sql.review(plan,0,'bus_last_person')
+
+    def test_unknown_legacy_schema_can_still_use_manually_reviewed_suite(self):
+        question={'schema':'LegacyOrders(order_id int)','environment':'POSTGRESQL','content_sha256':'b'*64}
+        with self.assertRaisesRegex(sql.PostSQLError,'POST_SQL_NO_COMPATIBLE_SUITE'):
+            sql.compatible_suite(question)
+
     async def test_review_prepare_never_runs_sql_or_model(self):
         await self.closed()
         original=copy.deepcopy(self.host._rehearsal)

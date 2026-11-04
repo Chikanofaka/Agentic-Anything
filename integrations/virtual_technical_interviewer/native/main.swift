@@ -42,6 +42,10 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var oracleOperationID: String?
     private var cancellationIDs = [String]()
     private var evaluatorTestAttempt = 0
+    private var checkoutAuthorizedGeneration: String?
+    private var checkoutAutomaticID: String?
+    private var checkoutActiveIndex: Int?
+    private var checkoutFailure: String?
     private var loaded = false
     private var dataDirectory: URL!
     private var smokeDirectory: URL!
@@ -94,6 +98,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                         .reply("Synthetic follow-up for Question 1 turn 4"),
                         .reply("Synthetic follow-up for Question 1 turn 5"),
                         .reply("Synthetic follow-up for Question 1 turn 6"),
+                        .reply("Synthetic opener for Question 2"),
                         .reply("Synthetic opener for Question 3"),
                         .reply("Synthetic follow-up for Question 3"),
                     ])
@@ -227,9 +232,13 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "tia", message.frameInfo.isMainFrame,
-              BridgePolicy.allowedDocument(message.frameInfo.request.url, entry: indexURL),
-              let (id, action, params) = BridgePolicy.validate(message.body) else {
+              BridgePolicy.allowedDocument(message.frameInfo.request.url, entry: indexURL) else {
             emit(["ok": false, "error": "INVALID_BRIDGE_REQUEST"]); return
+        }
+        guard let (id, action, params) = BridgePolicy.validate(message.body) else {
+            let safeID = (message.body as? [String: Any])?["id"] as? String
+            let correlated = safeID?.range(of: "\\A[A-Za-z0-9_-]{1,64}\\z", options: .regularExpression) != nil
+            emit(["id": correlated ? safeID as Any : NSNull(), "ok": false, "error": "INVALID_BRIDGE_REQUEST"]); return
         }
         guard seenIDs.insert(id).inserted else {
             emit(["id": id, "ok": false, "error": "DUPLICATE_REQUEST"]); return
@@ -240,10 +249,14 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         // Cancellation remains available while a paid request is pending. The
         // renderer can request cancellation but cannot call prepare/commit itself.
         if action == "post_sql_cancel" || (postSQLID != nil && (action == "disconnect" || action == "preview_cancel")) {
-            if action == "disconnect" { portal.disconnect() }
+            if action == "disconnect" {
+                revokeCheckoutAuthorization()
+                portal.disconnect()
+            }
             cancelPostSQL(id: id); return
         }
         if action == "disconnect" || action == "preview_cancel" {
+            if action == "disconnect" { revokeCheckoutAuthorization() }
             cancelLive(id: id, disconnect: action == "disconnect"); return
         }
         guard !busy, portalSheet == nil else { emit(["id": id, "ok": false, "error": "NATIVE_BUSY"]); return }
@@ -270,6 +283,17 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             }
             beginEvaluator(id: id, questionIndex: index.intValue); return
         }
+        if action == "checkout_resume" {
+            guard checkoutAuthorizedGeneration == portal.generation,
+                  portal.publicState["live_enabled"] as? Bool == true,
+                  lastState["screen"] as? String == "REHEARSAL_COMPLETE" else {
+                emit(["id": id, "ok": false, "state": lastState, "error": "CHECKOUT_AUTHORIZATION_REQUIRED"]); return
+            }
+            checkoutFailure = nil
+            emit(["id": id, "ok": true, "state": lastState])
+            DispatchQueue.main.async { [weak self] in self?.driveCheckoutEvaluation() }
+            return
+        }
         if action == "post_sql_execute" {
             beginPostSQL(id: id, reviewSHA: params["review_sha256"] as? String ?? ""); return
         }
@@ -293,7 +317,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         if action == "reset" || action == "tutorial_replay" {
             confirm(action == "reset" ? "Delete the local tutorial save and transcript?" : "Replace this tutorial with a fresh rehearsal? Export first if you want to keep it.") { confirmed in
-                if confirmed { self.privatePreparation?.cancelVerification(); self.privatePreparation = nil; self.portal.disconnect(); self.forward(id: id, action: action, params: params) }
+                if confirmed { self.privatePreparation?.cancelVerification(); self.privatePreparation = nil; self.revokeCheckoutAuthorization(); self.portal.disconnect(); self.forward(id: id, action: action, params: params) }
                 else { self.respondWithState(id) }
             }
             return
@@ -327,6 +351,14 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             if result["ok"] as? Bool == true, action == "choose_real" {
                 self.emit(result)
                 self.openPortal { self.emit(["ok": true, "state": self.lastState]) }
+                return
+            }
+            if result["ok"] as? Bool == true,
+               (action == "rehearsal_submit" || action == "rehearsal_skip"),
+               (self.lastState["rehearsal"] as? [String: Any])?["status"] as? String == "ACTIVE",
+               self.checkoutAuthorizedGeneration == self.portal.generation,
+               self.portal.publicState["live_enabled"] as? Bool == true {
+                self.beginLive(id: id, action: "preview_verify", params: [:])
                 return
             }
             self.emit(result)
@@ -491,7 +523,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     (self.portal.publicState["request_limit"] as? Int ?? 0) else {
                 self.cancelPrepared(error: "PAID_CONSENT_OR_BUDGET_EXPIRED"); return
             }
-            if self.uiTesting && (CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-post-sql-test")) {
+            if self.uiTesting && (CommandLine.arguments.contains("--ui-evaluator-test") ||
+                                  CommandLine.arguments.contains("--ui-post-sql-test") ||
+                                  CommandLine.arguments.contains("--ui-rehearsal-test")) {
                 // Only synthetic transport. Use admissible aliases from the actual
                 // controller packet so the test traverses the production validator.
                 guard let input = try? StrictJSON.object(Data(spec.input.utf8)) as? [String: Any],
@@ -511,11 +545,12 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     self.cancelPrepared(error: "INVALID_SYNTHETIC_EVALUATOR_REPLY"); return
                 }
                 self.evaluatorTestAttempt += 1
-                if self.evaluatorTestAttempt == 1 && !CommandLine.arguments.contains("--ui-post-sql-test") {
+                let checkoutSmoke = CommandLine.arguments.contains("--ui-rehearsal-test")
+                if self.evaluatorTestAttempt == 1 && !checkoutSmoke && !CommandLine.arguments.contains("--ui-post-sql-test") {
                     var delayed = TIATestHTTPProtocol.Plan.evaluator(text, spec: spec)
                     delayed.delay = 1.5
                     TIATestHTTPProtocol.enqueue([delayed])
-                } else if self.evaluatorTestAttempt == 2 && !CommandLine.arguments.contains("--ui-post-sql-test") {
+                } else if self.evaluatorTestAttempt == 2 && !checkoutSmoke && !CommandLine.arguments.contains("--ui-post-sql-test") {
                     TIATestHTTPProtocol.enqueue([.reply("{\"assessments\":[]}")])
                 } else {
                     TIATestHTTPProtocol.enqueue([.evaluator(text, spec: spec, usage: ["input_tokens": 300, "output_tokens": 200, "total_tokens": 500])])
@@ -722,16 +757,78 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
 
     private func finishLive(ok: Bool, error: String?) {
         guard let id = liveRequestID else { return }
+        let automaticCheckout = checkoutAutomaticID == id
         liveRequestID = nil; liveGeneration = nil; liveStage = "idle"; busy = false
+        if automaticCheckout {
+            checkoutAutomaticID = nil
+            checkoutActiveIndex = nil
+            checkoutFailure = ok ? nil : (error ?? "CHECKOUT_EVALUATION_FAILED")
+        }
         let isVoice = voiceSubmission, unsolicitedVoice = voiceUnsolicited
         voiceSubmission = false; voiceUnsolicited = false
         if isVoice { voice.submissionFinished(ok: ok) }
         var result: [String: Any] = ["id": id, "ok": ok, "state": lastState]
+        if automaticCheckout { result.removeValue(forKey: "id") }
         if unsolicitedVoice { result.removeValue(forKey: "id") }
         if let error = error { result["error"] = error }
         emit(result)
         let cancelled = cancellationIDs; cancellationIDs.removeAll()
         for cancellation in cancelled { respondWithState(cancellation) }
+        if automaticCheckout && ok {
+            DispatchQueue.main.async { [weak self] in self?.driveCheckoutEvaluation() }
+        }
+    }
+
+    private func revokeCheckoutAuthorization() {
+        checkoutAuthorizedGeneration = nil
+        checkoutAutomaticID = nil
+        checkoutActiveIndex = nil
+        checkoutFailure = nil
+    }
+
+    private func checkoutPublicState() -> [String: Any] {
+        let questions = ((lastState["evaluator_report"] as? [String: Any])?["questions"] as? [[String: Any]]) ?? []
+        let completed = questions.filter { $0["assessment"] is [String: Any] }.count
+        // Skipped/empty questions remain visible as missing evidence in the
+        // full scheme, but are not eligible for a paid semantic assessment.
+        // Counting them here would leave checkout waiting forever.
+        let total = questions.isEmpty ? 0 : questions.filter {
+            $0["eligible"] as? Bool == true || $0["assessment"] is [String: Any]
+        }.count
+        let authorized = checkoutAuthorizedGeneration == portal.generation &&
+            portal.publicState["live_enabled"] as? Bool == true
+        let status: String
+        if completed >= total { status = "COMPLETE" }
+        else if checkoutAutomaticID != nil { status = "RUNNING" }
+        else if checkoutFailure != nil { status = "PAUSED" }
+        else if authorized { status = "PENDING" }
+        else { status = "UNAUTHORIZED" }
+        return ["authorized": authorized, "status": status, "completed": completed,
+                "total": total, "error_code": checkoutFailure as Any? ?? NSNull()]
+    }
+
+    private func driveCheckoutEvaluation() {
+        guard !busy, portalSheet == nil, checkoutFailure == nil,
+              checkoutAutomaticID == nil,
+              lastState["screen"] as? String == "REHEARSAL_COMPLETE",
+              checkoutAuthorizedGeneration == portal.generation,
+              portal.publicState["live_enabled"] as? Bool == true,
+              let report = lastState["evaluator_report"] as? [String: Any],
+              let questions = report["questions"] as? [[String: Any]] else { return }
+        guard let index = questions.firstIndex(where: {
+            $0["eligible"] as? Bool == true && !($0["assessment"] is [String: Any])
+        }) else { return }
+        let used = portal.publicState["requests_used"] as? Int ?? 0
+        let limit = portal.publicState["request_limit"] as? Int ?? 0
+        guard used < limit else {
+            checkoutFailure = "REQUEST_LIMIT_REACHED"
+            emit(["ok": false, "state": lastState, "error": "REQUEST_LIMIT_REACHED"])
+            return
+        }
+        let id = "checkout-" + UUID().uuidString
+        checkoutAutomaticID = id
+        checkoutActiveIndex = index
+        executeNativeEvaluator(id: id, questionIndex: index)
     }
 
     private func handleVoice(id: String, action: String, params: [String: Any]) {
@@ -776,6 +873,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         if var state = result["state"] as? [String: Any] {
             state["native_private_preparer"] = privatePreparation?.safeStatus ?? ["status": "NOT_PREPARED", "interviewer_reference_access": false]
             state["activation"] = portal.publicState
+            state["checkout_evaluation"] = checkoutPublicState()
             voice.update(host: state, provider: portal.publicState, busy: busy)
             state["voice"] = voice.publicState
             if portal.publicState["authenticated"] as? Bool == true,
@@ -791,6 +889,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         // Base64 avoids script interpolation of any candidate text.
         let b64 = bytes.base64EncodedString()
         webView?.evaluateJavaScript("window.tiaReceive(JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('\(b64)'),c=>c.charCodeAt(0)))))", completionHandler: nil)
+        if checkoutFailure == nil && checkoutAutomaticID == nil {
+            DispatchQueue.main.async { [weak self] in self?.driveCheckoutEvaluation() }
+        }
     }
 
     private func confirm(_ text: String, completion: @escaping (Bool) -> Void) {
@@ -1058,7 +1159,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         alert.informativeText = """
         Native secure input · 原生安全输入
         Your key stays in native memory until Disconnect or Quit. Activation makes no request and is UNVERIFIED until a valid response.
-        Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. No retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
+        Only https://api.openai.com/v1/responses is used. Each Verify or Send uses at most one paid request, 600 output tokens, 30 seconds. When the three-question interview closes, up to three one-request Evaluator reviews (1600 output tokens each) start automatically inside the same selected request cap. A failure pauses checkout; there are no automatic retries or redirects. The selected request cap is not a currency budget. Model prices and provider retention policies apply.
         Each new verified question starts with local voice and automatic speech sending enabled. Completed speech can use one paid request within this cap. Pause the mic or turn off automatic sending to type at your own pace. / 每道新题默认开启本地语音及自动发送；可暂停收音或关闭自动发送。
         Model requests include the approved role instructions, your selected question, and candidate dialogue. Local SQL fixture grading, when separately authorized, NEVER sends test data or candidate SQL to OpenAI for grading. Model replies do not score SQL. Optional post-interview Trainer requests send a selected drill and short cited candidate excerpts (which may include short SQL) only after separate native consent. Cancelled requests may still be billed.
         密钥仅留在原生内存；模型请求包含题目及对话。另行授权的本机 PostgreSQL 判题不会把测试数据发送给 OpenAI，也不会由模型打正确性分数。
@@ -1075,7 +1176,7 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         let limitLabel = NSTextField(labelWithString: "Request cap / 请求上限")
         limitLabel.frame = NSRect(x: 0, y: 74, width: 220, height: 22)
         let limit = NSPopUpButton(frame: NSRect(x: 260, y: 68, width: 200, height: 28))
-        limit.addItems(withTitles: ["1", "2", "5", "10", "20"]); limit.selectItem(withTitle: "2")
+        limit.addItems(withTitles: ["1", "2", "5", "10", "20"]); limit.selectItem(withTitle: "20")
         limit.setAccessibilityLabel("Maximum paid requests per activation")
         let consent = NSButton(checkboxWithTitle: "I consent to paid requests / 我同意付费请求", target: nil, action: nil)
         consent.frame = NSRect(x: 0, y: 22, width: 460, height: 24)
@@ -1093,9 +1194,12 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
             guard let self = self else { return }
             _ = delegate // Retain for the sheet's entire lifetime.
             if result == .alertFirstButtonReturn {
-                _ = self.portal.activate(key: field.stringValue, model: model.stringValue,
-                                        requestLimit: Int(limit.titleOfSelectedItem ?? "") ?? 0,
-                                        paidConsent: consent.state == .on)
+                if self.portal.activate(key: field.stringValue, model: model.stringValue,
+                                       requestLimit: Int(limit.titleOfSelectedItem ?? "") ?? 0,
+                                       paidConsent: consent.state == .on) {
+                    self.checkoutAuthorizedGeneration = self.portal.generation
+                    self.checkoutFailure = nil
+                }
             }
             field.stringValue = ""; consent.state = .off
             self.portalSheet = nil; completion()
