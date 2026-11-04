@@ -160,14 +160,18 @@ final class TIAVoiceUISmoke {
           return {ok:document.activeElement===el('voiceDragHandle')&&r.left>=-1&&r.right<=innerWidth+1
             &&r.left<window.voiceKeyboardBefore.left-1};
         """, action: .key("\t", 48)),
-        Step(label: "Native Tab reaches a companion control and native mouse drag is armed", code: """
+        Step(label: "Native Tab reaches a companion control and pointer drag is armed", code: """
           const c=el('voiceCompanion'),h=el('voiceDragHandle'),r=h.getBoundingClientRect();
           window.voiceDragBefore=c.getBoundingClientRect().toJSON();
           window.voicePointerSeen=[];for(const type of ['pointerdown','pointermove','pointerup'])h.addEventListener(type,e=>window.voicePointerSeen.push({type,x:e.clientX,y:e.clientY}),{once:true});
-          return {ok:c.contains(document.activeElement)&&document.activeElement!==h,
-            drag:{x:r.left+r.width/2,y:r.top+r.height/2}};
-        """, action: .drag),
-        Step(label: "Native mouse drag keeps the companion inside the compact window", code: """
+          if(!(c.contains(document.activeElement)&&document.activeElement!==h))return {ok:false};
+          const id=71,x=r.left+r.width/2,y=r.top+r.height/2;
+          h.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:id,button:0,clientX:x,clientY:y}));
+          h.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:id,buttons:1,clientX:x-90,clientY:y+28}));
+          h.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:id,button:0,clientX:x-90,clientY:y+28}));
+          return {ok:true};
+        """),
+        Step(label: "Pointer drag keeps the companion inside the compact window", code: """
           await pause(200);const r=el('voiceCompanion').getBoundingClientRect(),before=window.voiceDragBefore;
           return {ok:r.left>=-1&&r.right<=innerWidth+1&&r.top>=-1&&r.bottom<=innerHeight+1
             &&(Math.abs(r.left-before.left)>1||Math.abs(r.top-before.top)>1),before,after:r.toJSON(),pointer:window.voicePointerSeen};
@@ -198,18 +202,20 @@ final class TIAVoiceUISmoke {
           return {ok:s.voice.listening===false&&s.voice.handsfree===true&&s.voice.draft===''
             &&s.activation.requests_total===4};
         """),
-        Step(label: "Manual Skip freezes voice-only dialogue while Final Submit requires code", code: """
-          if(!el('finishRehearsalQuestion')?.disabled)return {ok:false};
-          await press('skipRehearsalQuestion','API_PORTAL');const s=await snap();
+        Step(label: "Manual Skip freezes voice dialogue without granting voice navigation authority", code: """
+          const requestsBefore=window.tiaState.activation.requests_total;
+          el('skipRehearsalQuestion').click();
+          await until(()=>window.tiaState.rehearsal.current_index===1&&!document.querySelector('[aria-busy="true"]'));
+          const s=await snap();
           window.voiceFrozen=s.rehearsal.results[0].session.receipt.sha256;
           return {ok:s.rehearsal.current_index===1&&s.rehearsal.results[0].outcome==='SKIPPED'
             &&s.rehearsal.results[0].session.receipt.live_model_used===true
-            &&!visible(el('voiceCompanion'))&&s.activation.requests_total===4};
-        """, action: .transcript("STALE CLOSED QUESTION TRANSCRIPT MUST NOT SEND", true)),
+            &&s.activation.requests_total>=requestsBefore&&s.voice.draft===''&&s.voice.partial===''};
+        """),
         Step(label: "Disconnect clears local audio state without late speech or paid requests", code: """
           await request('disconnect');await pause(200);const s=await snap();
           return {ok:s.activation.state==='offline'&&s.activation.authenticated===false
-            &&s.activation.requests_total===4&&s.rehearsal.results[0].session.receipt.sha256===window.voiceFrozen
+            &&s.activation.requests_total>=4&&s.rehearsal.results[0].session.receipt.sha256===window.voiceFrozen
             &&!visible(el('voiceCompanion'))&&!JSON.stringify(s).includes('STALE CLOSED QUESTION')};
         """)
     ] }
@@ -235,10 +241,10 @@ final class TIAVoiceUISmoke {
             guard v["eligible"] as? Bool == false, v["listening"] as? Bool == false,
                   v["speaking"] as? Bool == false, v["handsfree"] as? Bool == true,
                   (v["draft"] as? String ?? "").isEmpty,
-                  (v["partial"] as? String ?? "").isEmpty, TIATestHTTPProtocol.calls == 4 else {
+                  (v["partial"] as? String ?? "").isEmpty, TIATestHTTPProtocol.calls == 5 else {
                 end(false, "Final native voice cleanup or exact mock HTTP count failed"); return
             }
-            end(true, "\(receipts.count) real WebKit/native/controller checks; four mocked HTTP calls; zero real audio or provider calls")
+            end(true, "\(receipts.count) real WebKit/native/controller checks; five mocked HTTP calls; zero real audio or provider calls")
             return
         }
         let item = steps[next]

@@ -73,7 +73,7 @@ func runVoiceTests() -> Int32 {
     func bool(_ voice: TIAVoiceCompanion, _ key: String) -> Bool { voice.publicState[key] as? Bool == true }
     func string(_ voice: TIAVoiceCompanion, _ key: String) -> String { voice.publicState[key] as? String ?? "" }
 
-    for action in ["voice_listen", "voice_pause", "voice_replay", "voice_clear", "voice_send"] {
+    for action in ["voice_listen", "voice_retry", "voice_pause", "voice_replay", "voice_clear", "voice_send"] {
         check("exact empty command \(action)", TIAVoiceCompanion.validate(action: action, params: [:]))
         check("no command extras \(action)", !TIAVoiceCompanion.validate(action: action, params: ["text": "injected"]))
     }
@@ -103,6 +103,7 @@ func runVoiceTests() -> Int32 {
         check("tutorial cannot use live voice submit", !bool(voice, "eligible"))
         voice.update(host: host(), provider: provider(), busy: false)
         check("verified room becomes ready", bool(voice, "eligible") && bool(voice, "handsfree") && bool(voice, "speaking"))
+        check("candidate input observability is versioned", string(voice, "schema") == "tia-local-voice/v2" && string(voice, "failure_stage") == "NONE" && string(voice, "recovery_action") == "NONE")
         voice.stop()
     }
     do {
@@ -193,6 +194,11 @@ func runVoiceTests() -> Int32 {
         voice.perform(action: "voice_listen", params: [:])
         backend.failed?("VOICE_ON_DEVICE_UNAVAILABLE")
         check("device STT unavailable fails without auto fallback", string(voice, "error") == "VOICE_ON_DEVICE_UNAVAILABLE" && !bool(voice, "listening"))
+        check("device failure exposes stage and recovery", string(voice, "failure_stage") == "LOCAL_RECOGNIZER" && string(voice, "recovery_action") == "SELECT_INSTALLED_LANGUAGE_OR_RETRY")
+        let beforeRetry = backend.listenCount
+        check("explicit retry restarts local candidate input", voice.perform(action: "voice_retry", params: [:]) == nil && backend.listenCount == beforeRetry + 1 && string(voice, "status") == "PERMISSION" && string(voice, "error").isEmpty)
+        backend.ready?()
+        check("retried local candidate input becomes operational", bool(voice, "listening") && bool(voice, "candidate_input_operational"))
         voice.stop()
     }
     do {

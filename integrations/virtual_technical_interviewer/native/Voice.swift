@@ -18,6 +18,31 @@ protocol TIAVoiceBackend: AnyObject {
     func stopSpeaking()
 }
 
+private func tiaVoiceFailureStage(_ code: String?) -> String {
+    guard let code else { return "NONE" }
+    if code.contains("MIC_PERMISSION") { return "MICROPHONE_PERMISSION" }
+    if code.contains("SPEECH_PERMISSION") { return "SPEECH_PERMISSION" }
+    if code.contains("ON_DEVICE") { return "LOCAL_RECOGNIZER" }
+    if code.contains("ECHO_CANCELLATION") { return "ECHO_CANCELLATION" }
+    if code.contains("MIC_UNAVAILABLE") { return "AUDIO_INPUT" }
+    if code.contains("RECOGNITION") { return "TRANSCRIPTION" }
+    if code.contains("TRANSCRIPT") { return "TRANSCRIPT_BOUNDARY" }
+    if code.contains("SUBMISSION") { return "AUTHORIZED_TURN_SUBMISSION" }
+    if code.contains("SPEAKER") { return "LOCAL_PLAYBACK" }
+    return "VOICE_ACTION"
+}
+
+private func tiaVoiceRecovery(_ code: String?) -> String {
+    guard let code else { return "NONE" }
+    if code.contains("PERMISSION") { return "OPEN_MACOS_PRIVACY_AND_RETRY" }
+    if code.contains("ON_DEVICE") { return "SELECT_INSTALLED_LANGUAGE_OR_RETRY" }
+    if code.contains("ECHO_CANCELLATION") || code.contains("MIC_UNAVAILABLE") { return "CHECK_AUDIO_INPUT_AND_RETRY" }
+    if code.contains("RECOGNITION") { return "PAUSE_EDIT_OR_RETRY_LISTENING" }
+    if code.contains("SUBMISSION") { return "REVIEW_DRAFT_AND_RETRY_EXPLICITLY" }
+    if code.contains("SPEAKER") { return "SELECT_INSTALLED_LANGUAGE_OR_KEEP_CAPTIONS" }
+    return "RETRY_OR_USE_EDITABLE_TEXT_DRAFT"
+}
+
 
 // A recognizer endpoint is only a text segment boundary. Only acoustic activity
 // and a monotonic clock determine when a candidate turn may be sealed.
@@ -185,10 +210,13 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
                 transcript: @escaping (String, Bool) -> Void, failed: @escaping (String) -> Void) {
         stopListening()
         let token = generation
-        // A device/language without the downloaded local recognizer fails closed.
-        // We never fall back to Apple's network speech recognition service.
-        guard let local = SFSpeechRecognizer(locale: Locale(identifier: language)),
-              local.supportsOnDeviceRecognition else { failed("VOICE_ON_DEVICE_UNAVAILABLE"); return }
+        // Constructing the recognizer is safe before authorization, but its
+        // on-device capability is not authoritative until the permission sheet
+        // has completed and this App is active again. Checking it here caused a
+        // false first-run failure on otherwise supported Macs.
+        guard let local = SFSpeechRecognizer(locale: Locale(identifier: language)) else {
+            failed("VOICE_RECOGNIZER_LANGUAGE_UNAVAILABLE"); return
+        }
         func authorized() {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.generation == token else { return }
@@ -222,7 +250,9 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
                     else { failed("VOICE_SPEECH_PERMISSION_DENIED") }
                 }
             }
-        default: failed("VOICE_SPEECH_PERMISSION_DENIED")
+        case .denied: failed("VOICE_SPEECH_PERMISSION_DENIED")
+        case .restricted: failed("VOICE_SPEECH_PERMISSION_RESTRICTED")
+        @unknown default: failed("VOICE_SPEECH_PERMISSION_DENIED")
         }
     }
 
@@ -422,7 +452,7 @@ final class TIAVoiceCompanion {
 
     static func validate(action: String, params: [String: Any]) -> Bool {
         switch action {
-        case "voice_listen", "voice_pause", "voice_replay", "voice_clear", "voice_send": return params.isEmpty
+        case "voice_listen", "voice_retry", "voice_pause", "voice_replay", "voice_clear", "voice_send": return params.isEmpty
         case "voice_mute", "voice_handsfree":
             let key = action == "voice_mute" ? "muted" : "enabled"
             guard Set(params.keys) == [key], let value = params[key] as? NSNumber else { return false }
@@ -453,14 +483,17 @@ final class TIAVoiceCompanion {
         else if !draft.isEmpty { status = "DRAFT" }
         else if paused { status = "PAUSED" }
         else { status = "READY" }
-        return ["schema": "tia-local-voice/v1", "available": eligible, "eligible": eligible,
+        let operational = eligible && error == nil && (listening || permissionPending || canSend)
+        return ["schema": "tia-local-voice/v2", "available": eligible, "eligible": eligible,
                 "can_listen": eligible && canSend && !busy && !submitting,
+                "candidate_input_enabled": enabled, "candidate_input_operational": operational,
                 "status": status, "listening_requested": requested, "listening": listening,
                 "speaking": speaking, "muted": muted, "handsfree": handsfree,
                 "silence_seconds": Self.silenceSeconds, "barge_in_monitoring": speaking && listening,
                 "language": language, "rate": rate, "kind": kind, "draft": draft, "partial": partial,
                 "caption": caption, "word_start": wordRange.location, "word_length": wordRange.length,
                 "caption_range": ["location": wordRange.location, "length": wordRange.length],
+                "failure_stage": tiaVoiceFailureStage(error), "recovery_action": tiaVoiceRecovery(error),
                 "error": error as Any? ?? NSNull()]
     }
 
@@ -536,6 +569,12 @@ final class TIAVoiceCompanion {
             guard draft.isEmpty else { return "VOICE_DRAFT_PENDING" }
             enabled = true; requested = true; paused = false
             cancelSpeech(); resumeIfAllowed()
+        case "voice_retry":
+            guard !busy && !submitting && canSend else { return "VOICE_TURN_UNAVAILABLE" }
+            guard draft.isEmpty else { return "VOICE_DRAFT_PENDING" }
+            enabled = true; requested = true; paused = false; error = nil
+            cancelSpeech(); suspendListening(); requested = true; paused = false
+            resumeIfAllowed()
         case "voice_replay":
             guard !busy && !submitting else { return "VOICE_TURN_UNAVAILABLE" }
             guard !muted else { return "VOICE_SPEAKER_MUTED" }

@@ -18,7 +18,8 @@
       settings: "Voice settings & privacy", language: "Speech language", rate: "Speaking speed", normal: "Normal", slow: "Slower", fast: "Faster",
       privacy: "Audio stays on this Mac. On-device speech recognition must be available. Only speech you send becomes interview text sent to the already authorized AI provider. No audio API calls.",
       statusPermission: "Waiting for microphone permission", statusReady: "Ready · mic paused", statusListen: "Listening on this Mac", statusSpeak: "Interviewer speaking", statusWaiting: "Waiting for interviewer", statusPaused: "Mic paused", statusMuted: "Voice muted",
-      statusUnavailable: "Local speech unavailable", failed: "Voice action could not finish. You can keep using the text interview.", permission: "Allow microphone and speech recognition in macOS Privacy & Security, then try again.", unavailable: "On-device recognition is unavailable for this language. Choose another installed language or use the text interview.", cancelled: "Voice action cancelled. No new request was sent.", limit: "The approved turn or request limit has been reached. Use the interview controls to continue.",
+      statusUnavailable: "Candidate speech needs attention", failed: "Voice action could not finish. Your draft remains editable and no automatic retry was sent.", permission: "Allow both Microphone and Speech Recognition in macOS Privacy & Security, return to this App, then press Retry local speech.", unavailable: "The selected on-device recognizer is not currently available. Choose another installed language or retry after macOS finishes preparing local speech.", cancelled: "Voice action cancelled. No new request was sent.", limit: "The approved turn or request limit has been reached. Use the interview controls to continue.",
+      retry: "Retry local speech", diagnostic: "Audio status & recovery", operational: "Candidate input operational", dormant: "Automatic mode saved · local speech dormant", failureStage: "Failure stage", recoveryAction: "Recovery action", nativeCode: "Native code",
       count: "Approved AI requests", listeningEdit: "Click the draft or Edit draft to pause the mic and type.", edit: "Edit draft",
       stalled: "Speech was detected, but no words arrived. The mic is paused. Type here, or press Listen to try local recognition again.",
     },
@@ -35,7 +36,8 @@
       settings: "语音设置与隐私", language: "识别与朗读语言", rate: "朗读速度", normal: "正常", slow: "较慢", fast: "较快",
       privacy: "音频留在这台 Mac 上，须支持设备端识别。只有你发送的文字会成为面试记录，并交给已授权的 AI 服务。没有音频 API 调用。",
       statusPermission: "等待麦克风授权", statusReady: "已就绪 · 麦克风暂停", statusListen: "正在本机听取", statusSpeak: "面试官正在朗读", statusWaiting: "正在等待面试官", statusPaused: "麦克风已暂停", statusMuted: "朗读已静音",
-      statusUnavailable: "本地识别不可用", failed: "语音操作未能完成；你仍可通过文字继续面试。", permission: "请在 macOS“隐私与安全性”中允许麦克风与语音识别后重试。", unavailable: "当前语言的设备端识别不可用。请选择其他已安装语言或通过文字继续。", cancelled: "语音操作已取消，没有发送新请求。", limit: "已达到授权的交互或请求上限，请使用面试控制继续。",
+      statusUnavailable: "候选人语音需要处理", failed: "语音操作未完成。草稿仍可编辑，系统没有自动重试。", permission: "请在 macOS“隐私与安全性”中同时允许麦克风和语音识别，返回本 App 后点击“重试本地语音”。", unavailable: "所选设备端识别器当前不可用。请选择其他已安装语言，或等待 macOS 完成本地语音准备后重试。", cancelled: "语音操作已取消，没有发送新请求。", limit: "已达到授权的交互或请求上限，请使用面试控制继续。",
+      retry: "重试本地语音", diagnostic: "音频状态与恢复", operational: "候选人输入可运行", dormant: "自动模式已保留 · 本地语音休眠", failureStage: "失败阶段", recoveryAction: "恢复操作", nativeCode: "原生代码",
       count: "已授权 AI 请求", listeningEdit: "点击草稿或“编辑草稿”，即可暂停收音并输入文字。", edit: "编辑草稿",
       stalled: "检测到讲话，但识别没有返回文字。已暂停麦克风。可在这里输入，或点击“开始听取”重试本地识别。",
     },
@@ -71,6 +73,7 @@
     if (/LIMIT|BUDGET/.test(code)) return t("limit");
     return t("failed");
   };
+  const diagnosticValue = value => typeof value === "string" && /^[A-Z0-9_]{1,96}$/.test(value) ? value : "NONE";
   function safeError(error) {
     const value = typeof error === "string" ? error : error?.code || error?.message;
     return typeof value === "string" && /^[A-Z_]{3,80}$/.test(value) ? value : "VOICE_ACTION_FAILED";
@@ -214,9 +217,14 @@
     const help = node("p", null, "voice-help");
     const budget = node("p", "voiceRequestBudget", "voice-budget");
     const error = node("p", "voiceError", "voice-error"); error.setAttribute("role", "alert"); error.hidden = true;
-    panel.append(local, captionLabel, caption, playback, form, handsfreeRow, handsfreeNote, settings, help, budget, error);
+    const retry = button("voiceRetry", () => perform(() => command("voice_retry")));
+    const diagnostics = node("details", "voiceDiagnostics", "voice-settings");
+    const diagnosticSummary = node("summary");
+    const diagnosticBody = node("dl", "voiceDiagnosticBody", "voice-diagnostics");
+    diagnostics.append(diagnosticSummary, diagnosticBody);
+    panel.append(local, captionLabel, caption, playback, form, handsfreeRow, handsfreeNote, retry, settings, help, budget, diagnostics, error);
     root.append(header, panel); document.body.append(root);
-    refs = {root, header, handle, toggle, name, status, mic, mute, panel, local, captionLabel, caption, replay, kindLabel, kind, draftLabel, edit, draft, partial, byteCount, draftHelp, clear, submit, handsfree, handsfreeText, handsfreeNote, summary, languageLabel, language, rateLabel, rate, privacy, help, budget, error};
+    refs = {root, header, handle, toggle, name, status, mic, mute, panel, local, captionLabel, caption, replay, kindLabel, kind, draftLabel, edit, draft, partial, byteCount, draftHelp, clear, submit, handsfree, handsfreeText, handsfreeNote, retry, diagnostics, diagnosticSummary, diagnosticBody, summary, languageLabel, language, rateLabel, rate, privacy, help, budget, error};
     handle.addEventListener("pointerdown", event => {
       if (event.button !== 0) return;
       const bounds = root.getBoundingClientRect();
@@ -272,6 +280,7 @@
     text(refs.mute, t(voice.muted ? "unmute" : "mute"));
     refs.replay.disabled = !eligible() || !voice.caption || actionPending || voice.muted === true;
     refs.draft.readOnly = voice.listening === true || pending || actionPending;
+    refs.edit.hidden = voice.listening !== true && voice.listening_requested !== true;
     refs.edit.disabled = !eligible() || pending || actionPending;
     text(refs.edit, t("edit"));
     refs.draft.setAttribute("aria-invalid", String(bytes > 4096));
@@ -281,6 +290,8 @@
     refs.submit.disabled = !eligible() || actionPending || pending || voice.listening === true || !hasTurn() || !localDraft.trim() || bytes > 4096;
     refs.clear.disabled = !eligible() || actionPending || voice.listening === true || pending || (!localDraft && !voice.partial);
     refs.handsfree.disabled = !eligible() || actionPending || pending;
+    refs.retry.hidden = !voice.error;
+    refs.retry.disabled = !eligible() || actionPending || pending || !hasTurn() || !!localDraft.trim();
     refs.kind.disabled = !eligible() || actionPending || pending || voice.listening === true;
     refs.language.disabled = refs.rate.disabled = !eligible() || actionPending || pending || voice.listening === true;
   }
@@ -306,6 +317,20 @@
     refs.language.value = voice.language === "zh-CN" ? "zh-CN" : "en-US";
     refs.rate.value = [0.8, 1, 1.2].includes(voice.rate) ? String(voice.rate) : "1.2";
     refs.handsfree.checked = voice.handsfree === true;
+    text(refs.handsfreeNote, voice.handsfree === true && voice.error ? t("dormant") : t("handsfreeNote"));
+    text(refs.retry, t("retry"));
+    text(refs.diagnosticSummary, t("diagnostic"));
+    const diagnosticRows = [
+      [t("operational"), voice.candidate_input_operational === true ? "YES" : "NO"],
+      [t("failureStage"), diagnosticValue(voice.failure_stage)],
+      [t("recoveryAction"), diagnosticValue(voice.recovery_action)],
+      [t("nativeCode"), diagnosticValue(voice.error)]
+    ];
+    refs.diagnosticBody.replaceChildren(...diagnosticRows.flatMap(([label, value]) => {
+      const term = node("dt"); text(term, label);
+      const description = node("dd"); text(description, value);
+      return [term, description];
+    }));
     refs.draft.placeholder = t("placeholder");
     const displayedDraft = voice.listening && !draftDirty ? string(voice.partial, 4096) || localDraft : localDraft;
     if (refs.draft.value !== displayedDraft && !composing) refs.draft.value = displayedDraft;

@@ -46,6 +46,10 @@
 .voice-check input { flex-shrink: 0; width: 17px; height: 17px; margin: 0; accent-color: #24553d; }
 .voice-settings { border-top: 1px solid #dce5da; border-bottom: 1px solid #dce5da; margin: 12px 0 10px; padding: 9px 0; }
 .voice-settings summary { font-size: 11px; font-weight: 550; color: #365a43; cursor: pointer; }
+.voice-diagnostics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); gap: 5px 10px; margin: 9px 0 0; font-size: 9px; overflow-wrap: anywhere; }
+.voice-diagnostics dt { color: #607267; }
+.voice-diagnostics dd { margin: 0; color: #294b39; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#voiceRetry { width: 100%; margin: 8px 0 2px; }
 .voice-setting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .voice-budget { font-size: 10px; color: #496151; margin: 8px 0 0; }
 .voice-error { border-left: 3px solid #a84d3c; background: #fff0e9; color: #7e3528; padding: 9px; border-radius: 4px; font-size: 11px; margin: 10px 0 0; }
