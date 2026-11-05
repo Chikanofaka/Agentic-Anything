@@ -83,6 +83,34 @@ final class TIAAudioLabReport {
         guard fsync(fd) == 0, Darwin.rename(temporary.path, url.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
         complete = true
     }
+    static func export(_ report: [String: Any], to destination: URL) throws {
+        let target = destination.standardizedFileURL
+        try validateParents(target.deletingLastPathComponent())
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: target.path),
+           attributes[.type] as? FileAttributeType != .typeRegular {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+        let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+        let temporary = target.deletingLastPathComponent().appendingPathComponent(".tia-audio-export-" + UUID().uuidString)
+        let fd = Darwin.open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
+        guard fd >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        var complete = false
+        defer { Darwin.close(fd); if !complete { Darwin.unlink(temporary.path) } }
+        try data.withUnsafeBytes { buffer in
+            var offset = 0
+            while offset < buffer.count {
+                let count = Darwin.write(fd, buffer.baseAddress!.advanced(by: offset), buffer.count - offset)
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { throw CocoaError(.fileWriteUnknown) }
+                offset += count
+            }
+        }
+        guard fsync(fd) == 0, Darwin.rename(temporary.path, target.path) == 0 else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        complete = true
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+    }
 }
 
 // Automated laboratory checks never construct a real microphone/speech backend.
@@ -120,6 +148,7 @@ final class TIAAudioLabApp: NSObject, NSApplicationDelegate, WKScriptMessageHand
     private var uiTimer: Timer?
     private var lastSave = 0.0
     private var outputError: String?
+    private var exportedPath: String?
     private var seenIDs = Set<String>()
     private var smokeStep = 0, smokePassed = [String](), smokeDeadline = 0.0
     private var smokeEvaluating = false
@@ -188,6 +217,10 @@ final class TIAAudioLabApp: NSObject, NSApplicationDelegate, WKScriptMessageHand
               let bytes = try? JSONSerialization.data(withJSONObject: body), bytes.count <= 12288 else { return }
         guard !seenIDs.contains(id), seenIDs.count < 20000 else { respond(id, error: "AUDIO_UAT_DUPLICATE_OR_LIMIT"); return }
         seenIDs.insert(id)
+        if action == "export_report" {
+            exportReport(id: id, payload: payload)
+            return
+        }
         let error = command(action, payload)
         if let error { journal.record("ACTION_REJECTED", ["action": action, "code": error]) }
         render(); respond(id, error: error); save()
@@ -210,10 +243,47 @@ final class TIAAudioLabApp: NSObject, NSApplicationDelegate, WKScriptMessageHand
             journal.record("ROUND_STARTED"); updateVoice(); return nil
         case "stop": guard payload.isEmpty else { return "AUDIO_UAT_INVALID_PAYLOAD" }; stop(); return nil
         case "feedback": return journal.mark(payload) ? nil : "AUDIO_UAT_INVALID_FEEDBACK"
-        case "export_report":
-            guard payload.isEmpty else { return "AUDIO_UAT_INVALID_PAYLOAD" }
-            journal.record("REPORT_EXPORTED"); save(); return outputError
         default: return "AUDIO_UAT_ACTION_NOT_ALLOWED"
+        }
+    }
+    private func exportReport(id: String, payload: [String: Any]) {
+        guard payload.isEmpty else { respond(id, error: "AUDIO_UAT_INVALID_PAYLOAD"); return }
+        save()
+        guard outputError == nil, let reportFile else { respond(id, error: outputError ?? "AUDIO_UAT_EXPORT_FAILED"); return }
+        if synthetic {
+            completeExport(id: id, destination: reportFile.directory.appendingPathComponent("exported-report.json"), reveal: false)
+            return
+        }
+        let panel = NSSavePanel()
+        panel.title = "Export TIA Audio Lab diagnostic report"
+        panel.prompt = "Export"
+        panel.nameFieldStringValue = "tia-audio-uat-\(journal.runID).json"
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        // The bridge reply stays pending while the user chooses a destination;
+        // the App and WebKit main thread remain responsive.
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            guard response == .OK, let destination = panel.url else {
+                self.respond(id, error: "AUDIO_UAT_EXPORT_CANCELLED")
+                return
+            }
+            self.completeExport(id: id, destination: destination, reveal: true)
+        }
+    }
+    private func completeExport(id: String, destination: URL, reveal: Bool) {
+        do {
+            try TIAAudioLabReport.export(journal.report, to: destination)
+            exportedPath = destination.standardizedFileURL.path
+            let bytes = (try? Data(contentsOf: destination).count) ?? 0
+            journal.record("REPORT_EXPORTED", ["bytes": bytes])
+            save(); render(); respond(id, error: nil)
+            if reveal { NSWorkspace.shared.activateFileViewerSelecting([destination]) }
+        } catch {
+            outputError = "AUDIO_UAT_EXPORT_FAILED"
+            journal.record("REPORT_EXPORT_FAILED", ["code": outputError!])
+            render(); respond(id, error: outputError); save()
         }
     }
     private func stop() {
@@ -248,7 +318,8 @@ final class TIAAudioLabApp: NSObject, NSApplicationDelegate, WKScriptMessageHand
     private var snapshot: [String: Any] {
         ["running": running, "pending": busy, "voice": voice.publicState, "events": journal.events,
          "turns": turns, "candidate_turns": candidateTurns, "mode": journal.mode, "run_id": journal.runID,
-         "feedback": journal.checklist, "report_path": reportFile?.url.path ?? "",
+         "feedback": journal.checklist, "report_path": reportFile?.url.path ?? "", "session_id": sessionID,
+         "exported_path": exportedPath as Any? ?? NSNull(),
          "error": outputError as Any? ?? NSNull()]
     }
     private func render() {
@@ -256,7 +327,10 @@ final class TIAAudioLabApp: NSObject, NSApplicationDelegate, WKScriptMessageHand
         sendJS("window.TIAAudioUAT.update", snapshot)
     }
     private func respond(_ id: String, error: String?) {
-        sendJS("window.TIAAudioUAT.receive", ["id": id, "ok": error == nil, "error": error as Any? ?? NSNull(), "report_path": reportFile?.url.path ?? ""])
+        sendJS("window.TIAAudioUAT.receive", ["id": id, "ok": error == nil,
+                                               "error": error as Any? ?? NSNull(),
+                                               "report_path": reportFile?.url.path ?? "",
+                                               "exported_path": exportedPath as Any? ?? NSNull()])
     }
     private func sendJS(_ function: String, _ value: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), let json = String(data: data, encoding: .utf8) else { return }
@@ -344,7 +418,10 @@ func runAudioLabTests() -> Int32 {
     check("reject overlong feedback", !journal.mark(["case_id": "silence", "result": "FAIL", "note": String(repeating: "a", count: 2001)]))
     check("accept explicit human failure", journal.mark(["case_id": "silence", "result": "FAIL", "note": "synthetic feedback"] ))
     check("no fabricated hardware acceptance", journal.report["hardware_acceptance"] as? String == "NOT_RUN")
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("tia-audio-journal-tests-" + UUID().uuidString)
+    // Use the canonical directory rather than macOS's /var compatibility
+    // symlink; the report writer deliberately rejects symlinked parents.
+    let root = URL(fileURLWithPath: "/private/tmp", isDirectory: true)
+        .appendingPathComponent("tia-audio-journal-tests-" + UUID().uuidString)
     do {
         let report = try TIAAudioLabReport(root: root, runID: "run")
         try report.write(journal.report)
@@ -352,6 +429,11 @@ func runAudioLabTests() -> Int32 {
         check("private file permissions", attr[.posixPermissions] as? Int == 0o600)
         let decoded = try JSONSerialization.jsonObject(with: Data(contentsOf: report.url)) as! [String: Any]
         check("export is metadata only", decoded["transcript_saved"] as? Bool == false && decoded["provider_requests"] as? Int == 0)
+        let exported = root.appendingPathComponent("exported.json")
+        try TIAAudioLabReport.export(journal.report, to: exported)
+        check("export creates a selected artifact", FileManager.default.fileExists(atPath: exported.path))
+        let exportedAttributes = try FileManager.default.attributesOfItem(atPath: exported.path)
+        check("exported artifact is private", exportedAttributes[.posixPermissions] as? Int == 0o600)
         let link = root.appendingPathComponent("link")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: report.directory)
         do { _ = try TIAAudioLabReport(root: link, runID: "blocked"); check("symlink parents blocked", false) }

@@ -11,19 +11,22 @@
   const feedbackNodes = new Map();
   const cases = [
     ["permissions", "Permissions & startup", "Begin on this Mac. If macOS asks, allow Microphone and Speech Recognition. After both dialogs, automatic send stays on. The native timeline identifies permission or capability failures. Existing grants may mean no dialog appears."],
-    ["input_frames", "Microphone signal", "Say a short sentence. Check for input-frame telemetry and candidate speech activity in the timeline. An active engine without frames or speech is a failure to record here. Test the microphone and output device you actually use."],
+    ["microphone", "Microphone signal", "Say a short sentence. Check for input-frame telemetry and candidate speech activity in the timeline. An active engine without frames or speech is a failure to record here. Test the microphone and output device you actually use."],
     ["transcription", "Words arrive", "Say: ‘I will explain my plan before writing code.’ The companion should show a partial transcript, then the completed words. Record missing, garbled or stale text."],
-    ["silence_seal", "Five seconds, one delivery", "Speak one sentence, then remain silent. No send should occur before five uninterrupted seconds. After five seconds there should be exactly one candidate message and one scripted reply. Silence alone must not create a message."],
+    ["silence", "Five seconds, one delivery", "Speak one sentence, then remain silent. No send should occur before five uninterrupted seconds. After five seconds there should be exactly one candidate message and one scripted reply. Silence alone must not create a message."],
     ["silence_reset", "Resumed speech resets silence", "Speak, pause for roughly three seconds, and continue speaking. The two parts stay in one turn. The five-second wait starts again from the resumed speech, including when the recognizer finalizes a segment early."],
+    ["early_final", "Recognizer final is not silence", "Speak several sentences with short pauses. A recognizer segment final, if one occurs, must not authorize a send. Only five seconds of measured candidate silence may seal the turn."],
+    ["exactly_once", "Exactly one local delivery", "Complete one phrase and remain silent through the scripted reply. Confirm one candidate turn and one reply, without a late recognizer result or timer creating a duplicate."],
     ["barge_in", "Interrupt interviewer audio", "While the scripted reply is speaking, say ‘Skip the introduction and read the question.’ Playback should stop promptly, and your words should appear and send after silence. This must not skip a question or change an interview."],
-    ["echo_rejection", "Speaker echo is not candidate speech", "Use the Mac speakers at your usual volume and remain silent through a reply. Its own audio must not become candidate text or trigger another turn. Repeat with headphones if available; record the device and volume qualitatively."],
-    ["manual_edit", "Editable candidate input", "While listening, click Edit draft in the companion and type a correction. Capture pauses and the text becomes editable. Send manually, then use Listen to resume. Also try the separate Candidate text input box on this page."],
-    ["pause_resume", "Pause and resume capture", "Pause the mic halfway through a sentence. Speak while paused; those words must not appear or send. The existing draft remains editable. Clear or send it, then Listen again."],
+    ["echo", "Speaker echo is not candidate speech", "Use the Mac speakers at your usual volume and remain silent through a reply. Its own audio must not become candidate text or trigger another turn. Repeat with headphones if available; record the device and volume qualitatively."],
+    ["manual_input", "Editable candidate input", "While listening, click Edit draft in the companion and type a correction. Capture pauses and the text becomes editable. Send manually, then use Listen to resume. Also try the separate Candidate text input box on this page."],
+    ["pause", "Pause and resume capture", "Pause the mic halfway through a sentence. Speak while paused; those words must not appear or send. The existing draft remains editable. Clear or send it, then Listen again."],
     ["mute_replay", "Mute and replay", "Mute interviewer voice, send a message and confirm that a reply caption appears without sound. Unmute and Replay the reply. Muting playback should not silently disable candidate input."],
-    ["language_speed", "Language and speaking speed", "Pause capture, open Voice settings and switch speed between Slower, Normal and Faster. Faster is the default. Test an installed English or Chinese recognition language; unavailable local assets must produce a clear recovery state, never cloud audio."],
-    ["drag_collapse", "Drag and collapse", "Move the companion using its grip, then collapse and reopen it. The transcript, automatic-send setting and mic controls stay consistent. Keyboard: focus the grip, use arrows, Shift+arrow or Home."],
-    ["focus_recovery", "App interruption", "Switch to another app while listening or speaking. Audio should stop safely. Return and use Listen explicitly to resume. Permission sheets during initial startup must not turn automatic send off."],
-    ["recognition_recovery", "Failure and text fallback", "If the recognizer or microphone fails, record the native error and recovery hint. Confirm text remains editable. Use Retry local speech after fixing the device, permission or installed language. Do not deny existing production permissions just to force this case."],
+    ["language", "Language and speaking speed", "Pause capture, open Voice settings and switch speed between Slower, Normal and Faster. Faster is the default. Test an installed English or Chinese recognition language; unavailable local assets must produce a clear recovery state, never cloud audio."],
+    ["drag", "Drag and collapse", "Move the companion using its grip, then collapse and reopen it. The transcript, automatic-send setting and mic controls stay consistent. Keyboard: focus the grip, use arrows, Shift+arrow or Home."],
+    ["focus", "App interruption", "Switch to another app while listening or speaking. Audio should stop safely. Return and use Listen explicitly to resume. Permission sheets during initial startup must not turn automatic send off."],
+    ["recovery", "Failure and text fallback", "If the recognizer or microphone fails, record the native error and recovery hint. Confirm text remains editable. Use Retry local speech after fixing the device, permission or installed language. Do not deny existing production permissions just to force this case."],
+    ["export", "Private diagnostic report", "Add a harmless note, save it, and export the report. Confirm the report contains diagnostic metadata and checklist outcomes, with no audio, recognized transcript or interview state."],
     ["stop_isolation", "Stop and isolation", "Press Stop audio. No more capture, words, replies or stale sends may arrive. Export the report. Existing interview sessions and their state remain untouched. Begin again only if you want another isolated run."],
   ];
   const make = (tag, text = "", className = "") => {
@@ -39,7 +42,10 @@
     return new Promise((resolve, reject) => {
       if (!window.webkit?.messageHandlers?.audioUAT) { reject(new Error("AUDIO_UAT_NATIVE_HOST_REQUIRED")); return; }
       const id = `audio-uat-${++sequence}`;
-      const timer = window.setTimeout(() => { pending.delete(id); reject(new Error("AUDIO_UAT_BRIDGE_TIMEOUT")); }, 15000);
+      // A real export waits for the user-controlled native Save panel. It must
+      // not inherit the short timeout used for ordinary bridge operations.
+      const timeout = action === "export_report" ? 10 * 60 * 1000 : 15000;
+      const timer = window.setTimeout(() => { pending.delete(id); reject(new Error("AUDIO_UAT_BRIDGE_TIMEOUT")); }, timeout);
       pending.set(id, {resolve, reject, timer});
       window.webkit.messageHandlers.audioUAT.postMessage({id, action, payload});
     });
@@ -150,6 +156,10 @@
     $("audioRunStatus").textContent = next.running ? synthetic ? "Synthetic test active. This does not certify microphone, recognition or speakers." : "Audio test active. Expand the companion to inspect transcription and controls." : "Audio stopped. Begin starts a separate test; no interview state is loaded.";
     $("audioReportPath").hidden = !next.report_path;
     $("audioReportPath").textContent = next.report_path ? `Diagnostic report: ${next.report_path}` : "";
+    if (typeof next.exported_path === "string" && next.exported_path) {
+      $("audioExportStatus").hidden = false;
+      $("audioExportStatus").textContent = `Exported file: ${next.exported_path} · Finder opened at this file.`;
+    }
     window.TIAVoice.update({screen: "AUDIO_UAT", language: "en", audio_uat: {active: next.running === true, can_send: next.voice?.eligible === true && next.voice?.submitting !== true, pending: next.voice?.submitting === true, turns: (next.turns || []).filter(turn => turn.role === "candidate" || turn.role === "user").length, session_id: next.session_id || "local-audio-uat"}});
     window.TIAVoice.receive(next.voice || {});
     renderSignals(); renderEvents(); renderTurns(); paintControls();
@@ -165,7 +175,21 @@
   window.TIAVoice.mount({send: command, localAudioUAT: true});
   $("audioBegin").addEventListener("click", () => perform("begin"));
   $("audioStop").addEventListener("click", () => { command("stop").catch(showError); });
-  $("audioExport").addEventListener("click", () => perform("export_report"));
+  $("audioExport").addEventListener("click", async () => {
+    if (busy) return;
+    busy = true; $("audioError").hidden = true; $("audioExportStatus").hidden = true; paintControls();
+    try {
+      const reply = await command("export_report");
+      const path = typeof reply?.exported_path === "string" ? reply.exported_path : "";
+      $("audioExportStatus").hidden = false;
+      $("audioExportStatus").textContent = path ? `Exported file: ${path} · Finder opened at this file.` : "Diagnostic report exported.";
+    } catch (error) {
+      if (error?.message === "AUDIO_UAT_EXPORT_CANCELLED") {
+        $("audioExportStatus").hidden = false;
+        $("audioExportStatus").textContent = "Export cancelled; no file was created.";
+      } else { showError(error); }
+    } finally { busy = false; paintControls(); }
+  });
   $("audioManualDraft").addEventListener("focus", () => {
     if (state?.running && (state.voice?.listening || state.voice?.listening_requested)) command("voice_pause").catch(showError);
   });

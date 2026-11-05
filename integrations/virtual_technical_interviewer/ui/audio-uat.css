@@ -28,6 +28,7 @@ label { display: block; margin: 10px 0 5px; font-size: 13px; font-weight: 600; }
 #audioRunStatus { font-size: 14px; margin: 12px 0 0; font-weight: 550; }
 .failure { border: 1px solid #d4a398; color: #7d3228; background: #fff0e9; border-radius: 10px; padding: 12px; overflow-wrap: anywhere; }
 .path { color: #52705f; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.export-success { padding: 10px 12px; border: 1px solid #76a987; border-radius: 10px; background: #edf8f0; color: #24583a; overflow-wrap: anywhere; }
 .lab-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(310px, 1fr); gap: 22px; align-items: start; }
 .main-column { display: grid; gap: 22px; min-width: 0; }
 .card { background: #fcfdfb; border: 1px solid #d6dfd5; border-radius: 18px; padding: 24px; min-width: 0; }

@@ -166,6 +166,48 @@ final class TIARecognitionPipe: @unchecked Sendable {
     }
 }
 
+// Voice Processing I/O may expose an aggregate, multi-channel device format
+// (nine channels on some Macs). SFSpeechRecognizer does not reliably produce
+// results when that aggregate buffer is appended directly. Convert the
+// echo-cancelled signal to single-channel Float32 PCM in memory.
+final class TIASpeechRecognitionDownmixer {
+    let outputFormat: AVAudioFormat
+    private let converter: AVAudioConverter?
+
+    init?(inputFormat: AVAudioFormat) {
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0,
+              let mono = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                       sampleRate: inputFormat.sampleRate,
+                                       channels: 1,
+                                       interleaved: false) else { return nil }
+        outputFormat = mono
+        let alreadyMono = inputFormat.channelCount == 1 &&
+            inputFormat.commonFormat == .pcmFormatFloat32 && !inputFormat.isInterleaved
+        converter = alreadyMono ? nil : AVAudioConverter(from: inputFormat, to: mono)
+        // Channel zero is the post-AEC microphone signal used successfully by
+        // the activity detector. Do not mix the remaining aggregate channels:
+        // they can include Voice Processing reference/output channels and may
+        // feed interviewer playback back into recognition.
+        converter?.channelMap = [0]
+        if !alreadyMono && converter == nil { return nil }
+    }
+
+    func convert(_ input: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        if converter == nil { return input }
+        guard let converter,
+              let output = AVAudioPCMBuffer(pcmFormat: outputFormat,
+                                            frameCapacity: max(1, input.frameLength)) else { return nil }
+        var supplied = false
+        var conversionError: NSError?
+        let status = converter.convert(to: output, error: &conversionError) { _, status in
+            if supplied { status.pointee = .noDataNow; return nil }
+            supplied = true; status.pointee = .haveData; return input
+        }
+        guard status != .error, conversionError == nil, output.frameLength > 0 else { return nil }
+        return output
+    }
+}
+
 // Permission callbacks can arrive before macOS restores App activation.
 // Keep the authorized start pending without capturing in the background.
 final class TIAVoiceActivationGate {
@@ -288,7 +330,13 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
         input.isVoiceProcessingBypassed = false
         let format = input.outputFormat(forBus: 0)
         guard format.channelCount > 0, format.sampleRate > 0 else { failed("VOICE_MIC_UNAVAILABLE"); return }
-        report("AUDIO_INPUT_CONFIGURED", ["sample_rate": format.sampleRate, "channels": format.channelCount, "echo_cancellation": true])
+        guard let downmixer = TIASpeechRecognitionDownmixer(inputFormat: format) else {
+            failed("VOICE_RECOGNITION_FORMAT_UNAVAILABLE"); return
+        }
+        report("AUDIO_INPUT_CONFIGURED", ["sample_rate": format.sampleRate,
+                                           "source_channels": format.channelCount,
+                                           "recognition_channels": downmixer.outputFormat.channelCount,
+                                           "echo_cancellation": true])
         completedText = ""; recognizer = local
         recognitionTranscript = transcript; recognitionFailed = failed
         // An Apple recognition task with no supplied frames can finalize or
@@ -300,11 +348,19 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
         var detector = TIACandidateSpeechDetector()
         var nextTelemetry = 0.0, frameCount = 0, activityCount = 0
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return }
-            let spoken = detector.observe(samples: UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)),
-                                          sampleRate: buffer.format.sampleRate)
+            guard let recognitionBuffer = downmixer.convert(buffer),
+                  let samples = recognitionBuffer.floatChannelData?[0],
+                  recognitionBuffer.frameLength > 0 else {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.generation == token else { return }
+                    self.report("AUDIO_CONVERSION_FAILED", ["source_channels": buffer.format.channelCount])
+                }
+                return
+            }
+            let spoken = detector.observe(samples: UnsafeBufferPointer(start: samples, count: Int(recognitionBuffer.frameLength)),
+                                          sampleRate: recognitionBuffer.format.sampleRate)
             let time = ProcessInfo.processInfo.systemUptime
-            frameCount += Int(buffer.frameLength)
+            frameCount += Int(recognitionBuffer.frameLength)
             if detector.possibleSpeech { activityCount += 1 }
             // One aggregate sample each second; never dispatch per-frame audio
             // or persist a recording for diagnostics.
@@ -319,7 +375,7 @@ final class TIALocalVoiceBackend: NSObject, TIAVoiceBackend, AVSpeechSynthesizer
             }
             // Even the first plausible frame holds off a pending seal. The
             // sustained onset threshold gates barge-in, not silence continuity.
-            pipe.append(buffer, candidateOnset: spoken)
+            pipe.append(recognitionBuffer, candidateOnset: spoken)
             if detector.possibleSpeech {
                 DispatchQueue.main.async {
                     guard let self, self.generation == token else { return }
@@ -606,7 +662,7 @@ final class TIAVoiceCompanion {
         let newRoom = sessionKey != identity || !eligible
         if !active {
             if eligible || requested || speaking || submitting { clearRoom() }
-            eligible = false; canSend = false; self.busy = false; sessionKey = nil
+            eligible = false; self.canSend = false; self.busy = false; sessionKey = nil
             emit(); return
         }
         if newRoom {

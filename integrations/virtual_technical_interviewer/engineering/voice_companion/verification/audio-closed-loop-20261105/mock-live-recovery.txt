@@ -1,0 +1,3 @@
+PASS live receipt reopens without credentials or automatic provider requests
+PASS recovered live evidence and independent unscored fields remain intact
+Native UI smoke: PASS — 2 real UI checks; 0 mocked HTTP requests; zero real provider requests

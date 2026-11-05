@@ -1,0 +1,426 @@
+{
+  "events" : [
+    {
+      "details" : {
+        "mode" : "SYNTHETIC",
+        "reply_source" : "SCRIPTED_LOCAL"
+      },
+      "elapsed_seconds" : 0.45852175005711615,
+      "event" : "LAB_STARTED",
+      "sequence" : 1
+    },
+    {
+      "details" : {
+
+      },
+      "elapsed_seconds" : 1.2163016250124201,
+      "event" : "ROUND_STARTED",
+      "sequence" : 2
+    },
+    {
+      "details" : {
+        "fresh" : true,
+        "monotonic_seconds" : 649615.74741666671,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.2165812082821503,
+      "event" : "ROOM_ENTERED",
+      "sequence" : 3
+    },
+    {
+      "details" : {
+        "bytes" : 162,
+        "monotonic_seconds" : 649615.74745999998,
+        "rate" : 1.2,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.2166107083903626,
+      "event" : "INTERVIEWER_SPEAKING",
+      "sequence" : 4
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649615.74769437499,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.2168377083726227,
+      "event" : "LISTEN_START_PENDING",
+      "sequence" : 5
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649615.74771400006,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.2168537500547245,
+      "event" : "LISTEN_READY",
+      "sequence" : 6
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649615.80040995835,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.269564583315514,
+      "event" : "INTERVIEWER_FINISHED",
+      "sequence" : 7
+    },
+    {
+      "details" : {
+        "confirmed" : true,
+        "monotonic_seconds" : 649615.99228970835,
+        "scope" : "LOCAL_AUDIO_UAT",
+        "silence_seconds" : 5
+      },
+      "elapsed_seconds" : 1.4614655000623316,
+      "event" : "SPEECH_ACTIVITY",
+      "sequence" : 8
+    },
+    {
+      "details" : {
+        "bytes" : 26,
+        "final_segment" : true,
+        "monotonic_seconds" : 649615.99254554173,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.4617003332823515,
+      "event" : "TRANSCRIPT_ACCEPTED",
+      "sequence" : 9
+    },
+    {
+      "details" : {
+        "confirmed" : true,
+        "monotonic_seconds" : 649620.49276929174,
+        "scope" : "LOCAL_AUDIO_UAT",
+        "silence_seconds" : 5
+      },
+      "elapsed_seconds" : 1.461924041621387,
+      "event" : "SPEECH_ACTIVITY",
+      "sequence" : 10
+    },
+    {
+      "details" : {
+        "automatic" : true,
+        "bytes" : 26,
+        "monotonic_seconds" : 649625.59304725006,
+        "scope" : "LOCAL_AUDIO_UAT",
+        "silence_seconds" : 5.1002773749642074
+      },
+      "elapsed_seconds" : 1.4622148750349879,
+      "event" : "SILENCE_SEALED",
+      "sequence" : 11
+    },
+    {
+      "details" : {
+        "automatic" : true,
+        "bytes" : 26,
+        "kind" : "clarify",
+        "monotonic_seconds" : 649625.59310175001,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.4622563333250582,
+      "event" : "TURN_SUBMITTED",
+      "sequence" : 12
+    },
+    {
+      "details" : {
+        "kind" : "clarify",
+        "transcript_bytes" : 26,
+        "turn" : 1
+      },
+      "elapsed_seconds" : 1.4624865000369027,
+      "event" : "LOCAL_TURN_ACCEPTED",
+      "sequence" : 13
+    },
+    {
+      "details" : {
+        "turn" : 1
+      },
+      "elapsed_seconds" : 1.829832166666165,
+      "event" : "SCRIPTED_REPLY_READY",
+      "sequence" : 14
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649625.96071579168,
+        "ok" : true,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.8299492916557938,
+      "event" : "SUBMISSION_FINISHED",
+      "sequence" : 15
+    },
+    {
+      "details" : {
+        "bytes" : 101,
+        "monotonic_seconds" : 649625.9620407084,
+        "rate" : 1.2,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.8312322082929313,
+      "event" : "INTERVIEWER_SPEAKING",
+      "sequence" : 16
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649616.36215054174,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.8313032917212695,
+      "event" : "LISTEN_START_PENDING",
+      "sequence" : 17
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649616.36218445841,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.8313342083711177,
+      "event" : "LISTEN_READY",
+      "sequence" : 18
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649616.41481412505,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.8840003750519827,
+      "event" : "INTERVIEWER_FINISHED",
+      "sequence" : 19
+    },
+    {
+      "details" : {
+        "action" : "voice_pause"
+      },
+      "elapsed_seconds" : 1.9635555417044088,
+      "event" : "UI_ACTION",
+      "sequence" : 20
+    },
+    {
+      "details" : {
+        "action" : "voice_pause",
+        "monotonic_seconds" : 649616.49443412502,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 1.9635874583618715,
+      "event" : "VOICE_ACTION",
+      "sequence" : 21
+    },
+    {
+      "details" : {
+        "action" : "voice_draft"
+      },
+      "elapsed_seconds" : 2.4726757500320673,
+      "event" : "UI_ACTION",
+      "sequence" : 22
+    },
+    {
+      "details" : {
+        "action" : "voice_draft",
+        "monotonic_seconds" : 649617.00356483343,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.472773166722618,
+      "event" : "VOICE_ACTION",
+      "sequence" : 23
+    },
+    {
+      "details" : {
+        "action" : "voice_send"
+      },
+      "elapsed_seconds" : 2.4843223750358447,
+      "event" : "UI_ACTION",
+      "sequence" : 24
+    },
+    {
+      "details" : {
+        "action" : "voice_send",
+        "monotonic_seconds" : 649617.01520316675,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.4843703333754092,
+      "event" : "VOICE_ACTION",
+      "sequence" : 25
+    },
+    {
+      "details" : {
+        "automatic" : true,
+        "bytes" : 23,
+        "kind" : "clarify",
+        "monotonic_seconds" : 649617.01526420843,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.4844385416945443,
+      "event" : "TURN_SUBMITTED",
+      "sequence" : 26
+    },
+    {
+      "details" : {
+        "kind" : "clarify",
+        "transcript_bytes" : 23,
+        "turn" : 2
+      },
+      "elapsed_seconds" : 2.4850429999642074,
+      "event" : "LOCAL_TURN_ACCEPTED",
+      "sequence" : 27
+    },
+    {
+      "details" : {
+        "turn" : 2
+      },
+      "elapsed_seconds" : 2.853111166623421,
+      "event" : "SCRIPTED_REPLY_READY",
+      "sequence" : 28
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649617.3839917084,
+        "ok" : true,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.8531630833167583,
+      "event" : "SUBMISSION_FINISHED",
+      "sequence" : 29
+    },
+    {
+      "details" : {
+        "bytes" : 101,
+        "monotonic_seconds" : 649617.38515041675,
+        "rate" : 1.2,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.8543520832899958,
+      "event" : "INTERVIEWER_SPEAKING",
+      "sequence" : 30
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649617.43860645837,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.907791041652672,
+      "event" : "INTERVIEWER_FINISHED",
+      "sequence" : 31
+    },
+    {
+      "details" : {
+        "monotonic_seconds" : 649617.49518312502,
+        "scope" : "LOCAL_AUDIO_UAT"
+      },
+      "elapsed_seconds" : 2.9643769999966025,
+      "event" : "VOICE_STOPPED",
+      "sequence" : 32
+    },
+    {
+      "details" : {
+
+      },
+      "elapsed_seconds" : 2.9651998333865777,
+      "event" : "ROUND_STOPPED",
+      "sequence" : 33
+    }
+  ],
+  "events_dropped" : 0,
+  "feedback" : [
+    {
+      "case_id" : "permissions",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "microphone",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "transcription",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "silence",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "silence_reset",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "early_final",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "exactly_once",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "barge_in",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "echo",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "manual_input",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "pause",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "mute_replay",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "language",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "drag",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "focus",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "recovery",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "export",
+      "note" : "",
+      "result" : "NOT_RUN"
+    },
+    {
+      "case_id" : "stop_isolation",
+      "note" : "",
+      "result" : "NOT_RUN"
+    }
+  ],
+  "hardware_acceptance" : "NOT_RUN",
+  "interview_state_accessed" : false,
+  "mode" : "SYNTHETIC",
+  "os_version" : "Version 26.6.2 (Build 25G83)",
+  "provider_requests" : 0,
+  "raw_audio_saved" : false,
+  "reply_source" : "SCRIPTED_LOCAL",
+  "run_id" : "D6A225F0-C804-4F9B-8848-FBF9EB4340EA",
+  "schema" : "tia-audio-uat\/v1",
+  "transcript_saved" : false
+}

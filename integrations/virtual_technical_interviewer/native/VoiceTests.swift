@@ -500,6 +500,27 @@ func runVoiceTests() -> Int32 {
         check("sustained post-AEC voice-band activity reaches onset detector", active)
     }
     do {
+        // AVAudioFormat requires an explicit channel layout above two channels,
+        // which is supplied by real Voice Processing I/O. A stereo fixture is
+        // sufficient to prove the converter's channel-zero mapping without
+        // fabricating an invalid aggregate device format in this unit test.
+        let aggregate = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                      sampleRate: 44100,
+                                      channels: 2,
+                                      interleaved: false)!
+        let input = AVAudioPCMBuffer(pcmFormat: aggregate, frameCapacity: 1024)!
+        input.frameLength = 1024
+        for channel in 0..<Int(aggregate.channelCount) {
+            for frame in 0..<1024 { input.floatChannelData![channel][frame] = channel == 0 ? 0.12 : 0.04 }
+        }
+        let mono = TIASpeechRecognitionDownmixer(inputFormat: aggregate)?.convert(input)
+        let first = mono?.floatChannelData?[0][0]
+        check("multi-channel voice-processing input is converted to recognizer mono",
+              mono?.format.channelCount == 1 && mono?.frameLength == input.frameLength && first != nil)
+        check("recognizer mono uses the post-AEC microphone channel",
+              first.map { abs($0 - 0.12) < 0.001 } == true)
+    }
+    do {
         let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
         func frame(_ value: Float) -> AVAudioPCMBuffer {
             let result = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)!
