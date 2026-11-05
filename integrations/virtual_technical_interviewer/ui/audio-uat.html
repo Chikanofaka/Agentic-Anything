@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+    <meta name="color-scheme" content="light">
+    <title>TIA · Audio loop lab</title>
+    <link rel="stylesheet" href="voice.css">
+    <link rel="stylesheet" href="audio-uat.css">
+    <script src="voice.js" defer></script>
+    <script src="audio-uat.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to audio test</a>
+    <main id="main">
+      <header class="lab-header">
+        <div><p class="eyebrow">Technical Interview Lab · isolated UAT</p><h1 id="screenTitle" tabindex="-1">Audio loop lab</h1></div>
+        <span class="mode-badge" id="audioMode">Waiting for native test host</span>
+      </header>
+      <p class="intro">Speak → see your words → wait five seconds → hear a local scripted reply. Test the audio loop here without opening an interview or connecting an API key.</p>
+      <div class="privacy-note">No provider requests. No audio recording. Live captions and test conversation stay in memory. The report contains diagnostic metadata, your checklist results and feedback; it excludes transcripts. Avoid personal information in feedback.</div>
+      <section class="test-controls" aria-label="Audio test controls">
+        <div class="buttons"><button id="audioBegin" class="primary" type="button" disabled>Begin audio test</button><button id="audioStop" type="button" disabled>Stop audio</button><button id="audioExport" type="button">Export diagnostic report</button></div>
+        <p id="audioRunStatus" role="status" aria-live="polite">Connecting to the isolated native host…</p>
+        <p id="audioError" class="failure" role="alert" hidden></p>
+        <p id="audioReportPath" class="path" hidden></p>
+      </section>
+      <div class="lab-grid">
+        <div class="main-column">
+          <section class="card" aria-labelledby="signalsHeading">
+            <h2 id="signalsHeading">Follow the signal</h2>
+            <p>These are native observations, not automatic acceptance marks. A listening indicator alone does not prove words are arriving.</p>
+            <dl id="audioSignals" class="signals"></dl>
+            <div id="audioRecovery" class="recovery" hidden></div>
+          </section>
+          <section class="card" aria-labelledby="manualHeading">
+            <h2 id="manualHeading">Candidate text input</h2>
+            <p>Typing stays available if local recognition fails. Focusing this box pauses capture; sending exercises the same local reply loop.</p>
+            <label for="audioManualDraft">Test message</label>
+            <textarea id="audioManualDraft" rows="3" maxlength="4096" placeholder="Type a short test message…" spellcheck="true"></textarea>
+            <div class="input-footer"><span id="audioManualBytes">0 / 4096 UTF-8 bytes</span><button id="audioManualSend" type="button" disabled>Send text · local test</button></div>
+          </section>
+          <section class="card" aria-labelledby="conversationHeading">
+            <h2 id="conversationHeading">Live test conversation</h2>
+            <p>Real transcription appears in the draggable companion. Replies below are scripted, not generated or evaluated by a model.</p>
+            <ol id="audioTurns" class="turns"><li class="empty">Begin the test to hear the opening.</li></ol>
+          </section>
+          <section class="card" aria-labelledby="timelineHeading">
+            <div class="section-heading"><h2 id="timelineHeading">Native diagnostic timeline</h2><span id="audioEventCount">0 events</span></div>
+            <p>Newest event first. Permission, capture, recognition, silence, delivery and playback are separate stages. Metadata only; no raw audio or transcript text.</p>
+            <ol id="audioTimeline" class="timeline"><li class="empty">No native events yet.</li></ol>
+          </section>
+        </div>
+        <aside class="card checklist" aria-labelledby="checklistHeading">
+          <h2 id="checklistHeading">Your acceptance checklist</h2>
+          <p>Work through each case. Mark only what you actually observed. Hardware checks remain <strong>Not run</strong> until you perform them.</p>
+          <p class="checklist-hint">Expand the floating companion to use Listen, Edit draft, automatic send, Replay, Mute, language and speed. Drag its handle to move it away from a test.</p>
+          <div id="audioFeedback"></div>
+        </aside>
+      </div>
+      <footer>Audio-only UAT. Stop or close this window to end capture. Existing interview sessions, evaluator settings and provider credentials are not accessed.</footer>
+    </main>
+  </body>
+</html>

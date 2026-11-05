@@ -42,12 +42,24 @@
       stalled: "检测到讲话，但识别没有返回文字。已暂停麦克风。可在这里输入，或点击“开始听取”重试本地识别。",
     },
   };
+  // Presentation-only mode selected once by the isolated lab entry point. It
+  // grants no native capability; the production bridge retains its allowlist.
+  let localAudioUAT = false;
+  const localCopy = {
+    title: "Scripted interviewer", companion: "Local audio test companion",
+    local: "Local audio · scripted test reply", send: "Send · local test",
+    emptyCaption: "The local scripted reply appears here after Begin.",
+    handsfreeNote: "Speech sends to the local test after at least 5 seconds of silence. No provider request is made. Pause the mic or turn this off to type at your own pace.",
+    privacy: "Real microphone, on-device recognition and local speech playback. Audio is not recorded. Test text stays in memory and is excluded from the exported report.",
+    helpText: "This isolated test exercises the production voice companion with scripted replies. It cannot change an interview, submit SQL or call a model.",
+    count: "Local scripted turns", statusWaiting: "Waiting for local scripted reply",
+  };
   let send = null, host = null, voice = {}, refs = null;
   let collapsed = true, moved = false, localDraft = "", draftDirty = false;
   let localError = "", actionPending = false, composing = false, drag = null;
   let draftRevision = 0, lastCaption = "", lastWord = "", lastRoom = null;
   const encoder = new TextEncoder();
-  const t = key => copy[host?.language === "zh" ? "zh" : "en"][key];
+  const t = key => localAudioUAT && Object.hasOwn(localCopy, key) ? localCopy[key] : copy[host?.language === "zh" ? "zh" : "en"][key];
   const node = (tag, id, className = "") => {
     const result = document.createElement(tag);
     if (id) result.id = id;
@@ -61,9 +73,12 @@
   };
   const option = (value, label) => { const result = node("option"); result.value = value; result.textContent = label; return result; };
   const string = (value, limit = 8192) => typeof value === "string" ? value.slice(0, limit) : "";
-  const roomVisible = () => host?.screen === "LIVE_PREVIEW" && host.live_preview && !host.live_preview.closed && host.activation?.authenticated === true;
+  const roomVisible = () => localAudioUAT
+    ? host?.screen === "AUDIO_UAT" && host.audio_uat?.active === true
+    : host?.screen === "LIVE_PREVIEW" && host.live_preview && !host.live_preview.closed && host.activation?.authenticated === true;
+  const currentRoom = () => localAudioUAT ? host?.audio_uat : host?.live_preview;
   const eligible = () => roomVisible() && voice.eligible === true;
-  const hasTurn = () => host?.live_preview?.can_send === true && !host.live_preview.pending;
+  const hasTurn = () => currentRoom()?.can_send === true && !currentRoom().pending;
   const errorMessage = code => {
     if (!code) return "";
     if (code === "VOICE_RECOGNITION_STALLED") return t("stalled");
@@ -130,6 +145,7 @@
   function mount(options) {
     if (refs) { if (typeof options?.send === "function") send = options.send; return; }
     if (typeof options?.send !== "function") throw new TypeError("A native voice bridge callback is required");
+    localAudioUAT = options.localAudioUAT === true;
     send = options.send;
     const root = node("aside", "voiceCompanion", "voice-companion"); root.hidden = true;
     const header = node("div", null, "voice-header");
@@ -162,7 +178,7 @@
     const draft = node("textarea", "voiceDraft"); draft.rows = 3; draft.maxLength = 4096;
     draft.setAttribute("aria-describedby", "voiceDraftHelp voiceByteCount"); draft.setAttribute("spellcheck", "true");
     const editDraft = () => {
-      if (actionPending || host?.live_preview?.pending || !eligible()) return;
+      if (actionPending || currentRoom()?.pending || !eligible()) return;
       perform(async () => {
         // Native pause atomically preserves the latest partial and invalidates
         // late recognizer callbacks before this draft becomes editable.
@@ -269,7 +285,7 @@
   function paintControls() {
     if (!refs) return;
     const bytes = encoder.encode(voice.listening && !draftDirty ? string(voice.partial, 4096) || localDraft : localDraft).length;
-    const pending = !!host?.live_preview?.pending;
+    const pending = !!currentRoom()?.pending;
     const wantsMic = voice.listening === true || voice.listening_requested === true;
     refs.mic.disabled = !eligible() || (!wantsMic && (actionPending || pending || !hasTurn()));
     refs.mic.setAttribute("aria-pressed", String(wantsMic));
@@ -308,7 +324,7 @@
     refs.toggle.setAttribute("aria-expanded", String(!collapsed)); refs.toggle.setAttribute("aria-label", t(collapsed ? "open" : "collapse"));
     refs.handle.setAttribute("aria-label", t("move")); refs.handle.title = t("move");
     text(refs.name, t("title"));
-    const status = voice.status === "PERMISSION" ? "statusPermission" : voice.listening ? "statusListen" : voice.speaking ? "statusSpeak" : host?.live_preview?.pending || voice.status === "WAITING" ? "statusWaiting" : voice.error ? "statusUnavailable" : voice.muted ? "statusMuted" : "statusReady";
+    const status = voice.status === "PERMISSION" ? "statusPermission" : voice.listening ? "statusListen" : voice.speaking ? "statusSpeak" : currentRoom()?.pending || voice.status === "WAITING" ? "statusWaiting" : voice.error ? "statusUnavailable" : voice.muted ? "statusMuted" : "statusReady";
     text(refs.status, t(status));
     for (const [key, target] of [["local", "local"], ["caption", "captionLabel"], ["replay", "replay"], ["kind", "kindLabel"], ["draft", "draftLabel"], ["clear", "clear"], ["send", "submit"], ["handsfree", "handsfreeText"], ["handsfreeNote", "handsfreeNote"], ["settings", "summary"], ["language", "languageLabel"], ["rate", "rateLabel"], ["privacy", "privacy"], ["helpText", "help"]]) text(refs[target], t(key));
     for (const entry of refs.kind.options) text(entry, t(entry.value));
@@ -339,10 +355,10 @@
     const activation = host.activation || {};
     const used = Number.isInteger(activation.requests_used) ? activation.requests_used : 0;
     const limit = Number.isInteger(activation.request_limit) ? activation.request_limit : "—";
-    const turns = ["tia-continuity/v2", "tia-continuity/v3"].includes(host.rehearsal?.continuity_policy)
+    const turns = localAudioUAT ? "" : ["tia-continuity/v2", "tia-continuity/v3"].includes(host.rehearsal?.continuity_policy)
       ? `${host.language === "zh" ? "本题发言" : "Question turns"}: ${host.live_preview.candidate_turns_used}`
       : `${host.language === "zh" ? "本题发言" : "Question turns"}: ${host.live_preview.candidate_turns_used} / ${host.live_preview.candidate_turn_limit}`;
-    text(refs.budget, `${t("count")}: ${used} / ${limit} · ${turns}`);
+    text(refs.budget, localAudioUAT ? `${t("count")}: ${host.audio_uat.turns || 0} · Provider requests: 0` : `${t("count")}: ${used} / ${limit} · ${turns}`);
     const error = localError || (voice.error ? safeError(voice.error) : "");
     refs.error.hidden = !error; text(refs.error, errorMessage(error));
     captionPaint(); paintControls(); clampPosition();
@@ -351,7 +367,7 @@
     const wasVisible = roomVisible();
     const oldLanguage = host?.language;
     host = nextHost && typeof nextHost === "object" ? nextHost : null;
-    const room = host?.live_preview ? `${host.live_preview.session?.session_id || ""}:${host.live_preview.question?.content_sha256 || ""}` : null;
+    const room = localAudioUAT ? host?.audio_uat?.session_id || "local-audio-uat" : host?.live_preview ? `${host.live_preview.session?.session_id || ""}:${host.live_preview.question?.content_sha256 || ""}` : null;
     if (!roomVisible() || (lastRoom !== null && room !== lastRoom)) {
       collapsed = true;
       resetDraft(); voice = {}; localError = ""; lastCaption = ""; lastWord = "";
