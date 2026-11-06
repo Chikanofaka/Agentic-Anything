@@ -1,0 +1,8 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+PASS E25B starts BYOQ rehearsal with 3 bound questions
+PASS E25B native bridge records candidate raw SQL and rejects mismatched fixture
+PASS E25B WebKit fixture review displays exact current question hash
+PASS E25B native consent + real ephemeral PostgreSQL returns verified fixture PASS
+UI check detail: failure(Error Domain=WKErrorDomain Code=4 "A JavaScript exception occurred" UserInfo={WKJavaScriptExceptionLineNumber=0, WKJavaScriptExceptionMessage=Error: PROVIDER_NETWORK_ERROR, WKJavaScriptExceptionColumnNumber=0, NSLocalizedDescription=A JavaScript exception occurred})
+Native portal visible: false
+Native UI smoke: FAIL — E25B frozen Q1 receipt does not award grades to skipped Q2/Q3

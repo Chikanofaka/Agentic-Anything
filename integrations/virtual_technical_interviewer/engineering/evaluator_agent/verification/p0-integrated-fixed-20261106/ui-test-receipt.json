@@ -1,0 +1,80 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 0,
+  "passed" : 16,
+  "post_sql_mode" : "NONE",
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "16 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : false,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "entry offers exactly two experience choices and zero API requests"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "keyboard focus reaches tutorial and real Next reaches rules"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "rules acknowledged before fixed Medium PostgreSQL question"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "interactive room starts original S02 controller"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "clarification crosses WebKit native Python and stays literal"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "plan and SQL are separate unexecuted candidate evidence"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "compact interview room has no horizontal clipping"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "completion freezes receipt and authorizes separate Trainer"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "language preference is host-owned and receipt immutable"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "prepare real keyboard focus at Replay"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "native Tab reaches Real AI choice"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "real AI immediately enters native API Portal ahead of config"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "cancelled native credential entry cannot activate real AI"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "native human decision stays pending beyond twenty seconds without false timeout"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "delayed native cancel resolves the original request and keeps zero usage"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "local resource isolation and no renderer network privileges"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

@@ -66,7 +66,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                 if CommandLine.arguments.contains("--ui-post-sql-test") || CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-grading-test") || CommandLine.arguments.contains("--ui-smart-test") || CommandLine.arguments.contains("--ui-trainer-test") {
                     TIATestHTTPProtocol.reset([
                         .reply("Synthetic opener for SQL grading Q1"),
-                        .reply("Please explain your own candidate SQL.")
+                        .reply("Please explain your own candidate SQL."),
+                        .reply("Synthetic opener for SQL grading Q2"),
+                        .reply("Synthetic opener for SQL grading Q3")
                     ])
                 }
                 if CommandLine.arguments.contains("--ui-adaptive-test") {
@@ -523,11 +525,10 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     (self.portal.publicState["request_limit"] as? Int ?? 0) else {
                 self.cancelPrepared(error: "PAID_CONSENT_OR_BUDGET_EXPIRED"); return
             }
-            if self.uiTesting && (CommandLine.arguments.contains("--ui-evaluator-test") ||
-                                  CommandLine.arguments.contains("--ui-post-sql-test") ||
-                                  CommandLine.arguments.contains("--ui-rehearsal-test")) {
+            if self.uiTesting {
                 // Only synthetic transport. Use admissible aliases from the actual
-                // controller packet so the test traverses the production validator.
+                // controller packet so every automated completion path traverses
+                // the production validator without ever falling through to network.
                 guard let input = try? StrictJSON.object(Data(spec.input.utf8)) as? [String: Any],
                       let criteria = input["criteria"] as? [[String: Any]] else {
                     self.cancelPrepared(error: "INVALID_SYNTHETIC_EVALUATOR_INPUT"); return
@@ -545,12 +546,12 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
                     self.cancelPrepared(error: "INVALID_SYNTHETIC_EVALUATOR_REPLY"); return
                 }
                 self.evaluatorTestAttempt += 1
-                let checkoutSmoke = CommandLine.arguments.contains("--ui-rehearsal-test")
-                if self.evaluatorTestAttempt == 1 && !checkoutSmoke && !CommandLine.arguments.contains("--ui-post-sql-test") {
+                let evaluatorFailureSmoke = CommandLine.arguments.contains("--ui-evaluator-test")
+                if self.evaluatorTestAttempt == 1 && evaluatorFailureSmoke {
                     var delayed = TIATestHTTPProtocol.Plan.evaluator(text, spec: spec)
                     delayed.delay = 1.5
                     TIATestHTTPProtocol.enqueue([delayed])
-                } else if self.evaluatorTestAttempt == 2 && !checkoutSmoke && !CommandLine.arguments.contains("--ui-post-sql-test") {
+                } else if self.evaluatorTestAttempt == 2 && evaluatorFailureSmoke {
                     TIATestHTTPProtocol.enqueue([.reply("{\"assessments\":[]}")])
                 } else {
                     TIATestHTTPProtocol.enqueue([.evaluator(text, spec: spec, usage: ["input_tokens": 300, "output_tokens": 200, "total_tokens": 500])])
@@ -808,6 +809,13 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
 
     private func driveCheckoutEvaluation() {
+        // Dedicated evaluator and post-SQL UI fixtures exercise cancellation,
+        // malformed replies and explicit reevaluation one operation at a time.
+        // The integrated rehearsal fixture covers production automatic checkout.
+        // Keep these two synthetic processes segmented so automatic scheduling
+        // cannot consume the failure injection before the test requests it.
+        if uiTesting && (CommandLine.arguments.contains("--ui-evaluator-test") ||
+                         CommandLine.arguments.contains("--ui-post-sql-test")) { return }
         guard !busy, portalSheet == nil, checkoutFailure == nil,
               checkoutAutomaticID == nil,
               lastState["screen"] as? String == "REHEARSAL_COMPLETE",
@@ -1229,10 +1237,20 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
               let consent = alert.accessoryView?.subviews.compactMap({ $0 as? NSButton }).first(where: { !($0 is NSPopUpButton) }),
               let delegate = field.delegate as? CredentialFieldDelegate else { return false }
         field.stringValue = "synthetic-ui-fixture-not-a-real-key"
-        if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") || CommandLine.arguments.contains("--ui-rehearsal-test") {
+        if CommandLine.arguments.contains("--ui-rehearsal-test") {
+            // The integrated three-question journey deliberately exercises more
+            // than ten interviewer turns before the two eligible checkout
+            // evaluations. Match the production default so the synthetic UAT
+            // verifies checkout instead of exhausting its own fixture budget.
+            alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "20")
+        } else if CommandLine.arguments.contains("--ui-adaptive-test") || CommandLine.arguments.contains("--ui-adaptive-stale-test") {
             // Test-only synthetic credential and bounded MOCK_HTTP requests.
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "10")
-        } else if CommandLine.arguments.contains("--ui-post-sql-test") || CommandLine.arguments.contains("--ui-evaluator-test") || CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-rehearsal-test") || CommandLine.arguments.contains("--ui-trainer-test") {
+        } else if CommandLine.arguments.contains("--ui-post-sql-test") || CommandLine.arguments.contains("--ui-evaluator-test") {
+            // These focused fixtures intentionally spend several mocked calls
+            // on cancellation, malformed-response and reevaluation branches.
+            alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "10")
+        } else if CommandLine.arguments.contains("--ui-provider-failure-test") || CommandLine.arguments.contains("--ui-trainer-test") {
             alert.accessoryView?.subviews.compactMap({ $0 as? NSPopUpButton }).first?.selectItem(withTitle: "5")
         }
         if CommandLine.arguments.contains("--ui-voice-test") {
