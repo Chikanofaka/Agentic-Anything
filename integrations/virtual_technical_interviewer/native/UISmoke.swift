@@ -773,7 +773,10 @@ final class TIAUISmoke {
             &&s.rehearsal.results[2].session.receipt.live_model_used===true&&s.rehearsal.execution==='NOT_RUN'
             &&s.rehearsal.technical==='NOT_SCORED'&&s.activation.requests_used===12
             &&s.checkout_evaluation.status==='COMPLETE'&&s.checkout_evaluation.completed===2
-            &&s.checkout_evaluation.total===2};
+            &&s.checkout_evaluation.total===2
+            &&s.checkout_evaluation.sql_verification.status==='COMPLETE'
+            &&s.checkout_evaluation.sql_verification.completed===2
+            &&s.checkout_evaluation.sql_verification.not_testable.length===2};
         """),
         Step(label: "E2 score-free three-question time ledger remains exportable", code: """
           const s=await snap();const t=s.rehearsal?.timing;

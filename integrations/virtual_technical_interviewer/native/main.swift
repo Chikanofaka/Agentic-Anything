@@ -46,6 +46,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var checkoutAutomaticID: String?
     private var checkoutActiveIndex: Int?
     private var checkoutFailure: String?
+    private var checkoutSQLActiveIndex: Int?
+    private var checkoutSQLFailure: String?
+    private var checkoutSQLNotTestable = [Int: String]()
     private var loaded = false
     private var dataDirectory: URL!
     private var smokeDirectory: URL!
@@ -785,6 +788,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         checkoutAutomaticID = nil
         checkoutActiveIndex = nil
         checkoutFailure = nil
+        checkoutSQLActiveIndex = nil
+        checkoutSQLFailure = nil
+        checkoutSQLNotTestable.removeAll()
     }
 
     private func checkoutPublicState() -> [String: Any] {
@@ -804,8 +810,19 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         else if checkoutFailure != nil { status = "PAUSED" }
         else if authorized { status = "PENDING" }
         else { status = "UNAUTHORIZED" }
+        let sql = (lastState["post_interview_sql"] as? [String: Any]) ?? [:]
+        let results = (sql["results"] as? [String: Any]) ?? [:]
+        let eligible = questions.enumerated().filter {
+            $0.element["eligible"] as? Bool == true || $0.element["assessment"] is [String: Any]
+        }.map(\.offset)
+        let sqlCompleted = eligible.filter { results[String($0)] is [String: Any] || checkoutSQLNotTestable[$0] != nil }.count
+        let sqlStatus: String = checkoutSQLActiveIndex != nil ? "RUNNING" :
+            checkoutSQLFailure != nil ? "PAUSED" : sqlCompleted >= eligible.count ? "COMPLETE" : "PENDING"
         return ["authorized": authorized, "status": status, "completed": completed,
-                "total": total, "error_code": checkoutFailure as Any? ?? NSNull()]
+                "total": total, "error_code": (checkoutFailure ?? checkoutSQLFailure) as Any? ?? NSNull(),
+                "sql_verification": ["status": sqlStatus, "completed": sqlCompleted,
+                                     "total": eligible.count, "active_question_index": checkoutSQLActiveIndex as Any? ?? NSNull(),
+                                     "not_testable": checkoutSQLNotTestable.map { ["question_index": $0.key, "reason": $0.value] }]]
     }
 
     private func driveCheckoutEvaluation() {
@@ -816,13 +833,14 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         // cannot consume the failure injection before the test requests it.
         if uiTesting && (CommandLine.arguments.contains("--ui-evaluator-test") ||
                          CommandLine.arguments.contains("--ui-post-sql-test")) { return }
-        guard !busy, portalSheet == nil, checkoutFailure == nil,
+        guard !busy, portalSheet == nil, checkoutFailure == nil, checkoutSQLFailure == nil,
               checkoutAutomaticID == nil,
               lastState["screen"] as? String == "REHEARSAL_COMPLETE",
               checkoutAuthorizedGeneration == portal.generation,
               portal.publicState["live_enabled"] as? Bool == true,
               let report = lastState["evaluator_report"] as? [String: Any],
               let questions = report["questions"] as? [[String: Any]] else { return }
+        if driveCheckoutSQL(questions: questions) { return }
         guard let index = questions.firstIndex(where: {
             $0["eligible"] as? Bool == true && !($0["assessment"] is [String: Any])
         }) else { return }
@@ -837,6 +855,53 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         checkoutAutomaticID = id
         checkoutActiveIndex = index
         executeNativeEvaluator(id: id, questionIndex: index)
+    }
+
+    // SQL correctness is a native/local prerequisite for semantic evaluation.
+    // Each closed question is source-bound, executed in its own ephemeral
+    // PostgreSQL worker, committed immutably, and only then exposed to T01.
+    // The serial Host handshake prevents cross-question result substitution;
+    // the entire set is scheduled automatically as one checkout batch.
+    private func driveCheckoutSQL(questions: [[String: Any]]) -> Bool {
+        guard checkoutSQLActiveIndex == nil else { return true }
+        let readout = (lastState["post_interview_sql"] as? [String: Any]) ?? [:]
+        let results = (readout["results"] as? [String: Any]) ?? [:]
+        let suites = (readout["compatible_suites"] as? [String: Any]) ?? [:]
+        guard let item = questions.enumerated().first(where: {
+            $0.element["eligible"] as? Bool == true && !(results[String($0.offset)] is [String: Any]) &&
+                checkoutSQLNotTestable[$0.offset] == nil
+        }) else { return false }
+        let index = item.offset
+        guard let suite = suites[String(index)] as? String, !suite.isEmpty else {
+            checkoutSQLNotTestable[index] = "POST_SQL_NO_COMPATIBLE_SUITE"
+            emit(["ok": true, "state": lastState])
+            return true
+        }
+        checkoutSQLActiveIndex = index
+        let id = "checkout-sql-\(index)-" + UUID().uuidString
+        busy = true
+        worker?.request("post_sql_review", params: ["question_index": index, "suite_id": suite]) { [weak self] reply in
+            guard let self = self, self.checkoutSQLActiveIndex == index else { return }
+            self.busy = false
+            if let state = reply["state"] as? [String: Any] { self.lastState = state }
+            guard reply["ok"] as? Bool == true,
+                  let postSQL = self.lastState["post_interview_sql"] as? [String: Any],
+                  let review = postSQL["review"] as? [String: Any],
+                  let digest = review["review_sha256"] as? String else {
+                self.checkoutSQLActiveIndex = nil
+                let reason = reply["error"] as? String ?? "POST_SQL_REVIEW_FAILED"
+                if ["POST_SQL_NO_SUBMISSION", "POST_SQL_POSTGRESQL_ONLY", "POST_SQL_NO_COMPATIBLE_SUITE"].contains(reason) {
+                    self.checkoutSQLNotTestable[index] = reason
+                    self.emit(["ok": true, "state": self.lastState])
+                } else {
+                    self.checkoutSQLFailure = reason
+                    self.emit(["ok": false, "state": self.lastState, "error": reason])
+                }
+                return
+            }
+            self.executePostSQL(id: id, reviewSHA: digest, automaticCheckout: true)
+        }
+        return true
     }
 
     private func handleVoice(id: String, action: String, params: [String: Any]) {
@@ -1002,38 +1067,45 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
               let assumptions = review["assumptions"] as? String,
               let count = review["case_count"] as? Int,
               let source = review["question_sha256"] as? String,
-              let sql = review["candidate_sql_sha256"] as? String,
-              let runtime = Bundle.main.resourceURL?.appendingPathComponent("runtime") else {
+              let sql = review["candidate_sql_sha256"] as? String else {
             emit(["id": id, "ok": false, "state": lastState, "error": "POST_SQL_STALE_REVIEW"]); return
         }
         confirm("Run \(count) reviewed synthetic local PostgreSQL cases against this saved SQL?\n\nConfirm the suite matches your question and that you reviewed its expected outputs.\n\n\(assumptions)\n\nQuestion: \(source)\nSQL: \(sql)\nReview: \(reviewSHA)\n\nThis runs after the interview in temporary isolated databases, without an API request. It does not prove all edge cases, change the frozen interview or assign a formal grade.") { [weak self] approved in
             guard let self = self else { return }
             guard approved else { self.respondWithState(id); return }
-            self.busy = true; self.postSQLID = id; self.postSQLToken = UUID().uuidString
-            self.postSQLStage = "preparing"
-            let token = self.postSQLToken!
-            self.worker?.request("native_prepare_post_sql", params: ["request_id": id, "generation": token, "review_sha256": reviewSHA]) { [weak self] reply in
-                guard let self = self, self.postSQLID == id else { return }
-                if let state = reply["state"] as? [String: Any] { self.lastState = state }
-                guard reply["ok"] as? Bool == true, let packet = reply["prepared"] as? [String: Any] else {
-                    self.finishPostSQL(ok: false, error: reply["error"] as? String ?? "POST_SQL_PREPARE_FAILED"); return
-                }
-                if self.postSQLToken != token { self.cancelPostSQLPrepared(); return }
-                self.postSQLStage = "executing"
-                let started = self.postSQLRunner.run(packet, runtime: runtime) { [weak self] result in
-                    guard let self = self, self.postSQLID == id, self.postSQLToken == token, self.postSQLStage == "executing" else { return }
-                    guard let result = result else { self.cancelPostSQLPrepared(error: "POST_SQL_EXECUTION_UNAVAILABLE"); return }
-                    self.postSQLStage = "committing"
-                    self.worker?.request("native_commit_post_sql", params: ["result": result]) { [weak self] response in
-                        guard let self = self else { return }
-                        if let state = response["state"] as? [String: Any] { self.lastState = state }
-                        if response["ok"] as? Bool == true { self.finishPostSQL(ok: true, error: nil) }
-                        else { self.cancelPostSQLPrepared(error: response["error"] as? String ?? "POST_SQL_COMMIT_FAILED") }
-                    }
-                }
-                if !started { self.cancelPostSQLPrepared(error: "POST_SQL_EXECUTION_UNAVAILABLE") }
-                else { self.emit(["ok": true, "state": self.lastState]) }
+            self.executePostSQL(id: id, reviewSHA: reviewSHA, automaticCheckout: false)
+        }
+    }
+
+    private func executePostSQL(id: String, reviewSHA: String, automaticCheckout: Bool) {
+        guard let runtime = Bundle.main.resourceURL?.appendingPathComponent("runtime") else {
+            if automaticCheckout { checkoutSQLActiveIndex = nil; checkoutSQLFailure = "POST_SQL_EXECUTION_UNAVAILABLE" }
+            emit(["id": id, "ok": false, "state": lastState, "error": "POST_SQL_EXECUTION_UNAVAILABLE"]); return
+        }
+        busy = true; postSQLID = id; postSQLToken = UUID().uuidString
+        postSQLStage = "preparing"
+        let token = postSQLToken!
+        worker?.request("native_prepare_post_sql", params: ["request_id": id, "generation": token, "review_sha256": reviewSHA]) { [weak self] reply in
+            guard let self = self, self.postSQLID == id else { return }
+            if let state = reply["state"] as? [String: Any] { self.lastState = state }
+            guard reply["ok"] as? Bool == true, let packet = reply["prepared"] as? [String: Any] else {
+                self.finishPostSQL(ok: false, error: reply["error"] as? String ?? "POST_SQL_PREPARE_FAILED"); return
             }
+            if self.postSQLToken != token { self.cancelPostSQLPrepared(); return }
+            self.postSQLStage = "executing"
+            let started = self.postSQLRunner.run(packet, runtime: runtime) { [weak self] result in
+                guard let self = self, self.postSQLID == id, self.postSQLToken == token, self.postSQLStage == "executing" else { return }
+                guard let result = result else { self.cancelPostSQLPrepared(error: "POST_SQL_EXECUTION_UNAVAILABLE"); return }
+                self.postSQLStage = "committing"
+                self.worker?.request("native_commit_post_sql", params: ["result": result]) { [weak self] response in
+                    guard let self = self else { return }
+                    if let state = response["state"] as? [String: Any] { self.lastState = state }
+                    if response["ok"] as? Bool == true { self.finishPostSQL(ok: true, error: nil) }
+                    else { self.cancelPostSQLPrepared(error: response["error"] as? String ?? "POST_SQL_COMMIT_FAILED") }
+                }
+            }
+            if !started { self.cancelPostSQLPrepared(error: "POST_SQL_EXECUTION_UNAVAILABLE") }
+            else { self.emit(["ok": true, "state": self.lastState]) }
         }
     }
     private func cancelPostSQL(id: String) {
@@ -1055,11 +1127,20 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     }
     private func finishPostSQL(ok: Bool, error: String?) {
         guard let id = postSQLID else { return }
+        let automaticCheckout = checkoutSQLActiveIndex != nil && id.hasPrefix("checkout-sql-")
         postSQLID = nil; postSQLToken = nil; postSQLStage = "idle"; busy = false
+        if automaticCheckout {
+            checkoutSQLActiveIndex = nil
+            checkoutSQLFailure = ok ? nil : (error ?? "POST_SQL_EXECUTION_FAILED")
+        }
         var reply: [String: Any] = ["id": id, "ok": ok, "state": lastState]
+        if automaticCheckout { reply.removeValue(forKey: "id") }
         if let error = error { reply["error"] = error }
         emit(reply)
         if let cancellation = postSQLCancellationID { postSQLCancellationID = nil; respondWithState(cancellation) }
+        if automaticCheckout && ok {
+            DispatchQueue.main.async { [weak self] in self?.driveCheckoutEvaluation() }
+        }
     }
 
     private func beginPrivatePreparer(id: String) {
