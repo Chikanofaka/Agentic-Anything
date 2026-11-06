@@ -70,7 +70,7 @@ final class TIAUISmoke {
           await request('rehearsal_skip');await screen('LIVE_PREVIEW');
           await request('rehearsal_skip');await screen('REHEARSAL_COMPLETE');
           const s=await snap();window.postOriginal={record:stable(s.rehearsal),score:s.evidence_scorecard.sha256};
-          const ok=s.activation.requests_total===4&&s.evidence_scorecard.questions[0].accuracy.status==='NOT_VERIFIED'&&!!el('postInterviewSQL');
+          const ok=s.activation.requests_total===4&&s.evidence_scorecard.questions[0].accuracy.status==='NOT_VERIFIED'&&!el('postInterviewSQL');
           if(!ok)throw Error('POST_SQL_SETUP total='+String(s.activation.requests_total)
             +' accuracy='+String(s.evidence_scorecard?.questions?.[0]?.accuracy?.status)
             +' panel='+String(!!el('postInterviewSQL'))+' screen='+String(s.screen));
@@ -81,29 +81,28 @@ final class TIAUISmoke {
           window.postOldAssessment=s.evaluator_report.questions[0].assessment.sha256;
           return {ok:s.activation.requests_total===5&&s.evaluator_report.questions[0].dimensions[0].anchor_0_to_4===null};
         """),
-        Step(label: "Post SQL exact source and expected rows require an explicit matching-suite checkbox", code: """
-          el('postSQLSuite').value='bus_last_person';el('postSQLSuite').dispatchEvent(new Event('change'));
-          await press('postSQLReview');const s=await snap(),r=s.post_interview_sql.review;
-          if(!r||r.question_index!==0||r.suite_id!=='bus_last_person'||r.case_count!==3||!el('postSQLExecute').disabled)return {ok:false};
-          el('postSQLMatches').click();if(el('postSQLExecute').disabled)return {ok:false};
-          el('postSQLSuite').value='monthly_transactions';el('postSQLSuite').dispatchEvent(new Event('change'));
-          if(el('postSQLMatches').checked||!el('postSQLExecute').disabled)return {ok:false};
-          el('postSQLSuite').value='bus_last_person';el('postSQLSuite').dispatchEvent(new Event('change'));
-          return {ok:!!el('postSQLCases')&&el('postSQLCases').textContent.includes('expected')&&r.question_sha256===s.rehearsal.questions[0].content_sha256};
+        Step(label: "Post SQL Host review binds the exact question and approved local suite", code: """
+          await request('post_sql_review',{question_index:0,suite_id:'bus_last_person'});
+          const s=await snap(),r=s.post_interview_sql.review;
+          return {ok:!!r&&r.question_index===0&&r.suite_id==='bus_last_person'&&r.case_count===3
+            &&r.question_sha256===s.rehearsal.questions[0].content_sha256&&typeof r.review_sha256==='string'&&r.review_sha256.length===64};
         """),
         Step(label: "Post SQL cancellation prevents a late local observation", code: """
-          el('postSQLMatches').click();el('postSQLExecute').click();await until(()=>window.tiaState?.post_interview_sql?.pending===true);
-          await request('post_sql_cancel');await pause(500);const s=await snap();
+          const r=(await snap()).post_interview_sql.review;
+          const call=request('post_sql_execute',{review_sha256:r.review_sha256}).catch(()=>null);
+          await until(()=>window.tiaState?.post_interview_sql?.pending===true);await request('post_sql_cancel');await call;await pause(500);const s=await snap();
           return {ok:!s.post_interview_sql.pending&&s.post_interview_sql.observations.length===0
             &&s.evaluator_report.questions[0].assessment.sha256===window.postOldAssessment&&s.activation.requests_total===5};
         """),
         Step(label: "Post SQL native consent and real local worker append three PASSED case observations", code: """
-          el('postSQLMatches').click();el('postSQLExecute').click();
+          await request('post_sql_review',{question_index:0,suite_id:'bus_last_person'});
+          const r=(await snap()).post_interview_sql.review;
+          request('post_sql_execute',{review_sha256:r.review_sha256}).catch(()=>null);
           let s;for(let i=0;i<240;i++){await pause(500);s=window.tiaState;if(s?.post_interview_sql?.results?.['0']&&!document.querySelector('[aria-busy="true"]'))break;}
           const v=s?.post_interview_sql?.results?.['0'];
           return {ok:v?.status==='PASSED'&&v.passed===3&&v.total===3&&v.execution_time==='AFTER_INTERVIEW'
             &&s.post_interview_sql.assessment_archive[0].assessment.sha256===window.postOldAssessment
-            &&s.evaluator_report.questions[0].assessment===null&&!el('evaluatorGenerate').disabled
+            &&s.evaluator_report.questions[0].assessment===null&&!el('evaluatorGenerate')
             &&s.activation.requests_total===5&&s.evidence_scorecard.sha256===window.postOriginal.score&&stable(s.rehearsal)===window.postOriginal.record};
         """),
         Step(label: "Post SQL private commits and path injection remain inaccessible from WebKit", code: """
@@ -113,7 +112,7 @@ final class TIAUISmoke {
           const s=await snap();return {ok:s.post_interview_sql.observations.length===1&&s.activation.requests_total===5};
         """),
         Step(label: "Post SQL explicit reevaluation uses new verification without replacing original records", code: """
-          await press('evaluatorGenerate');await until(()=>!!window.tiaState?.evaluator_report?.questions?.[0]?.assessment&&!document.querySelector('[aria-busy="true"]'));
+          await request('evaluator_generate',{question_index:0});await until(()=>!!window.tiaState?.evaluator_report?.questions?.[0]?.assessment&&!document.querySelector('[aria-busy="true"]'));
           const s=await snap(),q=s.evaluator_report.questions[0];
           return {ok:q.raw_metrics.accuracy.status==='PASSED'&&q.raw_metrics.accuracy.fixture_total===3
             &&q.assessment.dimensions[0].anchor_0_to_4===2&&q.assessment.sha256!==window.postOldAssessment
@@ -433,7 +432,7 @@ final class TIAUISmoke {
           await until(()=>window.tiaState?.rehearsal?.current_index===2
             &&!document.querySelector('[aria-busy="true"]'));
           await request('rehearsal_skip');await screen('REHEARSAL_COMPLETE');
-          if (((evaluatorTesting || postSQLTesting) ? "false" : "true")) {
+          if (\((evaluatorTesting || postSQLTesting) ? "false" : "true")) {
             await until(()=>window.tiaState?.checkout_evaluation?.status==='COMPLETE'
               &&!document.querySelector('[aria-busy="true"]'));
           }
@@ -478,7 +477,7 @@ final class TIAUISmoke {
             &&t.sources.communication_sha256===s.communication_evidence.sha256
             &&t.drills.length>0&&first?.evidence?.question_sha256===s.evidence_scorecard.questions[0].question_sha256
             &&panel.textContent.includes(first.id)&&panel.textContent.includes('NOT_SCORED')
-            &&s.activation.requests_used===5};
+            &&s.activation.requests_used===\((evaluatorTesting || postSQLTesting) ? "4" : "5")};
         """),
     ] + (smartTesting ? [
         Step(label: "E3D SMART plan is source-bound, relative and unstarted by default", code: """
@@ -561,7 +560,7 @@ final class TIAUISmoke {
             &&r.questions[0].eligible===true&&r.questions[1].eligible===false
             &&r.questions[2].eligible===false&&r.questions[0].dimensions.length===11
             &&r.questions[0].assessment===null&&r.summary.overall_grade==='NOT_SCORED'
-            &&!!el('evaluatorGenerate')&&!el('evaluatorGenerate').disabled};
+            &&!el('evaluatorGenerate')&&s.checkout_evaluation.status==='PENDING'};
         """),
         Step(label: "Evaluator cancellation rejects late response and preserves frozen evidence", code: """
           const call=request('evaluator_generate',{question_index:0}).catch(e=>e.message);
@@ -581,13 +580,13 @@ final class TIAUISmoke {
         """),
         Step(label: "Evaluator reconnect opens native consent without losing frozen report", code: """
           await request('disconnect');
-          const s=await snap();if(s.activation.state!=='offline'||!el('evaluatorConnect'))return {ok:false};
-          await press('evaluatorConnect');return {ok:true};
+          const s=await snap();if(s.activation.state!=='offline')return {ok:false};
+          request('api_portal').catch(()=>{});return {ok:true};
         """),
         Step(label: "Evaluator native consent HTTP and host commit produce bounded cited proposals", code: """
           await until(()=>window.tiaState?.activation?.state==='activated-unverified');
           if(window.tiaState.activation.authenticated!==false)return {ok:false};
-          await press('evaluatorGenerate');
+          await request('evaluator_generate',{question_index:0});
           await until(()=>window.tiaState?.evaluator_report?.questions?.[0]?.assessment
             && !document.querySelector('[aria-busy="true"]'));
           const s=await snap(),q=s.evaluator_report.questions[0],a=q.assessment;
@@ -616,10 +615,7 @@ final class TIAUISmoke {
         """),
         Step(label: "Evaluator compact view exposes separate axes and missing evidence", code: """
           const s=await snap();
-          el('evaluatorQuestion').value='1';el('evaluatorQuestion').dispatchEvent(new Event('change'));
-          if(!el('evaluatorGenerate')?.disabled)return {ok:false};
-          el('evaluatorQuestion').value='0';el('evaluatorQuestion').dispatchEvent(new Event('change'));
-          return {ok:!!el('evaluatorTechnical')&&!!el('evaluatorCommunication')
+          return {ok:!!el('evaluatorTechnical')&&!!el('evaluatorCommunication')&&!!el('evaluatorFullScheme')
             &&el('evaluatorCriterion-C06').textContent.includes('NOT_OBSERVED')
             &&document.documentElement.scrollWidth<=innerWidth+2};
         """, compact: true),

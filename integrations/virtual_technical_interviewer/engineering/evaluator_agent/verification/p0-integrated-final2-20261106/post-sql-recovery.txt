@@ -1,0 +1,2 @@
+PASS Post SQL replay restores observations and assessments without database or API work
+Native UI smoke: PASS — 1 real UI checks; 0 mocked HTTP requests; zero real provider requests

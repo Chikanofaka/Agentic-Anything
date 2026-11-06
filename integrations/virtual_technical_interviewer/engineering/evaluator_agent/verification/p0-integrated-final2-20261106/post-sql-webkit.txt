@@ -1,0 +1,9 @@
+PASS E25B opens native consent for synthetic fixture-only interview
+PASS Post SQL synthetic bus question records final code and closes without execution
+PASS Post SQL existing assessment remains distinct from later execution
+PASS Post SQL Host review binds the exact question and approved local suite
+PASS Post SQL cancellation prevents a late local observation
+PASS Post SQL native consent and real local worker append three PASSED case observations
+PASS Post SQL private commits and path injection remain inaccessible from WebKit
+PASS Post SQL explicit reevaluation uses new verification without replacing original records
+Native UI smoke: PASS — 8 real UI checks; 6 mocked HTTP requests; zero real provider requests

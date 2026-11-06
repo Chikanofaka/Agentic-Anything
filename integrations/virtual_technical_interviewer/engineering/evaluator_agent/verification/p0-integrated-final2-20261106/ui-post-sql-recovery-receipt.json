@@ -1,0 +1,20 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 0,
+  "passed" : 1,
+  "post_sql_mode" : "RECOVERY",
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "1 real UI checks; 0 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : false,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL replay restores observations and assessments without database or API work"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}

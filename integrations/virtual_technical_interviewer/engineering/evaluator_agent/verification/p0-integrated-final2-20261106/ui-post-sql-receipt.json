@@ -1,0 +1,48 @@
+{
+  "adaptive_mode" : "NONE",
+  "api_requests" : 0,
+  "failed" : 0,
+  "human_uat" : "NOT_RUN",
+  "mock_http_requests" : 6,
+  "passed" : 8,
+  "post_sql_mode" : "EXECUTION",
+  "real_credentials_used" : false,
+  "schema" : "tia-native-ui-test\/v1",
+  "summary" : "8 real UI checks; 6 mocked HTTP requests; zero real provider requests",
+  "synthetic_credential_fixture_used" : true,
+  "tests" : [
+    {
+      "status" : "PASSED",
+      "test" : "E25B opens native consent for synthetic fixture-only interview"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL synthetic bus question records final code and closes without execution"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL existing assessment remains distinct from later execution"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL Host review binds the exact question and approved local suite"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL cancellation prevents a late local observation"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL native consent and real local worker append three PASSED case observations"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL private commits and path injection remain inaccessible from WebKit"
+    },
+    {
+      "status" : "PASSED",
+      "test" : "Post SQL explicit reevaluation uses new verification without replacing original records"
+    }
+  ],
+  "transport" : "MOCK_HTTP"
+}
