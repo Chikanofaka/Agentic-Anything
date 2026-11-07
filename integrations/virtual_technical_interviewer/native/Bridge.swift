@@ -48,8 +48,10 @@ enum BridgePolicy {
         } else if emptyActions.contains(action) {
             guard params.isEmpty else { return nil }
         } else if action == "rehearsal_start" {
-            guard Set(params.keys) == ["continuity_policy"],
-                  params["continuity_policy"] as? String == "tia-continuity/v3" else { return nil }
+            let keys = Set(params.keys)
+            guard (keys == ["continuity_policy"] || keys == ["continuity_policy", "sql_attempt_policy"]),
+                  params["continuity_policy"] as? String == "tia-continuity/v3",
+                  (keys.count == 1 || params["sql_attempt_policy"] as? String == "tia-sql-attempts/v1") else { return nil }
         } else if action == "evaluator_generate" || action == "preparer_verify" {
             guard Set(params.keys) == ["question_index"],
                   let index = params["question_index"] as? NSNumber,

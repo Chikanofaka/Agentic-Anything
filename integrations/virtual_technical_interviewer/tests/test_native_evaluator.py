@@ -19,7 +19,7 @@ RID = 'evaluator-request-1'
 GEN = 'evaluator-generation-1'
 
 
-def source(verdict='PASSED'):
+def source(verdict='PASSED', *, modern=True):
     first = evidence.score_record(verdict=verdict, extra_events=(
         {'id': 'interviewer-2', 'actor': 'interviewer', 'kind': 'reply', 'provenance': 'LIVE_MODEL',
          'payload': {'operation': 'reply', 'text': 'Explain the join cardinality before choosing an index.'}},
@@ -33,7 +33,10 @@ def source(verdict='PASSED'):
     )
     second = evidence.score_record(1)
     second['session']['events'][0]['id'] = 'other-question-clarification'
-    return evidence.plan(first, second, {'outcome': 'SKIPPED', 'session': None})
+    plan = evidence.plan(first, second, {'outcome': 'SKIPPED', 'session': None})
+    if modern:
+        plan['sql_attempt_policy'] = 'tia-sql-attempts/v1'
+    return plan
 
 
 def proposal(spec, anchors=None):
@@ -194,16 +197,19 @@ class EvaluatorCoreTests(unittest.TestCase):
     def test_all_eleven_dimensions_null_is_abstention_not_zero(self):
         artifact = self.commit()
         self.assertEqual([d['id'] for d in artifact['dimensions']], list(ev.IDS))
-        self.assertTrue(all(d['status'] == 'NOT_OBSERVED' and d['provisional_points'] is None for d in artifact['dimensions']))
-        self.assertIsNone(artifact['technical']['proposed_observed_points'])
-        self.assertEqual(artifact['technical']['covered_maximum_points'], 0)
+        self.assertEqual(artifact['dimensions'][0]['status'], 'HOST_EXECUTION_DERIVED')
+        self.assertEqual(artifact['dimensions'][0]['provisional_points'], 18)
+        self.assertTrue(all(d['status'] == 'NOT_OBSERVED' and d['provisional_points'] is None
+                            for d in artifact['dimensions'][1:]))
+        self.assertEqual(artifact['technical']['proposed_observed_points'], 18)
+        self.assertEqual(artifact['technical']['covered_maximum_points'], 24)
         self.assertIsNone(artifact['communication']['proposed_observed_points'])
         self.assertEqual(artifact['technical_score'], 'NOT_SCORED')
         self.assertEqual(artifact['status'], 'PENDING_HUMAN_REVIEW')
 
     def test_axis_arithmetic_uses_original_maxima_without_normalizing(self):
-        artifact = self.commit({'T01': 2, 'T02': 3, 'C01': 1, 'C04': 2})
-        self.assertEqual(artifact['technical']['proposed_observed_points'], 12 + 9.75)
+        artifact = self.commit({'T02': 3, 'C01': 1, 'C04': 2})
+        self.assertEqual(artifact['technical']['proposed_observed_points'], 18 + 9.75)
         self.assertEqual(artifact['technical']['covered_maximum_points'], 37)
         self.assertEqual(artifact['technical']['proposed_maximum_points'], 60)
         self.assertEqual(artifact['technical']['coverage'], 37 / 60)
@@ -221,7 +227,7 @@ class EvaluatorCoreTests(unittest.TestCase):
 
     def test_latest_local_test_remains_authoritative(self):
         baseline = build_scorecard(self.source)
-        artifact = self.commit({'T01': 2, 'C01': 3})
+        artifact = self.commit({'C01': 3})
         report = ev.build_evaluator_report(self.source, {'0': artifact})
         self.assertEqual(report['questions'][0]['raw_metrics']['accuracy'], baseline['questions'][0]['accuracy'])
         self.assertEqual(build_scorecard(self.source), baseline)
@@ -232,9 +238,9 @@ class EvaluatorCoreTests(unittest.TestCase):
     def test_failed_sql_cannot_receive_positive_correctness_from_model(self):
         plan = source('FAILED')
         pending, spec = ev.prepare_native_evaluator(plan, RID, GEN, 'en', 0)
-        with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_FAILED_SQL_CANNOT_PASS'):
+        with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_T01_HOST_OWNED'):
             ev.commit_native_evaluator(plan, pending, commitment(pending, proposal(spec, {'T01': 3, 'C01': 3})))
-        artifact = ev.commit_native_evaluator(plan, pending, commitment(pending, proposal(spec, {'T01': 0, 'C01': 3})))
+        artifact = ev.commit_native_evaluator(plan, pending, commitment(pending, proposal(spec, {'C01': 3})))
         self.assertEqual(artifact['technical']['proposed_observed_points'], 0)
         self.assertEqual(ev.build_evaluator_report(plan, {'0': artifact})['questions'][0]['raw_metrics']['accuracy']['status'], 'FAILED')
 

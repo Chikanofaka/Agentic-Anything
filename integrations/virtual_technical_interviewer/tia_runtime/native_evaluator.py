@@ -263,14 +263,18 @@ def _evidence(plan, index, excerpt_bytes=4096):
     return candidate_output, interviewer_output, 0
 
 
-def _criteria(profile, candidates, replies, accuracy, *, complete=False):
+def _criteria(profile, candidates, replies, accuracy, *, complete=False, host_t01=False):
     dimensions = []
     for identifier, title in zip(IDS, TITLES):
         axis = 'technical' if identifier[0] == 'T' else 'communication'
         aliases = (guards_v2.eligible_aliases if complete else eligible_aliases)(identifier, candidates, replies, accuracy)
         dimensions.append({'id': identifier, 'title': title, 'axis': axis,
                            'max_points': profile['rubric']['axes'][axis]['subscales'][identifier],
-                           'allowed_aliases': aliases, 'can_propose_anchor': bool(aliases)})
+                           'allowed_aliases': aliases,
+                           # T01 is projected deterministically from the Host
+                           # execution ledger.  The model may see its evidence
+                           # context but never proposes the correctness anchor.
+                           'can_propose_anchor': bool(aliases) and not (host_t01 and identifier == 'T01')})
     return dimensions
 
 
@@ -280,7 +284,9 @@ def _context(plan, index, language, profile, card, *, legacy_reply=False):
     candidates, replies, omitted = _evidence(plan, index)
     if not candidates:
         raise NativeEvaluatorError('EVALUATOR_EVIDENCE_NOT_READY')
-    criteria = _criteria(profile, candidates, replies, metrics['accuracy'], complete=_complete_context(plan))
+    host_t01 = plan.get('sql_attempt_policy') == 'tia-sql-attempts/v1'
+    criteria = _criteria(profile, candidates, replies, metrics['accuracy'],
+                         complete=_complete_context(plan), host_t01=host_t01)
     packet = {
         'schema': 'tia-native-evaluator-input/v1', 'question_index': index, 'language': language,
         'authority': 'UNTRUSTED_ATTRIBUTED_DATA_ONLY',
@@ -302,6 +308,8 @@ def _context(plan, index, language, profile, card, *, legacy_reply=False):
                             'single_local_fixture_not_general_mastery': True},
     }
     packet['question']['question_sha256'] = metrics['question_sha256']
+    if host_t01:
+        packet['t01_authority'] = 'HOST_EXECUTION_LEDGER'
     # Event-count lists in raw metrics need not repeat unbounded authentic IDs.
     if type(packet['raw_metrics']['behavior']) is dict:
         packet['raw_metrics']['behavior'] = {k: v for k, v in packet['raw_metrics']['behavior'].items()
@@ -389,6 +397,9 @@ def _assessed_dimensions(proposal, packet):
         _, anchor, aliases, reason = row
         if anchor is not None and (type(anchor) is not int or not 0 <= anchor <= 3):
             raise NativeEvaluatorError('INVALID_EVALUATOR_ANCHOR')
+        if (criterion['id'] == 'T01' and anchor is not None and
+                packet.get('t01_authority') == 'HOST_EXECUTION_LEDGER'):
+            raise NativeEvaluatorError('EVALUATOR_T01_HOST_OWNED')
         if (type(aliases) is not list or len(aliases) > 4 or
                 any(type(a) is not str for a in aliases) or len(set(aliases)) != len(aliases) or
                 not set(aliases) <= set(evidence) or (anchor is None and aliases) or
@@ -396,7 +407,7 @@ def _assessed_dimensions(proposal, packet):
             raise NativeEvaluatorError('EVALUATOR_UNCITED_OR_CROSS_QUESTION_EVIDENCE')
         if type(reason) is not str or not 8 <= len(reason.strip()) <= 120 or any(ord(c) < 32 for c in reason):
             raise NativeEvaluatorError('INVALID_EVALUATOR_REASON')
-        if anchor is not None and criterion['id'] == 'T01' and packet['local_execution']['status'] == 'FAILED' and anchor != 0:
+        if anchor is not None and criterion['id'] == 'T01' and packet['local_execution']['status'] in ('FAILED','EXECUTION_ERROR') and anchor != 0:
             raise NativeEvaluatorError('EVALUATOR_FAILED_SQL_CANNOT_PASS')
         # Strict protocol claims must be rejected, not silently laundered into
         # NOT_OBSERVED: unverified SQL correctness and non-existent closing speech.
@@ -441,6 +452,34 @@ def _axis(dimensions, axis):
             'score_status': 'NOT_SCORED', 'normalization': 'NONE', 'provisional': True}
 
 
+def _apply_host_t01(dimensions, packet):
+    """Execution, never model opinion, is the sole T01 authority."""
+    if packet.get('t01_authority') != 'HOST_EXECUTION_LEDGER':
+        return dimensions
+    status = packet['local_execution']['status']
+    if status not in ('PASSED', 'FAILED', 'EXECUTION_ERROR'):
+        return dimensions
+    alias = packet['local_execution'].get('candidate_alias')
+    evidence = {e['alias']: e for e in packet['candidate_evidence']}
+    if alias not in evidence:
+        raise NativeEvaluatorError('EVALUATOR_EXECUTION_EVIDENCE_MISMATCH')
+    target = next((row for row in dimensions if row['id'] == 'T01'), None)
+    if target is None:
+        raise NativeEvaluatorError('INVALID_EVALUATOR_DIMENSIONS')
+    anchor = 3 if status == 'PASSED' else 0
+    row = evidence[alias]
+    target.update(status='HOST_EXECUTION_DERIVED', anchor_0_to_4=anchor,
+        provisional_points=target['proposed_max_points'] * anchor / 4,
+        reason=('Passed all approved local cases.' if status == 'PASSED' else
+                'Candidate SQL returned incorrect results.' if status == 'FAILED' else
+                'Candidate SQL could not execute.'),
+        confidence='HOST_EXECUTION_EVIDENCE',
+        evidence=[{key: row[key] for key in ('alias','event_id','kind','text_sha256','span')}],
+        admissibility_audit={'gate':'HOST_EXECUTION_AUTHORITY',
+            'disallowed_proposal_anchor':None,'discarded_irrelevant_citations':[]})
+    return dimensions
+
+
 def _metadata(params):
     model, usage = params.get('model'), params.get('usage')
     if type(model) is not str or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:-]{0,119}', model):
@@ -481,6 +520,7 @@ def commit_native_evaluator(plan, pending, params, *, replay_protocol=None):
     if 'conversation' in packet:
         packet['candidate_evidence'] = [e for e in packet['conversation'] if e['actor'] == 'candidate']
         packet['interviewer_context'] = [e for e in packet['conversation'] if e['actor'] == 'interviewer']
+    dimensions = _apply_host_t01(dimensions, packet)
     model, usage = _metadata(params)
     result = {'schema': SCHEMA, 'status': 'PENDING_HUMAN_REVIEW', 'provenance': 'LIVE_MODEL',
               'authority': 'MODEL_PROPOSAL_ONLY', 'question_index': pending['question_index'],
@@ -580,6 +620,10 @@ def build_evaluator_report(plan, evaluations=None):
                                                  'input is not semantically revalidated by the P0 evidence gate.')
                 else:
                     dimensions = _assessed_dimensions(artifact['proposal'], packet)
+                    if 'conversation' in packet:
+                        packet['candidate_evidence'] = [e for e in packet['conversation'] if e['actor'] == 'candidate']
+                        packet['interviewer_context'] = [e for e in packet['conversation'] if e['actor'] == 'interviewer']
+                    dimensions = _apply_host_t01(dimensions, packet)
                     if (artifact['dimensions'] != dimensions or
                             artifact['technical'] != _axis(dimensions, 'technical') or
                             artifact['communication'] != _axis(dimensions, 'communication')):

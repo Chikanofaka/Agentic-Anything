@@ -1070,6 +1070,24 @@
       if (typeof elapsedQ === "number" && rs.timing?.question_limit_seconds === 900) {
         add(main, node("p", `${state.language === "zh" ? "本题剩余" : "Question time remaining"}: ${formatElapsed(Math.max(0, 900 - elapsedQ))} · ${state.language === "zh" ? "仅最终提交 / 跳过 / 计时归零可转场" : "Only final submit / skip / timeout advances"}`, "notice"));
       }
+      const attempts = state.post_interview_sql?.execution_ledger?.[String(rs.current_index)] || [];
+      const latestAttempt = attempts.at(-1);
+      if (latestAttempt && latestAttempt.status !== "PASSED") {
+        const retry = node("section", null, "receipt-card"); retry.id = "sqlResubmission";
+        const attempt = latestAttempt.attempt_number || attempts.length;
+        const remaining = latestAttempt.attempts_remaining ?? Math.max(0, 3 - attempt);
+        const queryError = latestAttempt.status === "CANDIDATE_QUERY_ERROR";
+        add(retry,
+          node("h3", state.language === "zh" ? `SQL 判定 · 第 ${attempt}/3 次` : `SQL verdict · Attempt ${attempt} of 3`),
+          badge(latestAttempt.status, latestAttempt.terminal ? "warning" : "accent"),
+          node("p", latestAttempt.terminal
+            ? (state.language === "zh" ? "三次机会已用尽；T01 已按可观察失败记为 0 / 24。" : "All three attempts were used. T01 is recorded as an observed 0 / 24.")
+            : (state.language === "zh" ? `还可重新提交 ${remaining} 次。请修改 SQL，并以 implement 再次发送后重试。` : `${remaining} resubmission${remaining === 1 ? "" : "s"} remaining. Edit the SQL, send it again as implement, then retry.`), "notice"),
+          node("p", queryError
+            ? (state.language === "zh" ? "候选人 SQL 无法在 PostgreSQL 中执行。请检查语法、别名、列名和类型。" : "The candidate SQL could not execute in PostgreSQL. Check syntax, aliases, column names and types.")
+            : (state.language === "zh" ? "SQL 可以执行，但未通过全部已批准本地测试。预期输出和参考答案不会显示。" : "The SQL executed but did not pass every approved local test. Expected outputs and reference answers remain hidden."), "field-help"));
+        add(main, retry);
+      }
     }
     add(main, columns, communicationPlaybook(), conversation(preview.session, true), gradingPanel(), scores(), previewProvenance(preview.prompt_provenance));
     if (preview.session?.receipt) {
@@ -1092,7 +1110,11 @@
         ? candidateEvents.some(e => e.kind === "implement")
         : candidateEvents.at(-1)?.kind === "implement";
       const canFinalize = (!["tia-continuity/v2", "tia-continuity/v3"].includes(policy) || hasSubmittedCode) && !preview.pending;
-      const finish = button("finishRehearsalQuestion", t(final ? "rehearsalFinish" : "rehearsalSubmit"),
+      const attempts = state.post_interview_sql?.execution_ledger?.[String(state.rehearsal.current_index)] || [];
+      const retrying = attempts.length && attempts.at(-1)?.status !== "PASSED" && attempts.at(-1)?.terminal !== true;
+      const finish = button("finishRehearsalQuestion", retrying
+          ? (state.language === "zh" ? "修改后重新提交 SQL" : "Edit and resubmit SQL")
+          : t(final ? "rehearsalFinish" : "rehearsalSubmit"),
         () => act("rehearsal_submit"), "primary");
       finish.disabled = busy || !canFinalize;
       finish.dataset.unavailable = String(!canFinalize);
@@ -1979,7 +2001,7 @@
       state.setup_questions?.length === 3 &&
       state.setup_questions.every(q => q.practice_eligible && q.human_confirmed) &&
       new Set(state.setup_questions.map(q => q.content_sha256)).size === 3;
-    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start", {continuity_policy: "tia-continuity/v3"}), "primary full-width");
+    const start = button("startRehearsal", t("rehearsalStart"), () => act("rehearsal_start", {continuity_policy: "tia-continuity/v3", sql_attempt_policy: "tia-sql-attempts/v1"}), "primary full-width");
     start.dataset.unavailable = String(!eligible);
     start.disabled = busy || !eligible;
     return add(node("section", null, "preview-start-card"),
@@ -2156,7 +2178,7 @@
           if (pf.required_count === 3 && (prep?.question_count == null || prep.question_count === 3)) {
             add(section, node("h3", zh ? "候场室 · 面试官已就绪" : "Waiting room · Interviewer ready"),
               node("p", zh ? "进入后按题目顺序开始；每题 15 分钟，需明确提交、跳过或计时归零才能转场。" : "Enter in question order. Each question lasts 15 minutes; only final submission, skip or timeout advances.", "field-help"),
-              button("enterPreparedInterview", zh ? "进入面试室 →" : "Enter interview room →", () => act("rehearsal_start", {continuity_policy: "tia-continuity/v3"}), "primary"));
+              button("enterPreparedInterview", zh ? "进入面试室 →" : "Enter interview room →", () => act("rehearsal_start", {continuity_policy: "tia-continuity/v3", sql_attempt_policy: "tia-sql-attempts/v1"}), "primary"));
           }
         }
       }

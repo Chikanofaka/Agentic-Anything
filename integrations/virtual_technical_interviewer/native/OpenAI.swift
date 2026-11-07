@@ -64,7 +64,7 @@ struct TIAEvaluatorReplyContract {
     static let version = "tia-evaluator-structured/v2"
     static let ids = ["T01", "T02", "T03", "T04", "T05", "C01", "C02", "C03", "C04", "C05", "C06"]
     let aliases: [String: [String]]
-    let failedSQL: Bool
+    let proposable: Set<String>
 
     init(context: [String: Any]) throws {
         guard context["response_contract"] as? String == Self.version,
@@ -80,23 +80,28 @@ struct TIAEvaluatorReplyContract {
               pool.allSatisfy({ $0.range(of: "\\Ae[1-9][0-9]{0,5}\\z", options: .regularExpression) != nil })
         else { throw TIAProviderFailure.invalidRequest }
         var allowed = [String: [String]]()
+        var proposalIDs = Set<String>()
+        let hostOwnsT01 = context["t01_authority"] as? String == "HOST_EXECUTION_LEDGER"
         for (id, criterion) in zip(Self.ids, criteria) {
             guard criterion["id"] as? String == id,
                   let values = criterion["allowed_aliases"] as? [String],
                   Set(values).count == values.count, Set(values).isSubset(of: Set(pool)),
-                  let canPropose = criterion["can_propose_anchor"] as? Bool, canPropose == !values.isEmpty
+                  let canPropose = criterion["can_propose_anchor"] as? Bool,
+                  canPropose == (!values.isEmpty && !(hostOwnsT01 && id == "T01"))
             else { throw TIAProviderFailure.invalidRequest }
             // C06 has no explicit closing-speech event in this version.
             guard id != "C06" || values.isEmpty,
-                  id != "T01" || values.isEmpty || ["PASSED", "FAILED"].contains(status)
+                  id != "T01" || values.isEmpty || ["PASSED", "FAILED", "EXECUTION_ERROR"].contains(status)
             else { throw TIAProviderFailure.invalidRequest }
             allowed[id] = values
+            if canPropose { proposalIDs.insert(id) }
         }
         // OpenAI's schema enum capacity is a request resource bound, never a
         // conversation-turn cap. Fail before a paid request, without truncation.
         guard allowed.values.reduce(0, { $0 + $1.count }) + 4 * Self.ids.count <= 1000
         else { throw TIAProviderFailure.invalidRequest }
-        aliases = allowed; failedSQL = status == "FAILED"
+        aliases = allowed
+        proposable = proposalIDs
     }
 
     var schema: [String: Any] {
@@ -108,9 +113,9 @@ struct TIAEvaluatorReplyContract {
                 "evidence": ["type": "array", "items": ["type": "string"], "maxItems": 0],
                 "reason": ["type": "string", "pattern": #"^[^\u0000-\u001f]{8,60}$"#]
             ], "required": ["anchor", "evidence", "reason"], "additionalProperties": false]
-            if values.isEmpty { criteria[id] = abstain; continue }
+            if values.isEmpty || !proposable.contains(id) { criteria[id] = abstain; continue }
             let observed: [String: Any] = ["type": "object", "properties": [
-                "anchor": ["type": "integer", "enum": id == "T01" && failedSQL ? [0] : [0, 1, 2, 3]],
+                "anchor": ["type": "integer", "enum": [0, 1, 2, 3]],
                 "evidence": ["type": "array", "items": ["type": "string", "enum": values], "minItems": 1, "maxItems": 4],
                 "reason": ["type": "string", "pattern": #"^[^\u0000-\u001f]{8,60}$"#]
             ], "required": ["anchor", "evidence", "reason"], "additionalProperties": false]
@@ -140,7 +145,7 @@ struct TIAEvaluatorReplyContract {
             } else {
                 guard let number = row["anchor"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
                       number.doubleValue == Double(number.intValue), (0...3).contains(number.intValue),
-                      !citations.isEmpty, !(id == "T01" && failedSQL && number.intValue != 0)
+                      !citations.isEmpty, proposable.contains(id)
                 else { throw TIAProviderFailure.invalidResponse }
                 anchor = number.intValue
             }

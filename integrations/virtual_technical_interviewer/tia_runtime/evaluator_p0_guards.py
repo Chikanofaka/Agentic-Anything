@@ -23,7 +23,7 @@ def eligible_aliases(identifier, candidates, replies, accuracy):
     if identifier == 'T01':
         return ([e['alias'] for e in candidates
                  if e['event_id'] == accuracy.get('candidate_event_id')]
-                if accuracy.get('status') in ('PASSED', 'FAILED') else [])
+                if accuracy.get('status') in ('PASSED', 'FAILED', 'EXECUTION_ERROR') else [])
     if identifier == 'C05':
         out = []
         for e in candidates:

@@ -52,7 +52,7 @@ class CompleteEvaluatorTests(unittest.TestCase):
         self.assertEqual(p, original)
 
     def test_legacy_count_policy_and_identity_unchanged(self):
-        p = source()
+        p = source(modern=False)
         self.assertEqual(ev._p0_code_sources(p), ev.P0_V5_CODE_SOURCES)
         p['results'][0]['session']['events'] = [event('candidate', 'plan', f'c{n}', 'My plan is to group.') for n in range(17)]
         with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_CONTEXT_INCOMPLETE'):
@@ -62,7 +62,7 @@ class CompleteEvaluatorTests(unittest.TestCase):
         # Golden values independently generated from git d3b7f8c's evaluator
         # against this synthetic source. Existing v2 is not new policy v3.
         for policy in (None, 'tia-continuity/v2'):
-            p = source()
+            p = source(modern=False)
             if policy:
                 p['continuity_policy'] = policy
             pending, spec = ev.prepare_native_evaluator(p, RID, GEN, 'en', 0)
@@ -80,7 +80,7 @@ class CompleteEvaluatorTests(unittest.TestCase):
             self.assertEqual(ev._p0_code_sources(p), ev.P0_V5_CODE_SOURCES)
 
     def test_existing_v2_keeps_legacy_capacity_contract(self):
-        p = source(); p['continuity_policy'] = 'tia-continuity/v2'
+        p = source(modern=False); p['continuity_policy'] = 'tia-continuity/v2'
         p['results'][0]['session']['events'] = [
             event('candidate', 'plan', f'c{n}', 'My plan is to group.') for n in range(17)]
         with self.assertRaisesRegex(ev.NativeEvaluatorError, 'EVALUATOR_CONTEXT_INCOMPLETE'):

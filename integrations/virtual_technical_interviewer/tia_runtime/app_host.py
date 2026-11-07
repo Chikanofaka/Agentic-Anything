@@ -83,7 +83,7 @@ COMMAND_FIELDS = {
     # rejects them as renderer actions. They contain no credentials or URLs.
     "native_prepare_preview": PREPARE_FIELDS, "native_commit_preview": COMMIT_FIELDS,
     "native_cancel_preview": set(), "preview_close": set(),
-    "rehearsal_start": {"continuity_policy"}, "rehearsal_submit": set(), "rehearsal_skip": set(),
+    "rehearsal_start": {"continuity_policy", "sql_attempt_policy"}, "rehearsal_submit": set(), "rehearsal_skip": set(),
     "rehearsal_tick": set(),
     "smart_start": set(), "smart_record": {"task_id", "kind", "note", "artifact_sha256"},
     "grade_inspect": {"fixture_json"}, "grade_execute": {"fixture_sha256"},
@@ -289,7 +289,7 @@ class TutorialHost:
                 self._live_controller.snapshot() if self._live_controller is not None else None)
             result['evaluator_report'] = self._evaluator_report()
             result['post_interview_sql'] = self._post_sql_state()
-            result['evaluator_v1_readout'] = project_v1_score(self._rehearsal)
+            result['evaluator_v1_readout'] = project_v1_score(self._scorecard_plan())
             # E4D-02B read-only synthetic mock, never a candidate grade or persisted state.
             try:
                 result['evaluator_v1_mock_readout'] = project_v1_mock(self._rehearsal)
@@ -298,9 +298,9 @@ class TutorialHost:
             result['native_evaluator_pending'] = self._evaluator_pending is not None
             result['native_evaluator_interrupted'] = self._evaluator_interrupted
             result['native_evaluator_error_code'] = self._evaluator_error_code
-            result['evidence_scorecard'] = build_scorecard(self._rehearsal)
+            result['evidence_scorecard'] = build_scorecard(self._scorecard_plan())
             result['communication_evidence'] = build_communication_evidence(self._rehearsal)
-            result['grounded_trainer'] = build_grounded_trainer(self._rehearsal)
+            result['grounded_trainer'] = build_grounded_trainer(self._scorecard_plan())
             smart = build_smart_plan(self._rehearsal)
             result['smart_plan'] = smart
             result['smart_progress'] = copy.deepcopy(self._smart_progress)
@@ -324,6 +324,50 @@ class TutorialHost:
             return None
         grades = self._rehearsal.get('grades') or {}
         return grades.get(str(self._rehearsal['current_index']))
+
+    def _active_sql_receipt(self):
+        """Return only a candidate-owned terminal/pass ledger projection.
+
+        Infrastructure failures intentionally produce no T01 receipt.  A
+        candidate-owned failure is authoritative on skip/timeout even when
+        resubmission opportunities were not used.
+        """
+        if (self._rehearsal is None or self._rehearsal.get('status') != 'ACTIVE' or
+                self._rehearsal.get('sql_attempt_policy') != 'tia-sql-attempts/v1'):
+            return None
+        observation = self._post_sql_results.get(str(self._rehearsal['current_index']))
+        if (isinstance(observation, dict) and observation.get('status') in
+                ('PASSED', 'FAILED_TESTS', 'CANDIDATE_QUERY_ERROR')):
+            return post_sql.accuracy_from_observation(observation)
+        return None
+
+    def _finalize_active_sql_failure(self):
+        """Freeze a candidate-owned failure when the question is being closed.
+
+        Skip and timeout waive unused resubmissions. Infrastructure failures
+        are deliberately excluded and can never become a candidate zero.
+        """
+        if (self._rehearsal is None or self._rehearsal.get('status') != 'ACTIVE' or
+                self._rehearsal.get('sql_attempt_policy') != 'tia-sql-attempts/v1'):
+            return
+        index = self._rehearsal['current_index']
+        key = str(index)
+        current = self._post_sql_results.get(key)
+        if (not isinstance(current, dict) or current.get('status') not in
+                ('FAILED_TESTS', 'CANDIDATE_QUERY_ERROR') or current.get('terminal') is True):
+            return
+        frozen = copy.deepcopy(current)
+        frozen.update(terminal=True, attempts_remaining=0,
+                      t01_authority='OBSERVED_ZERO', t01_provisional_points=0,
+                      finalization_reason='QUESTION_CLOSED_AFTER_CANDIDATE_FAILURE')
+        self._post_sql_results[key] = frozen
+        for position in range(len(self._post_sql_observations) - 1, -1, -1):
+            row = self._post_sql_observations[position]
+            if (row.get('question_index') == index and
+                    row.get('candidate_event_id') == frozen.get('candidate_event_id') and
+                    row.get('candidate_sql_sha256') == frozen.get('candidate_sql_sha256')):
+                self._post_sql_observations[position] = copy.deepcopy(frozen)
+                break
 
     def _last_implementation(self):
         if self._live_controller is None or self._live_controller.phase != 'INTERVIEWING':
@@ -371,12 +415,15 @@ class TutorialHost:
 
     @staticmethod
     def _validate_command(action, params):
+        rehearsal_start_fields = (set(), {'continuity_policy'}, COMMAND_FIELDS['rehearsal_start'])
         if (type(action) is not str or action not in COMMAND_FIELDS
                 or type(params) is not dict or (set(params) != COMMAND_FIELDS[action]
-                and not (action == 'rehearsal_start' and not params))):
+                and not (action == 'rehearsal_start' and set(params) in rehearsal_start_fields))):
             raise HostError("INVALID_COMMAND")
         if action == 'rehearsal_start' and params and params.get('continuity_policy') not in ('tia-continuity/v2', 'tia-continuity/v3'):
             raise HostError('INVALID_CONTINUITY_POLICY')
+        if action == 'rehearsal_start' and 'sql_attempt_policy' in params and params['sql_attempt_policy'] != 'tia-sql-attempts/v1':
+            raise HostError('INVALID_SQL_ATTEMPT_POLICY')
         if action == 'native_reject_evaluator' and (type(params['code']) is not str or not re.fullmatch(r'(?:EVALUATOR_[A-Z_]{1,70}|INVALID_PROVIDER_RESPONSE)', params['code'])):
             raise HostError('INVALID_EVALUATOR_REJECTION')
         if action == 'post_sql_review':
@@ -532,6 +579,8 @@ class TutorialHost:
         if plan is None or plan['status'] != 'ACTIVE':
             return
         code = 'CLOCK_INTEGRITY_HOLD' if integrity_hold else 'TIMED_OUT'
+        if not integrity_hold:
+            self._finalize_active_sql_failure()
         if self._live_controller is not None:
             if self._live_controller.phase == 'INTERVIEWING':
                 self._live_controller.close('cancelled' if integrity_hold else 'timeout')
@@ -542,6 +591,8 @@ class TutorialHost:
             plan['timing']['questions'][plan['timing']['current_question']]['ended'] = True
         for i in range(plan['current_index'], 3):
             preserved_grade = (plan.get('grades') or {}).get(str(i))
+            if i == plan['current_index'] and preserved_grade is None:
+                preserved_grade = self._active_sql_receipt()
             result = {
                 'index': i, 'outcome': code if i == plan['current_index'] else 'NOT_REACHED',
                 'execution_status': ('RUN_LOCAL_FIXTURE' if preserved_grade and preserved_grade['correctness'] == 'VERIFIED_LOCAL_FIXTURE'
@@ -578,7 +629,8 @@ class TutorialHost:
         if controller is not None and controller.native_pending is not None:
             controller.cancel_native_reply()
         request_finished(plan)
-        receipt = self._active_grade_receipt()
+        self._finalize_active_sql_failure()
+        receipt = self._active_grade_receipt() or self._active_sql_receipt()
         result = {
             'index': index, 'outcome': 'TIMED_OUT',
             'execution_status': ('RUN_LOCAL_FIXTURE' if receipt and
@@ -905,6 +957,8 @@ class TutorialHost:
             if params.get('continuity_policy') in ('tia-continuity/v2', 'tia-continuity/v3'):
                 plan['continuity_policy'] = params['continuity_policy']
                 plan['max_turns_per_question'] = None  # no semantic four-turn limit
+            if params.get('sql_attempt_policy') == 'tia-sql-attempts/v1':
+                plan['sql_attempt_policy'] = params['sql_attempt_policy']
             self._rehearsal = plan
             self._grading_review = None
             self._practice_question = None
@@ -923,6 +977,29 @@ class TutorialHost:
                 if (not candidate_actions or (not any(e['kind'] == 'implement' for e in candidate_actions)
                         if self._continuous_rehearsal() else candidate_actions[-1]['kind'] != 'implement')):
                     raise HostError('FINAL_CODE_SUBMISSION_REQUIRED')
+                if (self._continuous_rehearsal() and
+                        self._rehearsal.get('sql_attempt_policy') == 'tia-sql-attempts/v1' and
+                        self._rehearsal['questions'][self._rehearsal['current_index']].get('environment') == 'POSTGRESQL'):
+                    index = self._rehearsal['current_index']
+                    try:
+                        post_sql.compatible_suite(self._rehearsal['questions'][index])
+                    except post_sql.PostSQLError as error:
+                        if error.code != 'POST_SQL_NO_COMPATIBLE_SUITE':
+                            raise HostError(error.code) from None
+                    else:
+                        observation = self._post_sql_results.get(str(index))
+                        latest = candidate_actions[-1]
+                        latest_text = (latest.get('payload') or {}).get('text')
+                        if (not isinstance(observation, dict) or type(latest_text) is not str or
+                                observation.get('candidate_event_id') != latest.get('id') or
+                                observation.get('candidate_sql_sha256') != post_sql.text_sha(latest_text)):
+                            raise HostError('SQL_VERIFICATION_REQUIRED')
+                        if observation.get('status') == 'INFRA_UNAVAILABLE':
+                            raise HostError('SQL_INFRASTRUCTURE_RETRY_REQUIRED')
+                        if observation.get('status') != 'PASSED' and observation.get('terminal') is not True:
+                            raise HostError('SQL_RESUBMISSION_REQUIRED')
+            if action == 'rehearsal_skip':
+                self._finalize_active_sql_failure()
             result = {
                 'index': self._rehearsal['current_index'],
                 'outcome': ('SKIPPED' if action == 'rehearsal_skip' else
@@ -938,6 +1015,10 @@ class TutorialHost:
                 'session': None,
             }
             receipt = self._active_grade_receipt()
+            ledger_observation = self._post_sql_results.get(str(self._rehearsal['current_index']))
+            if (receipt is None and isinstance(ledger_observation, dict) and
+                    ledger_observation.get('status') in ('PASSED','FAILED_TESTS','CANDIDATE_QUERY_ERROR')):
+                receipt = post_sql.accuracy_from_observation(ledger_observation)
             if receipt is not None:
                 result['sql_accuracy'] = copy.deepcopy(receipt)
                 result['execution_status'] = ('RUN_LOCAL_FIXTURE' if receipt['correctness'] == 'VERIFIED_LOCAL_FIXTURE'
@@ -1053,6 +1134,49 @@ class TutorialHost:
     def _evaluation_plan(self):
         return post_sql.evaluation_plan(self._rehearsal, self._post_sql_results) if self._post_sql_results else self._rehearsal
 
+    def _scorecard_plan(self):
+        """Use the authoritative ledger without rewriting legacy scorecards.
+
+        Legacy post-interview observations remain available to the optional
+        evaluator, but did not participate in historical scorecard, trainer,
+        or export projections.
+        """
+        if (self._rehearsal or {}).get('sql_attempt_policy') == 'tia-sql-attempts/v1':
+            return self._evaluation_plan()
+        return self._rehearsal
+
+    def _sql_plan(self, index):
+        """Return a source-bound view for SQL execution without closing a question.
+
+        The authentic controller session remains the sole transcript source.  A
+        temporary result row only lets the existing post-SQL binding code hash
+        the current implementation before Host handoff.
+        """
+        if (self._rehearsal is None or type(index) is not int or index not in range(3)):
+            raise HostError('POST_SQL_INVALID_QUESTION')
+        plan = copy.deepcopy(self._rehearsal)
+        if plan.get('status') == 'ACTIVE' and index == plan.get('current_index'):
+            if self._live_controller is None:
+                raise HostError('NO_ACTIVE_SQL_SUBMISSION')
+            if len(plan.get('results', [])) != index:
+                raise HostError('POST_SQL_INVALID_ACTIVE_SOURCE')
+            plan['results'].append({'index': index, 'outcome': 'PENDING_SQL_VERIFICATION',
+                'question_sha256': plan['questions'][index]['content_sha256'],
+                'session': self._live_controller.snapshot()})
+        return plan
+
+    def _sql_attempts(self, index):
+        if (self._rehearsal or {}).get('sql_attempt_policy') != 'tia-sql-attempts/v1':
+            return []
+        return [row for row in self._post_sql_observations
+                if row.get('question_index') == index and row.get('consumes_attempt') is True]
+
+    def _sql_execution_rows(self, index):
+        if (self._rehearsal or {}).get('sql_attempt_policy') != 'tia-sql-attempts/v1':
+            return []
+        return [row for row in self._post_sql_observations
+                if row.get('question_index') == index and row.get('ledger_schema') == post_sql.LEDGER_SCHEMA]
+
     def _post_sql_state(self):
         compatible = {}
         if self._rehearsal is not None:
@@ -1061,31 +1185,85 @@ class TutorialHost:
                     compatible[str(index)] = post_sql.compatible_suite(question)
                 except post_sql.PostSQLError:
                     compatible[str(index)] = None
-        return {'schema': post_sql.SCHEMA, 'review': copy.deepcopy(self._post_sql_review),
+        modern = (self._rehearsal or {}).get('sql_attempt_policy') == 'tia-sql-attempts/v1'
+        ledger = {str(index): copy.deepcopy(self._sql_execution_rows(index)) for index in range(3)}
+        result = {'schema': post_sql.SCHEMA,
+                'review': copy.deepcopy(self._post_sql_review),
                 'pending': self._post_sql_pending is not None, 'results': copy.deepcopy(self._post_sql_results),
                 'assessment_archive': copy.deepcopy(self._evaluator_archive),
                 'observations': copy.deepcopy(self._post_sql_observations),
                 'compatible_suites': compatible,
                 'suites': [{'id': key, 'title': item['title'], 'assumptions': item['assumptions']} for key,item in post_sql.SUITES.items()]}
+        if modern:
+            result.update(ledger_schema=post_sql.LEDGER_SCHEMA, max_attempts=post_sql.MAX_ATTEMPTS,
+                          execution_ledger=ledger)
+        return result
 
     def _post_sql_dispatch(self, action, params):
         if action == 'native_cancel_post_sql':
             if self._post_sql_pending is None: raise HostError('POST_SQL_NOT_PENDING')
             self._post_sql_pending = None
             return
-        if self.screen != 'REHEARSAL_COMPLETE': raise HostError('POST_SQL_REQUIRES_CLOSED_INTERVIEW')
+        active = self._rehearsal is not None and self._rehearsal.get('status') == 'ACTIVE'
+        if self.screen != 'REHEARSAL_COMPLETE' and not (active and self.screen == 'LIVE_PREVIEW'):
+            raise HostError('POST_SQL_REQUIRES_INTERVIEW_CONTEXT')
         try:
             if action == 'post_sql_review':
                 if self._post_sql_pending is not None: raise HostError('POST_SQL_PENDING')
-                self._post_sql_review = post_sql.review(self._rehearsal,params['question_index'],params['suite_id'])
+                index = params['question_index']
+                if active and index != self._rehearsal['current_index']:
+                    raise HostError('POST_SQL_INVALID_ACTIVE_SOURCE')
+                plan = self._sql_plan(index)
+                reviewed = post_sql.review(plan,index,params['suite_id'])
+                attempts = self._sql_attempts(index)
+                if attempts and (attempts[-1].get('terminal') is True or len(attempts) >= post_sql.MAX_ATTEMPTS):
+                    raise HostError('SQL_ATTEMPTS_EXHAUSTED')
+                if attempts and attempts[-1]['candidate_sql_sha256'] == reviewed['candidate_sql_sha256']:
+                    raise HostError('SQL_RESUBMISSION_MUST_CHANGE')
+                self._post_sql_review = reviewed
             elif action == 'native_prepare_post_sql':
                 if self._post_sql_pending is not None or self._post_sql_review is None or params['review_sha256'] != self._post_sql_review['review_sha256']:
                     raise HostError('POST_SQL_STALE_REVIEW')
-                self._post_sql_pending, self._prepared_return = post_sql.prepare(self._rehearsal,self._post_sql_review,params['request_id'],params['generation'])
+                plan = self._sql_plan(self._post_sql_review['question_index'])
+                self._post_sql_pending, self._prepared_return = post_sql.prepare(plan,self._post_sql_review,params['request_id'],params['generation'])
             else:
                 if self._post_sql_pending is None: raise HostError('POST_SQL_NOT_PENDING')
-                result = post_sql.commit(self._rehearsal,self._post_sql_pending,params['result'])
+                plan = self._sql_plan(self._post_sql_pending['question_index'])
+                result = post_sql.commit(plan,self._post_sql_pending,params['result'])
                 index = str(result['question_index'])
+                modern = self._rehearsal.get('sql_attempt_policy') == 'tia-sql-attempts/v1'
+                if not modern:
+                    result['status'] = result.pop('raw_status')
+                    if index in self._evaluator_assessments:
+                        self._evaluator_archive.append({'question_index': int(index),
+                            'reason': 'NEW_POST_INTERVIEW_EXECUTION',
+                            'assessment': self._evaluator_assessments.pop(index)})
+                    self._post_sql_observations.append(copy.deepcopy(result))
+                    self._post_sql_results[index] = result
+                    self._post_sql_pending = None
+                    return
+                prior = self._sql_attempts(int(index))
+                consumes = result['status'] != 'INFRA_UNAVAILABLE'
+                attempt = len(prior) + (1 if consumes else 0)
+                remaining = max(0, post_sql.MAX_ATTEMPTS - attempt)
+                terminal = result['status'] == 'PASSED' or (consumes and remaining == 0)
+                result.update(ledger_schema=post_sql.LEDGER_SCHEMA,
+                    question_sha256=result['pending']['question_sha256'],
+                    candidate_event_id=result['pending']['candidate_event_id'],
+                    candidate_sql_sha256=result['pending']['candidate_sql_sha256'],
+                    suite_id=result['pending']['suite_id'], suite_sha256=result['pending']['suite_sha256'],
+                    # Infrastructure retries retain the next candidate attempt
+                    # number while consuming no candidate chance.
+                    attempt_number=(attempt if consumes else len(prior) + 1), attempts_remaining=remaining,
+                    consumes_attempt=consumes, failure_owner=(
+                        'NONE' if result['status'] == 'PASSED' else
+                        'INFRASTRUCTURE' if result['status'] == 'INFRA_UNAVAILABLE' else 'CANDIDATE'),
+                    terminal=terminal, t01_authority=(
+                        'VERIFIED_EXECUTION' if result['status'] == 'PASSED' else
+                        'OBSERVED_ZERO' if terminal else
+                        'MISSING_EVIDENCE' if result['status'] == 'INFRA_UNAVAILABLE' else 'PENDING_RESUBMISSION'),
+                    t01_provisional_points=(18 if result['status'] == 'PASSED' else
+                        0 if terminal else None), t01_max_points=24)
                 # Preserve the original assessment as an archive, never reinterpret
                 # its citations against post-interview execution evidence.
                 if index in self._evaluator_assessments:
@@ -1620,16 +1798,16 @@ class TutorialHost:
         if self._rehearsal is not None:
             result.update(api_requests=None,
                           provider_usage_source='Native activation snapshot only; complete session request count unavailable',
-                          evaluator_v1_readout=project_v1_score(self._rehearsal),
+                          evaluator_v1_readout=project_v1_score(self._scorecard_plan()),
                           evaluator_report=self._evaluator_report(),
                           post_interview_sql=self._post_sql_state(),
                           native_evaluator_pending=self._evaluator_pending is not None,
                           native_evaluator_interrupted=self._evaluator_interrupted,
                           native_evaluator_error_code=self._evaluator_error_code,
                           rehearsal=public_plan(self._rehearsal),
-                          evidence_scorecard=build_scorecard(self._rehearsal),
+                          evidence_scorecard=build_scorecard(self._scorecard_plan()),
                           communication_evidence=build_communication_evidence(self._rehearsal),
-                          grounded_trainer=build_grounded_trainer(self._rehearsal),
+                          grounded_trainer=build_grounded_trainer(self._scorecard_plan()),
                           smart_plan=build_smart_plan(self._rehearsal),
                           smart_progress=copy.deepcopy(self._smart_progress),
                           smart_progress_summary=smart_progress_summary(build_smart_plan(self._rehearsal), self._smart_progress),

@@ -14,6 +14,8 @@ from .sql_accuracy import validate_fixture, grade_fixture, AccuracyError
 from .grading_binding import find_approved_pg_config, GradingBindingError
 
 SCHEMA = 'tia-post-interview-sql/v1'
+LEDGER_SCHEMA = 'tia-sql-execution-ledger/v1'
+MAX_ATTEMPTS = 3
 SHA = re.compile(r'[0-9a-f]{64}\Z')
 SUITES = {
     'delivery_first_orders': {'title': 'Immediate first deliveries',
@@ -81,7 +83,9 @@ def _recognized_suite(question):
         raise
 
 def source(plan,index):
-    if type(index) is not int or index not in range(3) or type(plan) is not dict or plan.get('status') not in ('COMPLETE','TIMED_OUT','CLOCK_INTEGRITY_HOLD') or len(plan.get('results',[]))!=3:
+    if (type(index) is not int or index not in range(3) or type(plan) is not dict or
+            plan.get('status') not in ('ACTIVE','COMPLETE','TIMED_OUT','CLOCK_INTEGRITY_HOLD') or
+            type(plan.get('results')) is not list or len(plan['results']) <= index):
         raise PostSQLError('POST_SQL_REQUIRES_CLOSED_INTERVIEW')
     question=plan['questions'][index]; record=plan['results'][index]
     if question.get('environment')!='POSTGRESQL': raise PostSQLError('POST_SQL_POSTGRESQL_ONLY')
@@ -177,21 +181,109 @@ def commit(plan,pending,result):
     for case,wanted in zip(result['cases'],expected):
         if type(case) is not dict or set(case)!={'fixture_sha256','label','status','reason'} or case['fixture_sha256']!=wanted['fixture_sha256'] or case['label']!=wanted['label'] or case['status'] not in ('PASSED','FAILED','EXECUTION_ERROR','NOT_VERIFIED') or type(case['reason']) is not str or not re.fullmatch(r'[A-Z_]{0,80}',case['reason']): raise PostSQLError('POST_SQL_INVALID_CASE_RESULT')
     out=copy.deepcopy(result); statuses=[x['status'] for x in out['cases']]
-    out['status']=('NOT_VERIFIED' if 'NOT_VERIFIED' in statuses else 'EXECUTION_ERROR' if 'EXECUTION_ERROR' in statuses else 'FAILED' if 'FAILED' in statuses else 'PASSED')
+    raw_status=('NOT_VERIFIED' if 'NOT_VERIFIED' in statuses else 'EXECUTION_ERROR' if 'EXECUTION_ERROR' in statuses else 'FAILED' if 'FAILED' in statuses else 'PASSED')
+    out['raw_status'] = raw_status
+    out['status'] = {'PASSED':'PASSED', 'FAILED':'FAILED_TESTS',
+                     'EXECUTION_ERROR':'CANDIDATE_QUERY_ERROR',
+                     'NOT_VERIFIED':'INFRA_UNAVAILABLE'}[raw_status]
     out['passed']=statuses.count('PASSED'); out['total']=len(statuses)
     out['execution_time']='AFTER_INTERVIEW'; out['question_index']=pending['question_index']
     return out
+
+def validate_observation(plan, observation):
+    """Validate a committed ledger row against the now-frozen interview.
+
+    The original native result remains hash-bound to the active controller
+    snapshot used at execution time.  Closing a question legitimately adds
+    Host timing and behaviour fields, so a later scorecard must not recompute
+    the old whole-record hash.  Instead it proves that the immutable question,
+    candidate event/SQL and approved suite still match the frozen record.
+    """
+    if type(observation) is not dict or type(observation.get('pending')) is not dict:
+        raise PostSQLError('POST_SQL_INVALID_RESULT')
+    pending = observation['pending']
+    validate_pending(pending)
+    index = pending['question_index']
+    if (type(plan) is not dict or type(plan.get('questions')) is not list or
+            type(plan.get('results')) is not list or index >= len(plan['questions']) or
+            index >= len(plan['results'])):
+        raise PostSQLError('POST_SQL_STALE_RESULT')
+    question = plan['questions'][index]
+    if question.get('content_sha256') != pending['question_sha256']:
+        raise PostSQLError('POST_SQL_STALE_RESULT')
+    if _recognized_suite(question) not in (None, pending['suite_id']):
+        raise PostSQLError('POST_SQL_SUITE_QUESTION_MISMATCH')
+    expected = fixtures(pending['suite_id'], pending['question_sha256'])
+    if sha(expected) != pending['suite_sha256']:
+        raise PostSQLError('POST_SQL_CASE_MISMATCH')
+    events = (((plan['results'][index].get('session') or {}).get('events')) or [])
+    event = next((row for row in events if row.get('id') == pending['candidate_event_id']), None)
+    text = ((event or {}).get('payload') or {}).get('text')
+    if (event is None or event.get('actor') != 'candidate' or
+            event.get('kind') != 'implement' or type(text) is not str or
+            text_sha(text) != pending['candidate_sql_sha256']):
+        raise PostSQLError('POST_SQL_STALE_RESULT')
+    base = {key: observation.get(key) for key in
+            ('schema','pending','cases','source','official_hidden_tests','sha256')}
+    if set(base) != {'schema','pending','cases','source','official_hidden_tests','sha256'}:
+        raise PostSQLError('POST_SQL_INVALID_RESULT')
+    if (base['schema'] != SCHEMA or base['source'] != 'EPHEMERAL_POSTGRESQL_LOCAL' or
+            base['official_hidden_tests'] is not False or
+            base['sha256'] != sha({key:value for key,value in base.items() if key != 'sha256'})):
+        raise PostSQLError('POST_SQL_BINDING_MISMATCH')
+    statuses = [row.get('status') for row in base['cases']] if type(base['cases']) is list else []
+    if len(statuses) != len(expected):
+        raise PostSQLError('POST_SQL_CASE_MISMATCH')
+    raw = ('NOT_VERIFIED' if 'NOT_VERIFIED' in statuses else
+           'EXECUTION_ERROR' if 'EXECUTION_ERROR' in statuses else
+           'FAILED' if 'FAILED' in statuses else 'PASSED')
+    canonical_status = {'PASSED':'PASSED', 'FAILED':'FAILED_TESTS',
+                        'EXECUTION_ERROR':'CANDIDATE_QUERY_ERROR',
+                        'NOT_VERIFIED':'INFRA_UNAVAILABLE'}[raw]
+    if (observation.get('raw_status') != raw or observation.get('status') != canonical_status or
+            observation.get('passed') != statuses.count('PASSED') or
+            observation.get('total') != len(statuses)):
+        raise PostSQLError('POST_SQL_BINDING_MISMATCH')
+    terminal = observation.get('terminal') is True
+    expected_points = 18 if canonical_status == 'PASSED' else 0 if terminal else None
+    expected_authority = ('VERIFIED_EXECUTION' if canonical_status == 'PASSED' else
+                          'OBSERVED_ZERO' if terminal else
+                          'MISSING_EVIDENCE' if canonical_status == 'INFRA_UNAVAILABLE'
+                          else 'PENDING_RESUBMISSION')
+    if (observation.get('t01_authority') != expected_authority or
+            observation.get('t01_provisional_points') != expected_points or
+            observation.get('t01_max_points') != 24):
+        raise PostSQLError('POST_SQL_BINDING_MISMATCH')
+    return observation
 
 def evaluation_plan(plan, results):
     """A separate derived evaluation source. Original timing/transcripts stay intact."""
     out=copy.deepcopy(plan)
     for index,observation in results.items():
-        verified=commit(plan,observation['pending'],{k:v for k,v in observation.items() if k in ('schema','pending','cases','source','official_hidden_tests','sha256')})
-        if verified['status']=='NOT_VERIFIED': continue
-        p=verified['pending']; result=out['results'][int(index)]
-        result['sql_accuracy']={'schema':'tia-post-interview-sql-accuracy/v1','source':'EPHEMERAL_POSTGRESQL_LOCAL',
-            'correctness':'VERIFIED_LOCAL_FIXTURE','approval_kind':'NATIVE_HUMAN_CONFIRMATION','official_hidden_tests':False,
-            'question_sha256':p['question_sha256'],'candidate_event_id':p['candidate_event_id'],'candidate_sql_sha256':p['candidate_sql_sha256'],
-            'fixture_sha256':p['suite_sha256'],'total_approved_fixtures':verified['total'],'passed_fixtures':verified['passed'],
-            'result':{'status':verified['status']},'post_interview_observation':verified}
+        if int(index) >= len(out.get('results', [])):
+            # Active-question verdicts remain in the ledger until Host handoff
+            # freezes the corresponding result row.
+            continue
+        if observation.get('ledger_schema') == LEDGER_SCHEMA:
+            verified=validate_observation(plan, observation)
+        else:
+            verified=commit(plan, observation['pending'], {k:v for k,v in observation.items()
+                if k in ('schema','pending','cases','source','official_hidden_tests','sha256')})
+        if verified['status']=='INFRA_UNAVAILABLE': continue
+        out['results'][int(index)]['sql_accuracy'] = accuracy_from_observation(verified)
     return out
+
+def accuracy_from_observation(observation):
+    """Project one immutable ledger verdict into the established T01 receipt."""
+    if type(observation) is not dict or observation.get('status') not in (
+            'PASSED', 'FAILED_TESTS', 'CANDIDATE_QUERY_ERROR'):
+        raise PostSQLError('POST_SQL_RESULT_NOT_T01_AUTHORITY')
+    p = observation['pending']
+    evaluator_status = {'PASSED':'PASSED', 'FAILED_TESTS':'FAILED',
+                        'CANDIDATE_QUERY_ERROR':'EXECUTION_ERROR'}[observation['status']]
+    return {'schema':'tia-post-interview-sql-accuracy/v1','source':'EPHEMERAL_POSTGRESQL_LOCAL',
+        'correctness':'VERIFIED_LOCAL_FIXTURE','approval_kind':'NATIVE_HUMAN_CONFIRMATION','official_hidden_tests':False,
+        'question_sha256':p['question_sha256'],'candidate_event_id':p['candidate_event_id'],
+        'candidate_sql_sha256':p['candidate_sql_sha256'],'fixture_sha256':p['suite_sha256'],
+        'total_approved_fixtures':observation['total'],'passed_fixtures':observation['passed'],
+        'result':{'status':evaluator_status},'post_interview_observation':copy.deepcopy(observation)}

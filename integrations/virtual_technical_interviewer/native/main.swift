@@ -39,6 +39,8 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private var postSQLToken: String?
     private var postSQLStage = "idle"
     private var postSQLCancellationID: String?
+    private var rehearsalSQLSubmitID: String?
+    private var rehearsalSQLIndex: Int?
     private var oracleOperationID: String?
     private var cancellationIDs = [String]()
     private var evaluatorTestAttempt = 0
@@ -301,6 +303,9 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
         if action == "post_sql_execute" {
             beginPostSQL(id: id, reviewSHA: params["review_sha256"] as? String ?? ""); return
+        }
+        if action == "rehearsal_submit" {
+            beginRehearsalSQLSubmit(id: id); return
         }
         if action == "grade_execute" {
             guard let review = lastState["grading_review"] as? [String: Any],
@@ -1077,6 +1082,39 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
         }
     }
 
+    private func beginRehearsalSQLSubmit(id: String) {
+        guard let rehearsal = lastState["rehearsal"] as? [String: Any],
+              rehearsal["status"] as? String == "ACTIVE",
+              rehearsal["sql_attempt_policy"] as? String == "tia-sql-attempts/v1",
+              let index = rehearsal["current_index"] as? Int else {
+            forward(id: id, action: "rehearsal_submit", params: [:]); return
+        }
+        let sql = (lastState["post_interview_sql"] as? [String: Any]) ?? [:]
+        let suites = (sql["compatible_suites"] as? [String: Any]) ?? [:]
+        guard let suite = suites[String(index)] as? String, !suite.isEmpty else {
+            // No source-bound local suite means NOT_TESTABLE, never a zero.
+            forward(id: id, action: "rehearsal_submit", params: [:]); return
+        }
+        voice.stop()
+        rehearsalSQLSubmitID = id; rehearsalSQLIndex = index; busy = true
+        worker?.request("post_sql_review", params: ["question_index": index, "suite_id": suite]) { [weak self] reply in
+            guard let self = self, self.rehearsalSQLSubmitID == id,
+                  self.rehearsalSQLIndex == index else { return }
+            self.busy = false
+            if let state = reply["state"] as? [String: Any] { self.lastState = state }
+            guard reply["ok"] as? Bool == true,
+                  let readout = self.lastState["post_interview_sql"] as? [String: Any],
+                  let review = readout["review"] as? [String: Any],
+                  let digest = review["review_sha256"] as? String else {
+                self.rehearsalSQLSubmitID = nil; self.rehearsalSQLIndex = nil
+                self.emit(["id": id, "ok": false, "state": self.lastState,
+                           "error": reply["error"] as? String ?? "POST_SQL_REVIEW_FAILED"]); return
+            }
+            let operation = "rehearsal-sql-\(index)-" + UUID().uuidString
+            self.executePostSQL(id: operation, reviewSHA: digest, automaticCheckout: false)
+        }
+    }
+
     private func executePostSQL(id: String, reviewSHA: String, automaticCheckout: Bool) {
         guard let runtime = Bundle.main.resourceURL?.appendingPathComponent("runtime") else {
             if automaticCheckout { checkoutSQLActiveIndex = nil; checkoutSQLFailure = "POST_SQL_EXECUTION_UNAVAILABLE" }
@@ -1128,10 +1166,32 @@ final class TIAApp: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKN
     private func finishPostSQL(ok: Bool, error: String?) {
         guard let id = postSQLID else { return }
         let automaticCheckout = checkoutSQLActiveIndex != nil && id.hasPrefix("checkout-sql-")
+        let rehearsalSubmit = id.hasPrefix("rehearsal-sql-") ? rehearsalSQLSubmitID : nil
+        let rehearsalIndex = rehearsalSQLIndex
         postSQLID = nil; postSQLToken = nil; postSQLStage = "idle"; busy = false
         if automaticCheckout {
             checkoutSQLActiveIndex = nil
             checkoutSQLFailure = ok ? nil : (error ?? "POST_SQL_EXECUTION_FAILED")
+        }
+        if let submitID = rehearsalSubmit, let index = rehearsalIndex {
+            rehearsalSQLSubmitID = nil; rehearsalSQLIndex = nil
+            guard ok, let readout = lastState["post_interview_sql"] as? [String: Any],
+                  let results = readout["results"] as? [String: Any],
+                  let result = results[String(index)] as? [String: Any],
+                  let status = result["status"] as? String else {
+                emit(["id": submitID, "ok": false, "state": lastState,
+                      "error": error ?? "POST_SQL_EXECUTION_UNAVAILABLE"]); return
+            }
+            if status == "PASSED" || result["terminal"] as? Bool == true {
+                forward(id: submitID, action: "rehearsal_submit", params: [:])
+            } else if status == "INFRA_UNAVAILABLE" {
+                emit(["id": submitID, "ok": false, "state": lastState,
+                      "error": "SQL_INFRASTRUCTURE_RETRY_REQUIRED"])
+            } else {
+                emit(["id": submitID, "ok": true, "state": lastState,
+                      "resubmission_required": true])
+            }
+            return
         }
         var reply: [String: Any] = ["id": id, "ok": ok, "state": lastState]
         if automaticCheckout { reply.removeValue(forKey: "id") }

@@ -91,6 +91,8 @@ class PostSQLTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.host._rehearsal,original)
         state=self.host.state(); record=state['post_interview_sql']['results']['0']
         self.assertEqual((record['status'],record['passed'],record['total']),('PASSED',3,3))
+        # This historical session did not opt into the authoritative attempt
+        # ledger; retrospective execution must not rewrite its scorecard.
         self.assertEqual(state['evidence_scorecard']['questions'][0]['accuracy']['status'],'NOT_VERIFIED')
         evaluator=state['evaluator_report']['questions'][0]
         self.assertEqual(evaluator['raw_metrics']['accuracy']['status'],'PASSED')
@@ -98,7 +100,7 @@ class PostSQLTests(unittest.IsolatedAsyncioTestCase):
         spec=(await self.cmd('native_prepare_evaluator',{'request_id':'new-review','generation':'g1','question_index':0}))['prepared']
         context=json.loads(spec['input'])
         self.assertEqual(context['local_execution']['status'],'PASSED')
-        self.assertTrue(context['criteria'][0]['can_propose_anchor'])
+        self.assertFalse(context['criteria'][0]['can_propose_anchor'])
         self.assertNotIn('tables',context['local_execution'])
 
     async def test_late_duplicate_and_cross_generation_replies_rejected(self):

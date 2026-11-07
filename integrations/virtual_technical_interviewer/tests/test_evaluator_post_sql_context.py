@@ -6,7 +6,7 @@ from test_native_evaluator import source
 
 class EvaluatorPostSQLContextTests(unittest.TestCase):
     def test_post_interview_cases_are_named_and_source_data_is_not_exposed(self):
-        plan = source(); plan['continuity_policy'] = 'tia-continuity/v3'
+        plan = source(modern=False); plan['continuity_policy'] = 'tia-continuity/v3'
         plan['questions'][0]['reference_answer'] = 'PRIVATE_ORACLE_SQL'
         card = ev._card(plan)
         card['questions'][0]['accuracy'].update(
@@ -21,7 +21,7 @@ class EvaluatorPostSQLContextTests(unittest.TestCase):
 
     def test_original_execution_packet_unchanged_without_post_interview_receipt(self):
         for continuity in (None, 'tia-continuity/v2', 'tia-continuity/v3'):
-            plan = source()
+            plan = source(modern=False)
             if continuity:
                 plan['continuity_policy'] = continuity
             packet = ev._context(plan, 0, 'en', ev._effective_profile(plan), ev._card(plan))

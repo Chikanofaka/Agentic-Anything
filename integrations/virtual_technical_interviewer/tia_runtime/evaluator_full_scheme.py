@@ -39,7 +39,7 @@ def _check_question(q, index):
         if anchor is not None:
             if (type(anchor) is not int or not 0 <= anchor <= 3 or
                     type(points) not in (int,float) or abs(points-weight*anchor/4)>1e-7 or
-                    d.get('status') != 'MODEL_PROPOSED'):
+                    d.get('status') not in ('MODEL_PROPOSED', 'HOST_EXECUTION_DERIVED')):
                 raise SchemeError('CRITERION_POINTS_INVALID')
         elif points is not None:
             raise SchemeError('UNOBSERVED_POINTS_INVALID')
@@ -85,7 +85,8 @@ def compile_full_scheme(report):
                               if isinstance(r,dict) and isinstance(r.get('event_id'),str)]
             # Existing scores from pre-P0 input selector remain archived, not included
             # in current-version aggregates or promoted to verified observations.
-            valid = current and d.get('status') == 'MODEL_PROPOSED' and d.get('anchor_0_to_4') is not None
+            valid = (current and d.get('status') in ('MODEL_PROPOSED', 'HOST_EXECUTION_DERIVED')
+                     and d.get('anchor_0_to_4') is not None)
             rows.append({'id': d['id'], 'title': d.get('title',''), 'axis':d['axis'],
                          'max_points':d['proposed_max_points'], 'status': d.get('status'),
                          'eligible_provisional_points':d['provisional_points'] if valid else None,
