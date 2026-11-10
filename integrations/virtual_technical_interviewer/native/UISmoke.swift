@@ -49,14 +49,14 @@ final class TIAUISmoke {
             &&s.post_interview_sql.observations.length===1&&s.post_interview_sql.assessment_archive.length===1
             &&s.evaluator_report.questions[0].raw_metrics.accuracy.fixture_total===3
             &&s.evaluator_report.questions[0].assessment.dimensions[0].anchor_0_to_4===2
-            &&s.evidence_scorecard.questions[0].accuracy.status==='NOT_VERIFIED'&&!s.recovery_error};
+            &&s.evidence_scorecard.questions[0].accuracy.status==='PASSED'&&!s.recovery_error};
         """)] }
         if postSQLTesting { return [
         Step(label: "E25B opens native consent for synthetic fixture-only interview", code: """
           await until(()=>document.documentElement.dataset.tiaReady==='true');
           await press('realInterview','API_PORTAL');return {ok:window.tiaState.activation.requests_used===0};
         """),
-        Step(label: "Post SQL synthetic bus question records final code and closes without execution", code: """
+        Step(label: "Post SQL legacy review records candidate code and closes through explicit skips", code: """
           await until(()=>window.tiaState.activation.state==='activated-unverified');await press('prepareSetup','CONFIG');
           await request('setup_config',{config:{technical_environment:'POSTGRESQL',duration_minutes:45,difficulty:'HARD',question_source:'BYOQ',interviewer_mechanism:'STRICT_CHALLENGING'}});
           for(let i=0;i<3;i++){
@@ -66,7 +66,7 @@ final class TIAUISmoke {
           }
           await press('startRehearsal','API_PORTAL');await press('verifyPreview','LIVE_PREVIEW');
           await request('preview_send',{kind:'implement',text:'WITH ordered AS (SELECT person_name, turn, sum(weight) OVER (ORDER BY turn) AS total FROM Queue) SELECT person_name FROM ordered WHERE total <= 1000 ORDER BY turn DESC LIMIT 1'});
-          await request('rehearsal_submit');await screen('LIVE_PREVIEW');
+          await request('rehearsal_skip');await screen('LIVE_PREVIEW');
           await request('rehearsal_skip');await screen('LIVE_PREVIEW');
           await request('rehearsal_skip');await screen('REHEARSAL_COMPLETE');
           const s=await snap();window.postOriginal={record:stable(s.rehearsal),score:s.evidence_scorecard.sha256};
@@ -100,10 +100,19 @@ final class TIAUISmoke {
           request('post_sql_execute',{review_sha256:r.review_sha256}).catch(()=>null);
           let s;for(let i=0;i<240;i++){await pause(500);s=window.tiaState;if(s?.post_interview_sql?.results?.['0']&&!document.querySelector('[aria-busy="true"]'))break;}
           const v=s?.post_interview_sql?.results?.['0'];
-          return {ok:v?.status==='PASSED'&&v.passed===3&&v.total===3&&v.execution_time==='AFTER_INTERVIEW'
+          const ok=v?.status==='PASSED'&&v.passed===3&&v.total===3&&v.execution_time==='AFTER_INTERVIEW'
             &&s.post_interview_sql.assessment_archive[0].assessment.sha256===window.postOldAssessment
             &&s.evaluator_report.questions[0].assessment===null&&!el('evaluatorGenerate')
-            &&s.activation.requests_total===5&&s.evidence_scorecard.sha256===window.postOriginal.score&&stable(s.rehearsal)===window.postOriginal.record};
+            &&s.activation.requests_total===5&&s.evidence_scorecard.sha256!==window.postOriginal.score
+            &&s.evidence_scorecard.questions[0].accuracy.status==='PASSED'&&stable(s.rehearsal)===window.postOriginal.record;
+          if(!ok)throw Error('POST_SQL_COMMIT '+JSON.stringify({status:v?.status,passed:v?.passed,total:v?.total,
+            execution_time:v?.execution_time,archive:s.post_interview_sql.assessment_archive.length,
+            archived_sha:s.post_interview_sql.assessment_archive[0]?.assessment?.sha256,old_sha:window.postOldAssessment,
+            current_assessment:s.evaluator_report.questions[0].assessment!==null,evaluator_button:!!el('evaluatorGenerate'),
+            requests:s.activation.requests_total,score_updated:s.evidence_scorecard.sha256!==window.postOriginal.score,
+            rehearsal_same:stable(s.rehearsal)===window.postOriginal.record}));
+          window.postVerifiedScore=s.evidence_scorecard.sha256;
+          return {ok:true};
         """),
         Step(label: "Post SQL private commits and path injection remain inaccessible from WebKit", code: """
           for(const [action,params] of [['native_commit_post_sql',{result:{status:'PASSED'}}],['native_reject_evaluator',{code:'INVALID_PROVIDER_RESPONSE'}],['post_sql_execute',{review_sha256:'a'.repeat(64),path:'/tmp/injected'}]]){
@@ -114,10 +123,17 @@ final class TIAUISmoke {
         Step(label: "Post SQL explicit reevaluation uses new verification without replacing original records", code: """
           await request('evaluator_generate',{question_index:0});await until(()=>!!window.tiaState?.evaluator_report?.questions?.[0]?.assessment&&!document.querySelector('[aria-busy="true"]'));
           const s=await snap(),q=s.evaluator_report.questions[0];
-          return {ok:q.raw_metrics.accuracy.status==='PASSED'&&q.raw_metrics.accuracy.fixture_total===3
-            &&q.assessment.dimensions[0].anchor_0_to_4===2&&q.assessment.sha256!==window.postOldAssessment
+          const ok=q.raw_metrics.accuracy.status==='PASSED'&&q.raw_metrics.accuracy.fixture_total===3
+            &&q.assessment.dimensions[0].anchor_0_to_4===3&&q.assessment.sha256!==window.postOldAssessment
             &&s.activation.requests_total===6&&s.transport_mode==='MOCK_HTTP'&&s.post_interview_sql.assessment_archive.length===1
-            &&stable(s.rehearsal)===window.postOriginal.record&&s.evidence_scorecard.sha256===window.postOriginal.score};
+            &&stable(s.rehearsal)===window.postOriginal.record&&s.evidence_scorecard.sha256===window.postVerifiedScore;
+          if(!ok)throw Error('POST_SQL_REEVALUATION '+JSON.stringify({accuracy:q.raw_metrics.accuracy.status,
+            fixture_total:q.raw_metrics.accuracy.fixture_total,t01:q.assessment.dimensions[0].anchor_0_to_4,
+            assessment_changed:q.assessment.sha256!==window.postOldAssessment,requests:s.activation.requests_total,
+            transport:s.transport_mode,archive:s.post_interview_sql.assessment_archive.length,
+            rehearsal_same:stable(s.rehearsal)===window.postOriginal.record,
+            score_same:s.evidence_scorecard.sha256===window.postVerifiedScore}));
+          return {ok:true};
         """),
         ] }
 

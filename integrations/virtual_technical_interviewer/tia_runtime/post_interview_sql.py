@@ -187,6 +187,12 @@ def commit(plan,pending,result):
                      'EXECUTION_ERROR':'CANDIDATE_QUERY_ERROR',
                      'NOT_VERIFIED':'INFRA_UNAVAILABLE'}[raw_status]
     out['passed']=statuses.count('PASSED'); out['total']=len(statuses)
+    # This is the only diagnostic projection intended for the candidate UI.
+    # It deliberately contains counts and normalized executor categories, never
+    # fixture rows, expected output, reference SQL, or a database error body.
+    failures = [row for row in out['cases'] if row['status'] != 'PASSED']
+    out['safe_failure_categories'] = sorted({row['status'] for row in failures})
+    out['failed_case_count'] = len(failures)
     out['execution_time']='AFTER_INTERVIEW'; out['question_index']=pending['question_index']
     return out
 

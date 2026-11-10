@@ -101,6 +101,11 @@
       hostUnavailable: "The native host is unavailable. Open the built macOS app to continue.",
       requestTimeout: "The host did not respond in time. Reopen the app to recover saved progress.",
       requestFailed: "The action could not be completed. Try again.",
+      sqlInfrastructureRetry: "Local SQL verification was unavailable. No candidate attempt was used; retry the same SQL when the local runner is available.",
+      sqlResubmissionRequired: "This SQL needs a changed implementation before it can be submitted again.",
+      sqlResubmissionMustChange: "Edit the SQL and record a new implementation before using another candidate attempt.",
+      sqlVerificationRequired: "Run the approved local SQL verification before finishing this question.",
+      sqlAttemptsExhausted: "All SQL attempts for this question are already frozen.",
       loading: "Connecting to the local controller…", retry: "Retry connection",
       recordedNotice: "Practice response recorded by the trusted host.",
       waiting: "Working…", noReceipt: "No frozen receipt is available yet.",
@@ -276,6 +281,11 @@
       hostUnavailable: "原生宿主不可用。请打开构建后的 macOS App。",
       requestTimeout: "宿主未及时响应。请重新打开 App，恢复已保存的进度。",
       requestFailed: "操作未完成，请重试。", loading: "正在连接本地控制器…", retry: "重新连接",
+      sqlInfrastructureRetry: "本地 SQL 校验暂不可用；不会消耗考生机会。待本地执行器可用后可用同一 SQL 重试。",
+      sqlResubmissionRequired: "需要先修改 SQL 并记录新的实现，才能再次提交。",
+      sqlResubmissionMustChange: "请编辑 SQL 并记录新的实现后，再使用下一次考生提交机会。",
+      sqlVerificationRequired: "结束本题前请先运行已批准的本地 SQL 校验。",
+      sqlAttemptsExhausted: "本题的 SQL 尝试已冻结，不能再提交。",
       recordedNotice: "可信宿主已记录练习回答。",
       waiting: "处理中…", noReceipt: "尚无冻结回执。",
       recoveryTitle: "已保存的会话需要处理",
@@ -396,7 +406,10 @@
   // trusted Host for a persisted time checkpoint; no renderer timestamp is sent.
   let clockVisualBaseMs = Date.now();
   let clockDetailsExpanded = false;
-  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate", "post_sql_execute", "preparer_request", "preparer_verify"]);
+  // SQL verification is executed by the native host and can legitimately outlive
+  // the renderer's ordinary 20-second controller timeout.  Keep its request ID
+  // until native either commits, cancels, or rejects the bound execution.
+  const liveRequestActions = new Set(["preview_verify", "preview_send", "voice_send", "grade_execute", "trainer_request", "evaluator_generate", "post_sql_execute", "rehearsal_submit", "preparer_request", "preparer_verify"]);
   const interruptActions = new Set(["preview_cancel", "post_sql_cancel", "disconnect"]);
   const hasLiveRequest = () => [...pending.values()].some(item => liveRequestActions.has(item.action));
   function setBusy(value) {
@@ -433,6 +446,11 @@
       LOCAL_CONTROLLER_UNAVAILABLE: "requestTimeout",
       PRACTICE_REQUIRED_FIELDS_MISSING: "reviewGuidance", PRACTICE_REVIEW_REQUIRED: "reviewGuidance",
       QUESTION_REVIEW_REQUIRED: "reviewIncomplete", QUESTION_SLOT_ORDER: "reviewGuidance",
+      SQL_INFRASTRUCTURE_RETRY_REQUIRED: "sqlInfrastructureRetry",
+      SQL_RESUBMISSION_REQUIRED: "sqlResubmissionRequired",
+      SQL_RESUBMISSION_MUST_CHANGE: "sqlResubmissionMustChange",
+      SQL_VERIFICATION_REQUIRED: "sqlVerificationRequired",
+      SQL_ATTEMPTS_EXHAUSTED: "sqlAttemptsExhausted",
     };
     return t(mapping[code] || "requestFailed");
   }
@@ -1072,20 +1090,36 @@
       }
       const attempts = state.post_interview_sql?.execution_ledger?.[String(rs.current_index)] || [];
       const latestAttempt = attempts.at(-1);
+      const latestImplementation = [...(preview.session?.events || [])].reverse()
+        .find(event => event.actor === "candidate" && event.kind === "implement");
+      const freshImplementation = Boolean(latestImplementation && latestAttempt &&
+        latestImplementation.id !== latestAttempt.candidate_event_id);
       if (latestAttempt && latestAttempt.status !== "PASSED") {
         const retry = node("section", null, "receipt-card"); retry.id = "sqlResubmission";
-        const attempt = latestAttempt.attempt_number || attempts.length;
-        const remaining = latestAttempt.attempts_remaining ?? Math.max(0, 3 - attempt);
+        const maxAttempts = state.post_interview_sql?.max_attempts || 3;
+        const attempt = latestAttempt.attempt_number || 1;
+        const remaining = latestAttempt.attempts_remaining ?? 0;
         const queryError = latestAttempt.status === "CANDIDATE_QUERY_ERROR";
+        const infrastructure = latestAttempt.status === "INFRA_UNAVAILABLE" ||
+          latestAttempt.failure_owner === "INFRASTRUCTURE" || latestAttempt.consumes_attempt === false;
+        const failureCases = Math.max(0, (latestAttempt.total || 0) - (latestAttempt.passed || 0));
+        const categories = Array.isArray(latestAttempt.safe_failure_categories)
+          ? latestAttempt.safe_failure_categories.join(", ") : "";
         add(retry,
-          node("h3", state.language === "zh" ? `SQL 判定 · 第 ${attempt}/3 次` : `SQL verdict · Attempt ${attempt} of 3`),
+          node("h3", state.language === "zh" ? `SQL 判定 · 第 ${attempt}/${maxAttempts} 次` : `SQL verdict · Attempt ${attempt} of ${maxAttempts}`),
           badge(latestAttempt.status, latestAttempt.terminal ? "warning" : "accent"),
-          node("p", latestAttempt.terminal
+          node("p", infrastructure
+            ? (state.language === "zh" ? "本地基础设施未能完成校验；本次不消耗提交机会，T01 不会记零。可以安全地用同一 SQL 重试。" : "Local infrastructure did not complete verification. No attempt was consumed and T01 is not zeroed; you may safely retry the same SQL.")
+            : latestAttempt.terminal
             ? (state.language === "zh" ? "三次机会已用尽；T01 已按可观察失败记为 0 / 24。" : "All three attempts were used. T01 is recorded as an observed 0 / 24.")
-            : (state.language === "zh" ? `还可重新提交 ${remaining} 次。请修改 SQL，并以 implement 再次发送后重试。` : `${remaining} resubmission${remaining === 1 ? "" : "s"} remaining. Edit the SQL, send it again as implement, then retry.`), "notice"),
-          node("p", queryError
+            : freshImplementation
+              ? (state.language === "zh" ? "已记录新的 SQL 提交；现在可运行本次校验。" : "A new SQL submission is recorded and ready for verification.")
+              : (state.language === "zh" ? `还可重新提交 ${remaining} 次。请修改 SQL，并以 implement 再次发送后重试。` : `${remaining} resubmission${remaining === 1 ? "" : "s"} remaining. Edit the SQL, send it again as implement, then retry.`), "notice"),
+          node("p", infrastructure
+            ? (state.language === "zh" ? "无需修改答案。重试只会重新运行同一份已批准本地测试。" : "Do not change the answer for this retry; it only reruns the same approved local tests.")
+            : queryError
             ? (state.language === "zh" ? "候选人 SQL 无法在 PostgreSQL 中执行。请检查语法、别名、列名和类型。" : "The candidate SQL could not execute in PostgreSQL. Check syntax, aliases, column names and types.")
-            : (state.language === "zh" ? "SQL 可以执行，但未通过全部已批准本地测试。预期输出和参考答案不会显示。" : "The SQL executed but did not pass every approved local test. Expected outputs and reference answers remain hidden."), "field-help"));
+            : (state.language === "zh" ? `SQL 可以执行，但未通过全部已批准本地测试${failureCases ? `（${failureCases} 个案例）` : ""}${categories ? `：${categories}` : ""}。预期输出和参考答案不会显示。` : `The SQL executed but did not pass every approved local test${failureCases ? ` (${failureCases} case${failureCases === 1 ? "" : "s"})` : ""}${categories ? `: ${categories}` : ""}. Expected outputs and reference answers remain hidden.`), "field-help"));
         add(main, retry);
       }
     }
@@ -1111,11 +1145,30 @@
         : candidateEvents.at(-1)?.kind === "implement";
       const canFinalize = (!["tia-continuity/v2", "tia-continuity/v3"].includes(policy) || hasSubmittedCode) && !preview.pending;
       const attempts = state.post_interview_sql?.execution_ledger?.[String(state.rehearsal.current_index)] || [];
-      const retrying = attempts.length && attempts.at(-1)?.status !== "PASSED" && attempts.at(-1)?.terminal !== true;
+      const latestAttempt = attempts.at(-1);
+      const latestImplementation = [...(preview.session?.events || [])].reverse()
+        .find(event => event.actor === "candidate" && event.kind === "implement");
+      const freshImplementation = Boolean(latestImplementation && latestAttempt &&
+        latestImplementation.id !== latestAttempt.candidate_event_id);
+      const retrying = latestAttempt && latestAttempt.status !== "PASSED" && latestAttempt.terminal !== true &&
+        latestAttempt.failure_owner !== "INFRASTRUCTURE" && latestAttempt.consumes_attempt !== false && !freshImplementation;
       const finish = button("finishRehearsalQuestion", retrying
           ? (state.language === "zh" ? "修改后重新提交 SQL" : "Edit and resubmit SQL")
           : t(final ? "rehearsalFinish" : "rehearsalSubmit"),
-        () => act("rehearsal_submit"), "primary");
+        () => {
+          if (!retrying) { act("rehearsal_submit"); return; }
+          // This is deliberately not a submit: the Host must see a distinct
+          // implement event/hash before a candidate-consuming retry.
+          liveKind = "implement";
+          const selector = document.getElementById("previewKind");
+          if (selector instanceof HTMLSelectElement) {
+            selector.value = "implement";
+            selector.dispatchEvent(new Event("change"));
+          }
+          const editor = document.getElementById("previewResponse");
+          editor?.focus({preventScroll: false});
+          editor?.scrollIntoView({behavior: "smooth", block: "center"});
+        }, "primary");
       finish.disabled = busy || !canFinalize;
       finish.dataset.unavailable = String(!canFinalize);
       add(main, actions(finish,
@@ -2288,8 +2341,9 @@
     const livePending = node("section", null, "live-request-controls");
     livePending.dataset.livePending = "true";
     livePending.setAttribute("role", "status");
+    const pendingSQL = [...pending.values()].some(item => item.action === "rehearsal_submit" || item.action === "post_sql_execute");
     add(livePending, node("p", t("pendingRequest")), actions(
-      interruptButton("cancelPreview", t("cancelRequest"), "preview_cancel"),
+      interruptButton("cancelPreview", t("cancelRequest"), pendingSQL ? "post_sql_cancel" : "preview_cancel"),
       interruptButton("disconnectPending", t("disconnected"), "disconnect")));
     livePending.hidden = !hasLiveRequest();
     const footer = node("footer", null, "footer");

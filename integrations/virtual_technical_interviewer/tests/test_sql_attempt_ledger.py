@@ -8,7 +8,7 @@ import json
 import tempfile
 import unittest
 
-from tia_runtime.app_host import TutorialHost
+from tia_runtime.app_host import TutorialHost, HostError
 from tia_runtime import post_interview_sql as sql
 
 
@@ -178,6 +178,37 @@ class SQLAttemptLedgerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((row['failure_owner'], row['terminal'], row['t01_provisional_points']),
                          ('INFRASTRUCTURE', False, None))
         self.assertEqual(state['evidence_scorecard']['questions'][0]['accuracy']['status'], 'NOT_VERIFIED')
+
+    async def test_question_timeout_after_candidate_failure_freezes_zero(self):
+        await self.implementation('SELECT timeout_candidate_failure')
+        await self.verdict('FAILED', 'ROWS_MISMATCH')
+        # The timing engine invokes this Host-only handoff; exercise it directly
+        # so the test has no wall-clock dependency.
+        self.host._close_timed_out_rehearsal_question()
+        state = self.host.state()
+        row = state['post_interview_sql']['execution_ledger']['0'][-1]
+        self.assertEqual((row['terminal'], row['t01_provisional_points'],
+                          state['rehearsal']['results'][0]['outcome']),
+                         (True, 0, 'TIMED_OUT'))
+
+    async def test_cancelled_or_duplicate_execution_cannot_consume_attempt(self):
+        await self.implementation('SELECT cancelled_then_once')
+        index = self.host._rehearsal['current_index']
+        await self.cmd('post_sql_review', {'question_index': index, 'suite_id': QUESTIONS[index][0]})
+        review = self.host.state()['post_interview_sql']['review']
+        packet = (await self.cmd('native_prepare_post_sql', {'request_id':'cancel-ledger',
+            'generation':'ledger-generation', 'review_sha256':review['review_sha256']}))['prepared']
+        result = sql.execute(packet, runner=lambda *a, **k: {'result': {'status':'FAILED','reason':'ROWS_MISMATCH'}},
+                             pg_config='synthetic')
+        await self.cmd('native_cancel_post_sql')
+        with self.assertRaisesRegex(HostError, 'POST_SQL_NOT_PENDING'):
+            await self.host.command('native_commit_post_sql', {'result':result})
+        self.assertEqual(self.host.state()['post_interview_sql']['execution_ledger']['0'], [])
+        state = await self.verdict('FAILED', 'ROWS_MISMATCH')
+        committed = state['post_interview_sql']['execution_ledger']['0'][-1]
+        self.assertEqual(committed['attempt_number'], 1)
+        with self.assertRaisesRegex(HostError, 'POST_SQL_NOT_PENDING'):
+            await self.host.command('native_commit_post_sql', {'result':result})
 
 
 if __name__ == '__main__':

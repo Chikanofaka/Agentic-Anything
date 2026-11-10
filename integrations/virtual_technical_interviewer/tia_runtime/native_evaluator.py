@@ -284,6 +284,14 @@ def _context(plan, index, language, profile, card, *, legacy_reply=False):
     candidates, replies, omitted = _evidence(plan, index)
     if not candidates:
         raise NativeEvaluatorError('EVALUATOR_EVIDENCE_NOT_READY')
+    # A newly opted-in interview gets its T01 from the execution ledger.  The
+    # older retrospective-review path also has to keep an actual local verdict
+    # out of the model's hands: a model can discuss the candidate's approach,
+    # but it must not overwrite a known PASS/FAIL/execution error.  Sessions
+    # with no execution verdict retain their historical evaluator contract.
+    # Only sessions that explicitly opted into the versioned execution-ledger
+    # policy make T01 Host-owned.  Historical retrospective sessions retain
+    # their shipped evaluator packet and replay hash unchanged.
     host_t01 = plan.get('sql_attempt_policy') == 'tia-sql-attempts/v1'
     criteria = _criteria(profile, candidates, replies, metrics['accuracy'],
                          complete=_complete_context(plan), host_t01=host_t01)
@@ -567,7 +575,9 @@ def build_evaluator_report(plan, evaluations=None):
     questions = []
     for index, metric in enumerate(card['questions']):
         candidates, replies, _ = _evidence(plan, index)
-        criteria = _criteria(profile, candidates, replies, metric['accuracy'], complete=_complete_context(plan))
+        host_t01 = plan.get('sql_attempt_policy') == 'tia-sql-attempts/v1'
+        criteria = _criteria(profile, candidates, replies, metric['accuracy'],
+                             complete=_complete_context(plan), host_t01=host_t01)
         dimensions = [{
             'id': d['id'], 'title': d['title'], 'axis': d['axis'], 'proposed_max_points': d['max_points'],
             'status': 'NOT_EVALUATED' if d['can_propose_anchor'] else 'NOT_OBSERVED',

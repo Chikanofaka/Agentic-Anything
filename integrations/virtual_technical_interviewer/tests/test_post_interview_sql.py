@@ -96,11 +96,14 @@ class PostSQLTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state['evidence_scorecard']['questions'][0]['accuracy']['status'],'NOT_VERIFIED')
         evaluator=state['evaluator_report']['questions'][0]
         self.assertEqual(evaluator['raw_metrics']['accuracy']['status'],'PASSED')
+        # Legacy retrospective sessions preserve their shipped model-proposal
+        # packet. New sessions opt into Host-owned T01 through the versioned
+        # sql_attempt_policy and are covered by test_sql_attempt_ledger.py.
         self.assertEqual(evaluator['dimensions'][0]['status'],'NOT_EVALUATED')
         spec=(await self.cmd('native_prepare_evaluator',{'request_id':'new-review','generation':'g1','question_index':0}))['prepared']
         context=json.loads(spec['input'])
         self.assertEqual(context['local_execution']['status'],'PASSED')
-        self.assertFalse(context['criteria'][0]['can_propose_anchor'])
+        self.assertTrue(context['criteria'][0]['can_propose_anchor'])
         self.assertNotIn('tables',context['local_execution'])
 
     async def test_late_duplicate_and_cross_generation_replies_rejected(self):
